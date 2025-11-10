@@ -1,38 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
     <meta charset="UTF-8">
     <title>{{ word_name }}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f7f7f7;
-        }
-
-        h1 {
-            color: #333;
-        }
-
-        .meaning {
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            background-color: #fff;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-shadow: 1px 1px 5px rgba(0,0,0,0.1);
-        }
-
-        .translation {
-            font-weight: bold;
-            color: #1a73e8;
-        }
-
-        .examples {
-            margin-top: 10px;
-            color: #555;
-        }
-    </style>
 </head>
 <body>
     <h1>{{ word_name }}</h1>
