@@ -1,34 +1,90 @@
+/* ===== General layout ===== */
 body {
     font-family: Arial, sans-serif;
-    margin: 20px;
-    background-color: #f7f7f7;
+    max-width: 800px;
+    margin: 40px auto;
+    line-height: 1.6;
+    color: #222;
+    background-color: #fafafa;
+    padding: 0 20px;
 }
 
+/* ===== Word header ===== */
 h1 {
-    color: #333;
+    font-size: 2em;
+    color: #1a237e;
+    margin-bottom: 0.2em;
 }
 
-.meaning {
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    background-color: #fff;
-    padding: 15px;
-    margin-bottom: 15px;
-    box-shadow: 1px 1px 5px rgba(0,0,0,0.1);
-}
-
-.translation {
-    font-weight: bold;
-    color: #1a73e8;
-}
-
-.examples {
-    margin-top: 10px;
+em {
     color: #555;
 }
 
-.pos {
-    font-style: italic;
-    color: #ff6600;
+/* ===== Meaning block ===== */
+.meaning {
+    margin-top: 1.5em;
+    padding: 1em;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
+.meaning p {
+    margin: 0.4em 0;
+}
+
+/* ===== Translations ===== */
+.translation {
+    font-weight: bold;
+    color: #d9534f; /* red tone to stand out from links */
+}
+
+/* ===== Examples section ===== */
+.examples {
+    margin-top: 1em;      /* space before examples */
+    margin-bottom: 1.5em; /* space after examples */
+    padding-left: 15px;
+    border-left: 3px solid #ddd;
+}
+
+.examples p strong {
+    display: block;
+    margin-bottom: 0.4em;  /* space after “Examples:” */
+    color: #333;
+    font-size: 1.05em;
+}
+
+.examples p {
+    margin: 0.3em 0;
+}
+
+.examples em {
+    color: #555;
+    font-style: italic;
+}
+
+/* ===== Relations section ===== */
+.relations {
+    margin-top: 1em;
+}
+
+.relations p {
+    margin: 0.3em 0;
+}
+
+.relations a {
+    color: #2e7d32; /* green for related words */
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.relations a:hover {
+    text-decoration: underline;
+}
+
+/* ===== Utility / subtle dividers ===== */
+hr {
+    border: none;
+    border-top: 1px solid #ddd;
+    margin: 2em 0;
+}

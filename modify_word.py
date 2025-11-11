@@ -110,6 +110,147 @@ def modify_examples(meaning_id):
             break
 
 
+# ----- Modify relations -----
+def modify_relations(entity_type, entity_id):
+    """
+    entity_type: 'word' or 'meaning'
+    entity_id: id of the word or meaning
+    """
+    while True:
+        # Fetch current relations
+        if entity_type == 'word':
+            cur.execute("""
+                SELECT wr.id, w2.word AS related_word, rt.name AS relation_type
+                FROM word_relations wr
+                JOIN words w2 ON wr.word2_id = w2.id
+                JOIN relation_types rt ON wr.relation_type_id = rt.id
+                WHERE wr.word1_id = ?
+                ORDER BY rt.name
+            """, (entity_id,))
+        else:  # meaning
+            cur.execute("""
+                SELECT mr.id, w2.word AS related_word, rt.name AS relation_type
+                FROM meaning_relations mr
+                JOIN meanings m2 ON mr.meaning2_id = m2.id
+                JOIN words w2 ON m2.word_id = w2.id
+                JOIN relation_types rt ON mr.relation_type_id = rt.id
+                WHERE mr.meaning1_id = ?
+                ORDER BY rt.name
+            """, (entity_id,))
+
+        relations = cur.fetchall()
+        print("\nCurrent relations:")
+        if not relations:
+            print("  (none)")
+        else:
+            for r in relations:
+                print(f"{r['id']}: {r['relation_type']} -> {r['related_word']}")
+
+        # Ask for action
+        action = input("Choose action: (a)dd, (d)elete, (b)ack: ").strip().lower()
+
+        if action == 'a':
+            # ----- Show relation types -----
+            cur.execute("SELECT id, name, bidirectional FROM relation_types WHERE applies_to=?", (entity_type,))
+            types = cur.fetchall()
+            print("Available relation types:")
+            for t in types:
+                print(f"{t['id']}: {t['name']} (bidirectional: {'yes' if t['bidirectional'] else 'no'})")
+
+            rt_input = input("Enter relation type ID (or leave empty to cancel): ").strip()
+            if not rt_input:
+                print("Cancelled.")
+                continue
+            try:
+                rt_id = int(rt_input)
+            except ValueError:
+                print("Invalid number. Try again.")
+                continue
+
+            rt_row = next((t for t in types if t['id'] == rt_id), None)
+            if not rt_row:
+                print("Invalid relation type ID.")
+                continue
+            bidirectional = rt_row['bidirectional']
+
+            # ----- Word or Meaning relation -----
+            target_word = input("Enter the word for the related entity: ").strip()
+
+            if entity_type == 'word':
+                cur.execute("SELECT id FROM words WHERE word=?", (target_word,))
+                related = cur.fetchone()
+                if not related:
+                    print("Word not found.")
+                    continue
+                related_id = related[0]
+
+                # Insert relation
+                cur.execute("""
+                    INSERT OR IGNORE INTO word_relations (word1_id, word2_id, relation_type_id)
+                    VALUES (?, ?, ?)
+                """, (entity_id, related_id, rt_id))
+                if bidirectional:
+                    cur.execute("""
+                        INSERT OR IGNORE INTO word_relations (word1_id, word2_id, relation_type_id)
+                        VALUES (?, ?, ?)
+                    """, (related_id, entity_id, rt_id))
+
+            else:  # meaning
+                # Fetch meanings for the target word
+                cur.execute("""
+                    SELECT m.id, m.meaning_number, m.notes
+                    FROM meanings m
+                    JOIN words w ON m.word_id = w.id
+                    WHERE w.word=?
+                    ORDER BY m.meaning_number
+                """, (target_word,))
+                target_meanings = cur.fetchall()
+                if not target_meanings:
+                    print("No meanings found for that word.")
+                    continue
+
+                print("Available meanings for this word:")
+                for m in target_meanings:
+                    cur.execute("""
+                        SELECT translation_text
+                        FROM translations
+                        WHERE meaning_id=?
+                        ORDER BY translation_number
+                    """, (m['id'],))
+                    translations = [t['translation_text'] for t in cur.fetchall()]
+                    print(f"{m['id']}: {', '.join(translations)} ({m['notes'] or ''})")
+
+                related_id = int(input("Enter the ID of the meaning to link: "))
+
+                # Insert relation
+                cur.execute("""
+                    INSERT OR IGNORE INTO meaning_relations (meaning1_id, meaning2_id, relation_type_id)
+                    VALUES (?, ?, ?)
+                """, (entity_id, related_id, rt_id))
+                if bidirectional:
+                    cur.execute("""
+                        INSERT OR IGNORE INTO meaning_relations (meaning1_id, meaning2_id, relation_type_id)
+                        VALUES (?, ?, ?)
+                    """, (related_id, entity_id, rt_id))
+
+            conn.commit()
+            print("Relation added.")
+
+        elif action == 'd':
+            rid = int(input("Enter relation ID to delete: "))
+            if entity_type == 'word':
+                cur.execute("DELETE FROM word_relations WHERE id=?", (rid,))
+            else:
+                cur.execute("DELETE FROM meaning_relations WHERE id=?", (rid,))
+            conn.commit()
+            print("Relation deleted.")
+
+        elif action == 'b':
+            break
+
+
+
+
 # ----- Modify part of speech -----
 def choose_pos():
     cur.execute("SELECT id, name FROM parts_of_speech")
@@ -148,7 +289,8 @@ def modify_word():
             examples = [e['example_text'] for e in list_examples(m['id'])]
             print(f"{m['meaning_number']}. Translations: {', '.join(translations)}; Examples: {', '.join(examples)}")
 
-        choice = input("\nSelect meaning number to modify, (p)art of speech, (n)ew meaning, (q)uit: ").strip().lower()
+        # Main menu for word-level actions
+        choice = input("\nSelect meaning number to modify, (p)art of speech, (n)ew meaning, (r)elations for the word, (q)uit: ").strip().lower()
 
         if choice == 'q':
             break
@@ -169,7 +311,11 @@ def modify_word():
             print(f"Adding translations and examples for meaning #{new_meaning_number}")
             modify_translations(meaning_id)
             modify_examples(meaning_id)
+        elif choice == 'r':
+            # Word-level relations
+            modify_relations('word', word_id)
         else:
+            # Meaning-level menu
             try:
                 meaning_number = int(choice)
                 meaning = next((m for m in meanings if m['meaning_number'] == meaning_number), None)
@@ -177,17 +323,26 @@ def modify_word():
                     print("Invalid meaning number.")
                     continue
                 meaning_id = meaning['id']
-                sub_choice = input("Modify (t)ranslations, (e)xamples, (d)elete meaning, or (b)ack: ").strip().lower()
+
+                sub_choice = input("Modify (t)ranslations, (e)xamples, (r)elations, (d)elete meaning, or (b)ack: ").strip().lower()
+
                 if sub_choice == 't':
                     modify_translations(meaning_id)
                 elif sub_choice == 'e':
                     modify_examples(meaning_id)
+                elif sub_choice == 'r':
+                    modify_relations('meaning', meaning_id)
                 elif sub_choice == 'd':
                     cur.execute("DELETE FROM meanings WHERE id = ?", (meaning_id,))
                     conn.commit()
                     renumber_meanings(word_id)
+                elif sub_choice == 'b':
+                    continue
+                else:
+                    print("Invalid option.")
             except ValueError:
                 print("Invalid input.")
+
 
 if __name__ == "__main__":
     modify_word()

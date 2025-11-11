@@ -73,20 +73,57 @@ def show_word(word_name):
             for e in cur.fetchall()
         ]
 
+        # Meaning-level relations
+        cur.execute("""
+            SELECT mr.meaning2_id, rt.name AS relation_type, w.word AS related_word
+            FROM meaning_relations mr
+            JOIN relation_types rt ON mr.relation_type_id = rt.id
+            JOIN meanings m2 ON mr.meaning2_id = m2.id
+            JOIN words w ON m2.word_id = w.id
+            WHERE mr.meaning1_id = ?
+        """, (meaning_id,))
+        relations = [
+            {'type': r['relation_type'], 'word': r['related_word']} 
+            for r in cur.fetchall()
+        ]
+
 
         meanings.append({
             'meaning_number': row['meaning_number'],
             'notes': row['notes'],
             'translations': translations,
-            'examples': examples
+            'examples': examples,
+            'relations': relations  
         })
+
+    # Word-level relations
+    cur.execute("""
+        SELECT wr.word2_id, rt.name AS relation_type, w2.word AS related_word
+        FROM word_relations wr
+        JOIN relation_types rt ON wr.relation_type_id = rt.id
+        JOIN words w2 ON wr.word2_id = w2.id
+        WHERE wr.word1_id = ?
+    """, (word_id,))
+    word_relations = [
+        {'type': r['relation_type'], 'word': r['related_word']} 
+        for r in cur.fetchall()
+    ]
+
+
 
     conn.close()
 
     if not meanings:
         return f"No data found for word: {word_name}"
 
-    return render_template('word.html', word_name=word_name, pos_name=pos_name, meanings=meanings)
+    return render_template(
+        'word.html', 
+        word_name=word_name, 
+        pos_name=pos_name, 
+        meanings=meanings,
+        word_relations=word_relations   
+    )
+
 
 if __name__ == '__main__':
     app.run(debug=True)
