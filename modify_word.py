@@ -1,4 +1,6 @@
 import sqlite3
+from categories import choose_category, assign_word_to_category, remove_word_from_category
+
 
 conn = sqlite3.connect("finnish.db")
 conn.row_factory = sqlite3.Row
@@ -342,6 +344,44 @@ def modify_word():
                     print("Invalid option.")
             except ValueError:
                 print("Invalid input.")
+
+    # ===== Category assignment =====
+    while True:
+        choice_cat = input("Do you want to (a)dd or (r)emove a category for this word? (leave blank to skip): ").strip().lower()
+        if not choice_cat:
+            break
+
+        if choice_cat == 'a':
+            category_id, category_name = choose_category(cur, conn)
+            if category_id:
+                assign_word_to_category(cur, conn, word_id, category_id)
+                print(f"Word assigned to category '{category_name}'.")
+        elif choice_cat == 'r':
+            # List current categories of the word
+            cur.execute("""
+                SELECT c.id, c.name
+                FROM categories c
+                JOIN word_categories wc ON c.id = wc.category_id
+                WHERE wc.word_id = ?
+                ORDER BY c.name
+            """, (word_id,))
+            categories = cur.fetchall()
+            if not categories:
+                print("This word is not in any category.")
+                continue
+
+            print("Current categories:")
+            for c in categories:
+                print(f"{c['id']}: {c['name']}")
+
+            cat_choice = input("Enter category ID to remove: ").strip()
+            if cat_choice.isdigit():
+                cat_id = int(cat_choice)
+                remove_word_from_category(cur, conn, word_id, cat_id)
+                print("Category removed.")
+            else:
+                print("Invalid input. Skipping.")
+
 
 
 if __name__ == "__main__":

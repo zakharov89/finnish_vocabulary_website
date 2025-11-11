@@ -1,56 +1,54 @@
 import sqlite3
 from categories import choose_category, assign_word_to_category
 
-# Connect to the database
+# Connect to DB
 conn = sqlite3.connect("finnish.db")
-conn.row_factory = sqlite3.Row  # So we can access columns by name
+conn.row_factory = sqlite3.Row
 cur = conn.cursor()
 
+
 def get_pos_id():
-    # List available parts of speech
     cur.execute("SELECT id, name FROM parts_of_speech")
     pos_list = cur.fetchall()
     for pos in pos_list:
         print(f"{pos['id']}: {pos['name']}")
-    
     while True:
         try:
             pos_id = int(input("Enter part of speech ID: "))
-            if any(pos['id'] == pos_id for pos in pos_list):
+            if any(p['id'] == pos_id for p in pos_list):
                 return pos_id
             else:
                 print("Invalid ID. Try again.")
         except ValueError:
             print("Enter a valid number.")
 
-def add_word():
-    word = input("Enter the Finnish word: ").strip()
+
+def add_word_to_db():
+    """Add a new word with meanings, translations, examples, return word_id and text."""
+    word = input("Enter the Finnish word (blank to stop): ").strip()
+    if not word:
+        return None, None
+
     pos_id = get_pos_id()
 
-    # Insert word, ignore if it already exists
     cur.execute("INSERT OR IGNORE INTO words (word, pos_id) VALUES (?, ?)", (word, pos_id))
     conn.commit()
-
-    # Get word id
     cur.execute("SELECT id FROM words WHERE word = ?", (word,))
     word_id = cur.fetchone()['id']
 
-    # Add meanings
     meaning_number = 1
     while True:
         add_meaning = input(f"Do you want to enter meaning #{meaning_number}? (y/n): ").strip().lower()
         if add_meaning != 'y':
             break
 
-        # Insert new meaning
         cur.execute("INSERT INTO meanings (word_id, meaning_number, notes) VALUES (?, ?, ?)",
                     (word_id, meaning_number, None))
         conn.commit()
-
         cur.execute("SELECT id FROM meanings WHERE word_id = ? AND meaning_number = ?", (word_id, meaning_number))
         meaning_id = cur.fetchone()['id']
 
-        # Translations for this meaning
+        # Translations
         translations = input("Enter translations separated by commas: ").strip().split(",")
         for idx, t in enumerate(translations, start=1):
             t = t.strip()
@@ -61,7 +59,7 @@ def add_word():
                 )
         conn.commit()
 
-        # Examples for this meaning
+        # Examples
         while True:
             ex_text = input("Enter an example sentence (or leave empty to stop): ").strip()
             if not ex_text:
@@ -75,20 +73,28 @@ def add_word():
 
         meaning_number += 1
 
-    print(f"Word '{word}' added successfully!")
+    return word_id, word
 
-    # ===== Assign to category =====
+
+def add_words_to_category():
+    """Interactive: select category and add multiple words (new or existing) to it."""
+    print("=== Category Selection ===")
+    category_id, category_name = choose_category(cur, conn)
+    if not category_id:
+        print("No category selected. Exiting.")
+        return
+
     while True:
-        assign = input("Do you want to assign this word to a category? (y/n): ").strip().lower()
-        if assign != 'y':
+        print(f"\nAdding words to category '{category_name}'")
+        word_id, word_text = add_word_to_db()
+        if not word_id:
+            print("No more words. Exiting.")
             break
-        category_id, category_name = choose_category(cur, conn)
-        if category_id:
-            assign_word_to_category(cur, conn, word_id, category_id)
-            print("Word assigned to category successfully.\n")
-        else:
-            print("No category chosen. Skipping.")
+
+        assign_word_to_category(cur, conn, word_id, category_id)
+        print(f"Word '{word_text}' added and assigned to category '{category_name}'.")
+
 
 if __name__ == "__main__":
-    add_word()
+    add_words_to_category()
     conn.close()

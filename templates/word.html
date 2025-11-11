@@ -80,4 +80,14 @@
 </div>
 {% endif %}
 
+{% if categories %}
+<div class="categories">
+    <strong>Categories:</strong>
+    {% for cat in categories %}
+        <a href="{{ url_for('show_category', category_name=cat['name']) }}">{{ cat['name'] }}</a>
+    {% endfor %}
+</div>
+{% endif %}
+
+
 {% endblock %}

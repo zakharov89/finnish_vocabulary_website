@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Categories</h2>
+
+<div class="categories-list">
+{% if categories.get(None) %}
+<ul>
+{% for cat in categories.get(None) %}
+    <li>
+        <a href="{{ url_for('show_category', category_name=cat['name']) }}">
+            {{ cat['name'] }}
+        </a>
+    </li>
+{% endfor %}
+</ul>
+{% else %}
+<p>No categories found.</p>
+{% endif %}
+</div>
+
+{% endblock %}

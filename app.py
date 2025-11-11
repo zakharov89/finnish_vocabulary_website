@@ -60,7 +60,6 @@ def show_word(word_name):
         WHERE m.word_id = ?
         ORDER BY m.meaning_number
     """, (word_id,))
-    
     meanings_rows = cur.fetchall()
 
     # Collect translations and examples for each meaning
@@ -79,16 +78,12 @@ def show_word(word_name):
 
         # Examples
         cur.execute("""
-        SELECT example_text, example_translation_text
-        FROM examples
-        WHERE meaning_id = ?
+            SELECT example_text, example_translation_text
+            FROM examples
+            WHERE meaning_id = ?
         """, (meaning_id,))
-
         examples = [
-            {
-                'text': e['example_text'],
-                'translation': e['example_translation_text']
-             }
+            {'text': e['example_text'], 'translation': e['example_translation_text']}
             for e in cur.fetchall()
         ]
 
@@ -101,11 +96,7 @@ def show_word(word_name):
             JOIN words w ON m2.word_id = w.id
             WHERE mr.meaning1_id = ?
         """, (meaning_id,))
-        relations = [
-            {'type': r['relation_type'], 'word': r['related_word']} 
-            for r in cur.fetchall()
-        ]
-
+        relations = [{'type': r['relation_type'], 'word': r['related_word']} for r in cur.fetchall()]
 
         meanings.append({
             'meaning_number': row['meaning_number'],
@@ -123,12 +114,17 @@ def show_word(word_name):
         JOIN words w2 ON wr.word2_id = w2.id
         WHERE wr.word1_id = ?
     """, (word_id,))
-    word_relations = [
-        {'type': r['relation_type'], 'word': r['related_word']} 
-        for r in cur.fetchall()
-    ]
+    word_relations = [{'type': r['relation_type'], 'word': r['related_word']} for r in cur.fetchall()]
 
-
+    # --- Fetch categories ---
+    cur.execute("""
+        SELECT c.id, c.name
+        FROM categories c
+        JOIN word_categories wc ON c.id = wc.category_id
+        WHERE wc.word_id = ?
+        ORDER BY c.name
+    """, (word_id,))
+    categories = cur.fetchall()
 
     conn.close()
 
@@ -140,8 +136,10 @@ def show_word(word_name):
         word_name=word_name, 
         pos_name=pos_name, 
         meanings=meanings,
-        word_relations=word_relations   
+        word_relations=word_relations,
+        categories=categories  
     )
+
 
 
 
@@ -149,7 +147,71 @@ def show_word(word_name):
 
 @app.route('/categories')
 def categories():
-    return "<h2>Categories</h2><p>Category view coming soon...</p>"
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Fetch all categories
+    cur.execute("SELECT id, name, parent_id FROM categories ORDER BY name")
+    rows = cur.fetchall()
+
+    # Organize into parent-child dict
+    categories_dict = {}
+    for row in rows:
+        if row['parent_id']:
+            categories_dict.setdefault(row['parent_id'], []).append(row)
+        else:
+            categories_dict.setdefault(None, []).append(row)
+
+    conn.close()
+    return render_template('categories.html', categories=categories_dict)
+
+
+@app.route('/categories/<category_name>')
+def show_category(category_name):
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Fetch the category itself
+    cur.execute("SELECT id, name, parent_id FROM categories WHERE name = ?", (category_name,))
+    category = cur.fetchone()
+    if not category:
+        return f"Category '{category_name}' not found."
+
+    # Fetch words
+    cur.execute("""
+        SELECT w.word
+        FROM words w
+        JOIN word_categories wc ON w.id = wc.word_id
+        WHERE wc.category_id = ?
+        ORDER BY w.word
+    """, (category['id'],))
+    words = cur.fetchall()
+
+    # Fetch subcategories
+    cur.execute("SELECT id, name FROM categories WHERE parent_id = ? ORDER BY name", (category['id'],))
+    subcategories = cur.fetchall()
+
+    # Fetch parent (if any)
+    parent = None
+    if category['parent_id']:
+        cur.execute("SELECT name FROM categories WHERE id = ?", (category['parent_id'],))
+        parent = cur.fetchone()
+
+    conn.close()
+
+    return render_template(
+        "category.html",
+        category=category,
+        words=words,
+        subcategories=subcategories,
+        parent=parent
+    )
+
+
+
+
 
 
 
