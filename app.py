@@ -60,11 +60,19 @@ def show_word(word_name):
 
         # Examples
         cur.execute("""
-            SELECT example_text
-            FROM examples
-            WHERE meaning_id = ?
+        SELECT example_text, example_translation_text
+        FROM examples
+        WHERE meaning_id = ?
         """, (meaning_id,))
-        examples = [e['example_text'] for e in cur.fetchall()]
+
+        examples = [
+            {
+                'text': e['example_text'],
+                'translation': e['example_translation_text']
+             }
+            for e in cur.fetchall()
+        ]
+
 
         meanings.append({
             'meaning_number': row['meaning_number'],

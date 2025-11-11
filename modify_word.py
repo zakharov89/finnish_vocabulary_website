@@ -19,8 +19,13 @@ def list_translations(meaning_id):
     return cur.fetchall()
 
 def list_examples(meaning_id):
-    cur.execute("SELECT id, example_text FROM examples WHERE meaning_id = ?", (meaning_id,))
+    cur.execute("""
+        SELECT id, example_text, example_translation_text
+        FROM examples
+        WHERE meaning_id = ?
+    """, (meaning_id,))
     return cur.fetchall()
+
 
 # ----- Renumbering -----
 def renumber_meanings(word_id):
@@ -69,23 +74,41 @@ def modify_examples(meaning_id):
         examples = list_examples(meaning_id)
         print("\nExamples:")
         for e in examples:
-            print(f"{e['id']}: {e['example_text']}")
+            translation_display = f" -> {e['example_translation_text']}" if e['example_translation_text'] else ""
+            print(f"{e['id']}: {e['example_text']}{translation_display}")
+
         action = input("Choose action: (e)dit, (d)elete, (a)dd, (b)ack: ").strip().lower()
+
         if action == 'e':
             eid = int(input("Enter example id to edit: "))
-            new_text = input("Enter new text: ").strip()
-            cur.execute("UPDATE examples SET example_text = ? WHERE id = ?", (new_text, eid))
+            new_text = input("Enter new text (leave blank to keep current): ").strip()
+            new_translation = input("Enter new translation (leave blank to keep current): ").strip()
+            cur.execute("""
+                UPDATE examples
+                SET example_text = COALESCE(NULLIF(?, ''), example_text),
+                    example_translation_text = COALESCE(NULLIF(?, ''), example_translation_text)
+                WHERE id = ?
+            """, (new_text, new_translation, eid))
             conn.commit()
+
         elif action == 'd':
             eid = int(input("Enter example id to delete: "))
             cur.execute("DELETE FROM examples WHERE id = ?", (eid,))
             conn.commit()
+
         elif action == 'a':
             new_text = input("Enter new example: ").strip()
-            cur.execute("INSERT INTO examples (meaning_id, example_text) VALUES (?, ?)", (meaning_id, new_text))
-            conn.commit()
+            if new_text:
+                new_translation = input("Enter translation (or leave empty): ").strip() or None
+                cur.execute(
+                    "INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
+                    (meaning_id, new_text, new_translation)
+                )
+                conn.commit()
+
         elif action == 'b':
             break
+
 
 # ----- Modify part of speech -----
 def choose_pos():

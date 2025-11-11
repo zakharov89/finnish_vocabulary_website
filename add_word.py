@@ -53,14 +53,16 @@ def add_word():
 
         # Examples for this meaning
         while True:
-            ex = input("Enter an example sentence (or leave empty to stop): ").strip()
-            if not ex:
+            ex_text = input("Enter an example sentence (or leave empty to stop): ").strip()
+            if not ex_text:
                 break
+            ex_translation = input("Enter translation (or leave empty to skip): ").strip() or None
             cur.execute(
-                "INSERT INTO examples (meaning_id, example_text) VALUES (?, ?)",
-                (meaning_id, ex)
+                "INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
+                (meaning_id, ex_text, ex_translation)
             )
             conn.commit()
+
 
         meaning_number += 1
 

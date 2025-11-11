@@ -13,18 +13,27 @@
 
     {% for meaning in meanings %}
     <div class="meaning">
-        <h3>{{ meaning.meaning_number }}.</h3>
-        <p class="translation">{{ ", ".join(meaning.translations) }}</p>
+        <p>
+            <strong>{{ meaning.meaning_number }}.</strong>
+            <span class="translation">{{ ", ".join(meaning.translations) }}</span>
+        </p>
+
         {% if meaning.examples %}
         <div class="examples">
             <p><strong>Examples:</strong></p>
             {% for ex in meaning.examples %}
-                <p>{{ ex }}</p>
+            <p>
+                {{ ex.text }}
+                {% if ex.translation %}
+                    <br><em>{{ ex.translation }}</em>
+                {% endif %}
+            </p>
             {% endfor %}
         </div>
         {% endif %}
     </div>
     {% endfor %}
+
 
 </body>
 </html>
