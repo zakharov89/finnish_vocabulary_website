@@ -202,10 +202,18 @@ hr {
     margin: 0.3em 0;
 }
 
-.categories-list a, .category-words a {
+.categories-list a{
     text-decoration: none;
-    color: #1565c0; /* link-like but consistent with word relations */
+    color: #1565c0; 
     font-weight: 500;
+    font-size: 1.5em;
+}
+
+.category-words a{
+    text-decoration: none;
+    color: #c06515; 
+    font-weight: 500;
+    font-size: 1.1em;
 }
 
 .categories-list a:hover, .category-words a:hover {

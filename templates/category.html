@@ -1,10 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Category: {{ category['name'] }}</h2>
+<h2>{{ category['name'] }}</h2>
 
 {% if subcategories %}
 <div class="categories-list">
-    <h3>Subcategories</h3>
     <ul>
     {% for sub in subcategories %}
         <li><a href="{{ url_for('show_category', category_name=sub['name']) }}">{{ sub['name'] }}</a></li>
@@ -15,15 +14,12 @@
 
 {% if words %}
 <div class="category-words">
-    <h3>Words in this category</h3>
     <ul>
     {% for w in words %}
         <li><a href="{{ url_for('show_word', word_name=w['word']) }}">{{ w['word'] }}</a></li>
     {% endfor %}
     </ul>
 </div>
-{% else %}
-<p>No words in this category yet.</p>
 {% endif %}
 
 {% if parent %}
