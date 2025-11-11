@@ -1,86 +1,83 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
-    <meta charset="UTF-8">
-    <title>{{ word_name }}</title>
-</head>
-<body>
-    <h1>{{ word_name }}</h1>
-    {% if pos_name %}
-        <p><em>({{ pos_name }})</em></p>
+{% extends "base.html" %}
+{% block content %}
+
+<h1>{{ word_name }}</h1>
+{% if pos_name %}
+    <p><em>({{ pos_name }})</em></p>
+{% endif %}
+
+{% set type_names = {
+    "synonym": "Synonyms",
+    "antonym": "Antonyms",
+    "same root": "Same root",
+    "compound of": "Compound of",
+    "derived from": "Derived from",
+    "part of": "Part of"
+} %}
+
+{% for meaning in meanings %}
+<div class="meaning">
+    <p>
+        <strong>{{ meaning.meaning_number }}.</strong>
+        <span class="translation">{{ ", ".join(meaning.translations) }}</span>
+    </p>
+
+    {% if meaning.examples %}
+    <div class="examples">
+        <p><strong>Examples:</strong></p>
+        {% for ex in meaning.examples %}
+            <p>
+                {{ ex.text }}
+                {% if ex.translation %}
+                    <br><em>{{ ex.translation }}</em>
+                {% endif %}
+            </p>
+        {% endfor %}
+    </div>
     {% endif %}
 
-
-    {% set type_names = {
-        "synonym": "Synonyms",
-        "antonym": "Antonyms",
-        "same root": "Same root",
-        "compound of": "Compound of",
-        "derived from": "Derived from",
-        "part of": "Part of"
-    } %}
-
-    {% for meaning in meanings %}
-    <div class="meaning">
-        <p>
-            <strong>{{ meaning.meaning_number }}.</strong>
-            <span class="translation">{{ ", ".join(meaning.translations) }}</span>
-        </p>
-
-        {% if meaning.examples %}
-        <div class="examples">
-            <p><strong>Examples:</strong></p>
-            {% for ex in meaning.examples %}
-                <p>
-                    {{ ex.text }}
-                    {% if ex.translation %}
-                        <br><em>{{ ex.translation }}</em>
-                    {% endif %}
-                </p>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        {% if meaning.relations %}
-            {% set rel_types = {} %}
-            {% for rel in meaning.relations %}
-                {% if rel.type not in rel_types %}
-                    {% set rel_types = rel_types.update({rel.type: [rel.word]}) or rel_types %}
-                {% else %}
-                    {% set rel_types = rel_types.update({rel.type: rel_types[rel.type] + [rel.word]}) or rel_types %}
-                {% endif %}
-            {% endfor %}
-
-            {% for type, words in rel_types.items() %}
-                <p><strong>{{ type_names[type] }}:</strong>
-                    {% for w in words %}
-                        <a href="{{ url_for('show_word', word_name=w) }}">{{ w }}</a>{% if not loop.last %}, {% endif %}
-                    {% endfor %}
-                </p>
-            {% endfor %}
-        {% endif %}
-    </div>
-    {% endfor %}
-
-    {% if word_relations %}
-        {% set wr_types = {} %}
-        {% for rel in word_relations %}
-            {% if rel.type not in wr_types %}
-                {% set wr_types = wr_types.update({rel.type: [rel.word]}) or wr_types %}
+    {% if meaning.relations %}
+    <div class="relations">
+        {% set rel_types = {} %}
+        {% for rel in meaning.relations %}
+            {% if rel.type not in rel_types %}
+                {% set rel_types = rel_types.update({rel.type: [rel.word]}) or rel_types %}
             {% else %}
-                {% set wr_types = wr_types.update({rel.type: wr_types[rel.type] + [rel.word]}) or wr_types %}
+                {% set rel_types = rel_types.update({rel.type: rel_types[rel.type] + [rel.word]}) or rel_types %}
             {% endif %}
         {% endfor %}
 
-        {% for type, words in wr_types.items() %}
+        {% for type, words in rel_types.items() %}
             <p><strong>{{ type_names[type] }}:</strong>
                 {% for w in words %}
                     <a href="{{ url_for('show_word', word_name=w) }}">{{ w }}</a>{% if not loop.last %}, {% endif %}
                 {% endfor %}
             </p>
         {% endfor %}
+    </div>
     {% endif %}
+</div>
+{% endfor %}
 
-</body>
-</html>
+{% if word_relations %}
+<div class="relations">
+    {% set wr_types = {} %}
+    {% for rel in word_relations %}
+        {% if rel.type not in wr_types %}
+            {% set wr_types = wr_types.update({rel.type: [rel.word]}) or wr_types %}
+        {% else %}
+            {% set wr_types = wr_types.update({rel.type: wr_types[rel.type] + [rel.word]}) or wr_types %}
+        {% endif %}
+    {% endfor %}
+
+    {% for type, words in wr_types.items() %}
+        <p><strong>{{ type_names[type] }}:</strong>
+            {% for w in words %}
+                <a href="{{ url_for('show_word', word_name=w) }}">{{ w }}</a>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+        </p>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}

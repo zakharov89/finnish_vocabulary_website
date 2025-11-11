@@ -1,12 +1,42 @@
-/* ===== General layout ===== */
+/* ===== Global layout ===== */
 body {
     font-family: Arial, sans-serif;
     max-width: 800px;
-    margin: 40px auto;
+    margin: 0 auto;
     line-height: 1.6;
     color: #222;
     background-color: #fafafa;
-    padding: 0 20px;
+    padding: 0 20px 40px 20px;
+}
+
+/* ===== Header and navigation ===== */
+header {
+    background-color: #f0f0f0;
+    padding: 10px 20px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+nav {
+    max-width: 800px;
+    margin: auto;
+}
+
+nav a {
+    text-decoration: none;
+    color: #333;
+    margin-right: 15px;
+    font-weight: bold;
+}
+
+nav a:hover {
+    color: #1a73e8;
+}
+
+/* ===== Main content ===== */
+main {
+    max-width: 800px;
+    margin: auto;
 }
 
 /* ===== Word header ===== */
@@ -15,6 +45,25 @@ h1 {
     color: #1a237e;
     margin-bottom: 0.2em;
 }
+
+h2 {
+    font-size: 1.7em; /* slightly smaller than h1 */
+    color: #1a237e;
+    margin-bottom: 0.2em;
+}
+
+h3 {
+    font-size: 1.5em; /* slightly smaller than h1 */
+    color: #1a237e;
+    margin-bottom: 0.2em;
+}
+
+h4 {
+    font-size: 1.2em; /* slightly smaller than h1 */
+    color: #1a237e;
+    margin-bottom: 0.2em;
+}
+
 
 em {
     color: #555;
@@ -36,20 +85,20 @@ em {
 /* ===== Translations ===== */
 .translation {
     font-weight: bold;
-    color: #d9534f; /* red tone to stand out from links */
+    color: #2e7d32; /* green tone (less link-like) */
 }
 
 /* ===== Examples section ===== */
 .examples {
-    margin-top: 1em;      /* space before examples */
-    margin-bottom: 1.5em; /* space after examples */
+    margin-top: 1em;
+    margin-bottom: 1.5em;
     padding-left: 15px;
     border-left: 3px solid #ddd;
 }
 
 .examples p strong {
     display: block;
-    margin-bottom: 0.4em;  /* space after “Examples:” */
+    margin-bottom: 0.6em;
     color: #333;
     font-size: 1.05em;
 }
@@ -73,7 +122,7 @@ em {
 }
 
 .relations a {
-    color: #2e7d32; /* green for related words */
+    color: #1565c0; /* deep blue for related words */
     text-decoration: none;
     font-weight: 500;
 }
@@ -82,9 +131,20 @@ em {
     text-decoration: underline;
 }
 
+/* ===== Footer ===== */
+footer {
+    text-align: center;
+    padding: 15px;
+    margin-top: 40px;
+    font-size: 0.9em;
+    color: #777;
+    border-top: 1px solid #ddd;
+}
+
 /* ===== Utility / subtle dividers ===== */
 hr {
     border: none;
     border-top: 1px solid #ddd;
     margin: 2em 0;
 }
+

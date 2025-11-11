@@ -1,15 +1,34 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 import sqlite3
 
 app = Flask(__name__)
 
-@app.route('/')
+@app.route('/', methods=['GET'])
 def home():
-    return 'Tervetuloa!'
+    query = request.args.get('query', '').strip()  # get the query from the URL
+
+    results = []
+    if query:  # only search if something was entered
+        conn = sqlite3.connect("finnish.db")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT word FROM words
+            WHERE word LIKE ?
+            ORDER BY word
+            LIMIT 20
+        """, (f"{query}%",))
+        results = [row['word'] for row in cur.fetchall()]
+
+        conn.close()
+
+    return render_template('home.html', query=query, results=results)
 
 @app.route('/about')
 def about():
-    return 'This is a Finnish learning site'
+    return render_template('about.html', title="About")
+
 
 @app.route('/word/<word_name>')
 def show_word(word_name):
@@ -123,6 +142,17 @@ def show_word(word_name):
         meanings=meanings,
         word_relations=word_relations   
     )
+
+
+
+
+
+@app.route('/categories')
+def categories():
+    return "<h2>Categories</h2><p>Category view coming soon...</p>"
+
+
+
 
 
 if __name__ == '__main__':
