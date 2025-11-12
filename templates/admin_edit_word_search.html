@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Edit Word: Search Results</h2>
+
+<p>Search prefix: "<strong>{{ query }}</strong>"</p>
+
+<ul class="search-results">
+    {% for w in results %}
+        <li>
+            <a href="{{ url_for('admin_edit_word', word_id=w['id']) }}">{{ w['word'] }}</a>
+        </li>
+    {% endfor %}
+</ul>
+
+<p>
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn">Back to Dashboard</a>
+</p>
+
+{% endblock %}

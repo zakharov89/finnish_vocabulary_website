@@ -3,6 +3,10 @@
 {% block content %}
 <h2>Add New Word</h2>
 
+
+
+
+
 <div class="admin-add-word-container">
 <form method="post" class="admin-add-word-form">
 
@@ -39,7 +43,7 @@
             <div id="translations-1" class="translations-group">
                 <input type="text" name="translations_1[]" class="admin-input"><br>
             </div>
-            <button type="button" onclick="addTranslation(1)">+ Add Translation</button>
+            <button type="button" class="admin-btn" onclick="addTranslation(1)">+ Add Translation</button>
 
             <p>Examples:</p>
             <div id="examples-1" class="examples-group">
@@ -48,7 +52,7 @@
                     <input type="text" name="examples_trans_1[]" class="admin-input" placeholder="Translation">
                 </div>
             </div>
-            <button type="button" onclick="addExample(1)">+ Add Example</button>
+            <button type="button" class="admin-btn" onclick="addExample(1)">+ Add Example</button>
 
             <input type="hidden" name="meaning_number[]" value="1">
             <p>Notes: <input type="text" name="meaning_notes[]" class="admin-input"></p>
@@ -62,6 +66,11 @@
     </p>
 </form>
 </div>
+
+
+<p>
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+</p>
 
 <script>
 (function(){

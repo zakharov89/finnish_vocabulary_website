@@ -31,6 +31,8 @@ def login():
 @app.route('/logout')
 def logout():
     session.pop('admin_logged_in', None)
+    # Clear all flashed messages
+    session.pop('_flashes', None)
     flash("Logged out.", "info")
     return redirect(url_for('login'))
 
@@ -271,7 +273,7 @@ def admin_edit_word(word_id):
 
 
 
-@app.route('/admin/edit_word_search')
+@app.route('/admin/edit_word_search', methods=['GET'])
 @admin_required
 def admin_edit_word_search():
     query = request.args.get('word_query', '').strip()
@@ -282,22 +284,159 @@ def admin_edit_word_search():
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    cur.execute("SELECT id FROM words WHERE word = ?", (query,))
-    row = cur.fetchone()
+    # Prefix search using LIKE
+    cur.execute("SELECT id, word FROM words WHERE word LIKE ? ORDER BY word LIMIT 10", (f"{query}%",))
+    results = cur.fetchall()
     conn.close()
 
-    if not row:
-        flash(f"Word '{query}' not found.", "error")
+    if not results:
+        flash(f"No words found starting with '{query}'.", "info")
         return redirect(url_for('admin_dashboard'))
 
-    # Redirect to edit page
-    return redirect(url_for('admin_edit_word', word_id=row['id']))
+    return render_template("admin_edit_word_search.html", results=results, query=query)
 
 
 
+@app.route('/admin/delete_word/<int:word_id>', methods=['POST'])
+@admin_required
+def admin_delete_word(word_id):
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Fetch the word for feedback
+    cur.execute("SELECT word FROM words WHERE id = ?", (word_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        flash("Word not found.", "error")
+        return redirect(url_for('admin_dashboard'))
+
+    word_text = row['word']
+
+    # Delete related data first due to foreign keys
+    cur.execute("DELETE FROM meaning_relations WHERE meaning1_id IN (SELECT id FROM meanings WHERE word_id=?)", (word_id,))
+    cur.execute("DELETE FROM meaning_relations WHERE meaning2_id IN (SELECT id FROM meanings WHERE word_id=?)", (word_id,))
+    cur.execute("DELETE FROM word_relations WHERE word1_id=? OR word2_id=?", (word_id, word_id))
+    cur.execute("DELETE FROM translations WHERE meaning_id IN (SELECT id FROM meanings WHERE word_id=?)", (word_id,))
+    cur.execute("DELETE FROM examples WHERE meaning_id IN (SELECT id FROM meanings WHERE word_id=?)", (word_id,))
+    cur.execute("DELETE FROM meanings WHERE word_id=?", (word_id,))
+    cur.execute("DELETE FROM word_categories WHERE word_id=?", (word_id,))
+    cur.execute("DELETE FROM words WHERE id=?", (word_id,))
+
+    conn.commit()
+    conn.close()
+
+    flash(f"Word '{word_text}' deleted successfully!", "success")
+    return redirect(url_for('admin_dashboard'))
 
 
 
+@app.route("/admin/category/add", methods=["GET", "POST"])
+def admin_add_category():
+    conn = get_db()  # your database connection helper
+    cur = conn.cursor()
+    
+    # Fetch existing categories for parent selection
+    cur.execute("SELECT id, name FROM categories ORDER BY name")
+    categories = cur.fetchall()
+    
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        parent_id = request.form.get("parent_id")
+        parent_id = int(parent_id) if parent_id else None
+        
+        if not name:
+            flash("Category name cannot be empty.", "danger")
+        else:
+            cur.execute(
+                "INSERT INTO categories (name, parent_id) VALUES (?, ?)",
+                (name, parent_id)
+            )
+            conn.commit()
+            flash(f"Category '{name}' added successfully!", "success")
+            return redirect(url_for("admin_dashboard"))
+    
+    return render_template(
+        "admin_add_category.html",
+        categories=categories
+    )
+
+
+@app.route("/admin/category/<int:category_id>/edit", methods=["GET", "POST"])
+def admin_edit_category(category_id):
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Fetch the category itself
+    cur.execute("SELECT id, name, parent_id FROM categories WHERE id = ?", (category_id,))
+    category = cur.fetchone()
+    if not category:
+        flash("Category not found.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
+    # Fetch all categories for parent selection (excluding self to prevent loop)
+    cur.execute("SELECT id, name FROM categories WHERE id != ? ORDER BY name", (category_id,))
+    categories = cur.fetchall()
+
+    # Fetch words currently assigned to this category
+    cur.execute("""
+        SELECT w.id, w.word FROM words w
+        JOIN word_categories wc ON w.id = wc.word_id
+        WHERE wc.category_id = ?
+        ORDER BY w.word
+    """, (category_id,))
+    assigned_words = cur.fetchall()
+
+    # Fetch all words for adding new ones (exclude already assigned)
+    cur.execute("""
+        SELECT id, word FROM words
+        WHERE id NOT IN (SELECT word_id FROM word_categories WHERE category_id = ?)
+        ORDER BY word
+    """, (category_id,))
+    available_words = cur.fetchall()
+
+    if request.method == "POST":
+        # Update name/parent
+        new_name = request.form.get("name", "").strip()
+        new_parent = request.form.get("parent_id")
+        new_parent = int(new_parent) if new_parent else None
+
+        if not new_name:
+            flash("Category name cannot be empty.", "danger")
+        else:
+            cur.execute("UPDATE categories SET name = ?, parent_id = ? WHERE id = ?", 
+                        (new_name, new_parent, category_id))
+            conn.commit()
+            flash("Category updated successfully.", "success")
+
+        # Add new words
+        add_word_ids = request.form.getlist("add_words")
+        for word_id in add_word_ids:
+            cur.execute(
+                "INSERT OR IGNORE INTO word_categories (word_id, category_id) VALUES (?, ?)",
+                (int(word_id), category_id)
+            )
+        conn.commit()
+
+        # Remove words
+        remove_word_ids = request.form.getlist("remove_words")
+        for word_id in remove_word_ids:
+            cur.execute(
+                "DELETE FROM word_categories WHERE word_id = ? AND category_id = ?",
+                (int(word_id), category_id)
+            )
+        conn.commit()
+
+        return redirect(url_for("admin_edit_category", category_id=category_id))
+
+    return render_template(
+        "admin_edit_category.html",
+        category=category,
+        categories=categories,
+        assigned_words=assigned_words,
+        available_words=available_words
+    )
 
 
 
