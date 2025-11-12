@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Admin Login</h2>
+<form method="post">
+    <p>
+        <label>Username:</label><br>
+        <input type="text" name="username">
+    </p>
+    <p>
+        <label>Password:</label><br>
+        <input type="password" name="password">
+    </p>
+    <p>
+        <button type="submit">Login</button>
+    </p>
+</form>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-messages">
+      {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+{% endblock %}

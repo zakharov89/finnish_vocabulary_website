@@ -305,3 +305,37 @@ hr {
     width: 70%;  /* English translations column */
 }
 
+.flash-messages {
+    margin: 1em 0;
+}
+
+.flash {
+    padding: 0.5em 1em;
+    border-radius: 4px;
+    margin-bottom: 0.5em;
+}
+
+.flash.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.flash.danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.flash.warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+.flash.info {
+    background-color: #e3f2fd;  /* light blue */
+    color: #1565c0;             /* blue text */
+    border: 1px solid #1565c0;
+}
+
