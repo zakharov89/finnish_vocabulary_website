@@ -48,11 +48,260 @@ def admin_required(f):
     return decorated_function
 
 
-# ----- Example admin dashboard -----
-@app.route('/admin')
+@app.route("/admin")
 @admin_required
 def admin_dashboard():
-    return render_template('admin_dashboard.html')
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Counts for summary
+    cur.execute("SELECT COUNT(*) as count FROM words")
+    total_words = cur.fetchone()["count"]
+
+    cur.execute("SELECT COUNT(*) as count FROM categories")
+    total_categories = cur.fetchone()["count"]
+
+    # Recent words (last 10 added)
+    cur.execute("SELECT word, id FROM words ORDER BY id DESC LIMIT 10")
+    recent_words = cur.fetchall()
+
+    # Recent categories (last 10 added)
+    cur.execute("SELECT name, id FROM categories ORDER BY id DESC LIMIT 10")
+    recent_categories = cur.fetchall()
+
+    conn.close()
+    
+    return render_template(
+        "admin_dashboard.html",
+        total_words=total_words,
+        total_categories=total_categories,
+        recent_words=recent_words,
+        recent_categories=recent_categories
+    )
+
+@app.route('/admin/add_word', methods=['GET', 'POST'])
+@admin_required
+def admin_add_word():
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Fetch parts of speech and categories for dropdowns
+    cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
+    pos_list = cur.fetchall()
+
+    cur.execute("SELECT id, name FROM categories ORDER BY name")
+    categories = cur.fetchall()
+
+    if request.method == 'POST':
+        word_text = request.form.get('word', '').strip()
+        pos_id = request.form.get('pos_id')
+        selected_category_id = request.form.get('category_id')  # optional
+
+        if not word_text:
+            flash("Word cannot be empty.", "error")
+        else:
+            # Insert word
+            cur.execute("INSERT OR IGNORE INTO words (word, pos_id) VALUES (?, ?)", (word_text, pos_id))
+            conn.commit()
+
+            cur.execute("SELECT id FROM words WHERE word = ?", (word_text,))
+            word_id = cur.fetchone()['id']
+
+            # Assign to category if selected
+            if selected_category_id:
+                cur.execute("INSERT OR IGNORE INTO word_categories (word_id, category_id) VALUES (?, ?)",
+                            (word_id, selected_category_id))
+                conn.commit()
+
+            # Insert meanings + translations + examples
+            meaning_numbers = request.form.getlist('meaning_number[]')
+            for i, m_num in enumerate(meaning_numbers):
+                notes = request.form.getlist('meaning_notes[]')[i] or None
+                cur.execute("INSERT INTO meanings (word_id, meaning_number, notes) VALUES (?, ?, ?)",
+                            (word_id, int(m_num), notes))
+                conn.commit()
+
+                cur.execute("SELECT id FROM meanings WHERE word_id=? AND meaning_number=?", (word_id, int(m_num)))
+                meaning_id = cur.fetchone()['id']
+
+                # Translations
+                translations = request.form.getlist(f'translations_{m_num}[]')
+                for idx, t in enumerate(translations, start=1):
+                    t = t.strip()
+                    if t:
+                        cur.execute("INSERT INTO translations (meaning_id, translation_text, translation_number) VALUES (?, ?, ?)",
+                                    (meaning_id, t, idx))
+                conn.commit()
+
+                # Examples
+                example_texts = request.form.getlist(f'examples_{m_num}[]')
+                example_translations = request.form.getlist(f'examples_trans_{m_num}[]')
+                for ex_text, ex_trans in zip(example_texts, example_translations):
+                    ex_text = ex_text.strip()
+                    ex_trans = ex_trans.strip() or None
+                    if ex_text:
+                        cur.execute(
+                            "INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
+                            (meaning_id, ex_text, ex_trans)
+                        )
+                conn.commit()
+
+            flash(f"Word '{word_text}' added successfully!", "success")
+            conn.close()
+            return redirect(url_for('admin_dashboard'))
+
+    conn.close()
+    return render_template('admin_add_word.html', pos_list=pos_list, categories=categories)
+
+
+
+@app.route('/admin/edit_word/<int:word_id>', methods=['GET', 'POST'])
+@admin_required
+def admin_edit_word(word_id):
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Fetch the word
+    cur.execute("SELECT * FROM words WHERE id = ?", (word_id,))
+    word = cur.fetchone()
+    if not word:
+        flash("Word not found.", "error")
+        conn.close()
+        return redirect(url_for('admin_dashboard'))
+
+    word = dict(word)
+
+    # Fetch categories and POS
+    cur.execute("SELECT id, name FROM categories ORDER BY name")
+    categories = cur.fetchall()
+    cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
+    pos_list = cur.fetchall()
+
+    # Fetch assigned category
+    cur.execute("SELECT category_id FROM word_categories WHERE word_id = ?", (word_id,))
+    word_categories = [row['category_id'] for row in cur.fetchall()]
+    word['category_ids'] = word_categories
+
+    # Fetch meanings
+    cur.execute("SELECT * FROM meanings WHERE word_id = ? ORDER BY meaning_number", (word_id,))
+    meanings_rows = cur.fetchall()
+    meanings = []
+    for m in meanings_rows:
+        meaning_id = m['id']
+
+        # Translations
+        cur.execute("SELECT translation_text FROM translations WHERE meaning_id = ? ORDER BY translation_number", (meaning_id,))
+        translations = [t['translation_text'] for t in cur.fetchall()]
+
+        # Examples
+        cur.execute("SELECT example_text, example_translation_text FROM examples WHERE meaning_id = ?", (meaning_id,))
+        examples = [(e['example_text'], e['example_translation_text']) for e in cur.fetchall()]
+
+        meanings.append({
+            'meaning_number': m['meaning_number'],
+            'notes': m['notes'],
+            'translations': translations,
+            'examples': examples
+        })
+
+    if request.method == 'POST':
+        # Update word text and POS
+        new_word = request.form.get('word', '').strip()
+        new_pos_id = request.form.get('pos_id')
+        cur.execute("UPDATE words SET word = ?, pos_id = ? WHERE id = ?", (new_word, new_pos_id, word_id))
+        conn.commit()
+
+        # Update category (clear old and insert new)
+        cur.execute("DELETE FROM word_categories WHERE word_id = ?", (word_id,))
+        category_id = request.form.get('category_id')
+        if category_id:
+            cur.execute("INSERT INTO word_categories (word_id, category_id) VALUES (?, ?)", (word_id, category_id))
+        conn.commit()
+
+        # Delete existing meanings + translations + examples
+        cur.execute("SELECT id FROM meanings WHERE word_id = ?", (word_id,))
+        meaning_ids = [row['id'] for row in cur.fetchall()]
+        for mid in meaning_ids:
+            cur.execute("DELETE FROM translations WHERE meaning_id = ?", (mid,))
+            cur.execute("DELETE FROM examples WHERE meaning_id = ?", (mid,))
+        cur.execute("DELETE FROM meanings WHERE word_id = ?", (word_id,))
+        conn.commit()
+
+        # Insert updated meanings
+        meaning_numbers = request.form.getlist('meaning_number[]')
+        for i, m_num in enumerate(meaning_numbers):
+            notes = request.form.getlist('meaning_notes[]')[i] or None
+            cur.execute("INSERT INTO meanings (word_id, meaning_number, notes) VALUES (?, ?, ?)",
+                        (word_id, int(m_num), notes))
+            conn.commit()
+            cur.execute("SELECT id FROM meanings WHERE word_id=? AND meaning_number=?", (word_id, int(m_num)))
+            meaning_id = cur.fetchone()['id']
+
+            # Translations
+            translations = request.form.getlist(f'translations_{m_num}[]')
+            for idx, t in enumerate(translations, start=1):
+                t = t.strip()
+                if t:
+                    cur.execute("INSERT INTO translations (meaning_id, translation_text, translation_number) VALUES (?, ?, ?)",
+                                (meaning_id, t, idx))
+            conn.commit()
+
+            # Examples
+            example_texts = request.form.getlist(f'examples_{m_num}[]')
+            example_translations = request.form.getlist(f'examples_trans_{m_num}[]')
+            for ex_text, ex_trans in zip(example_texts, example_translations):
+                ex_text = ex_text.strip()
+                ex_trans = ex_trans.strip() or None
+                if ex_text:
+                    cur.execute(
+                        "INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
+                        (meaning_id, ex_text, ex_trans)
+                    )
+            conn.commit()
+
+        flash(f"Word '{new_word}' updated successfully!", "success")
+        conn.close()
+        return redirect(url_for('admin_dashboard'))
+
+    conn.close()
+    return render_template('admin_edit_word.html', word=word, pos_list=pos_list, categories=categories, meanings=meanings)
+
+
+
+@app.route('/admin/edit_word_search')
+@admin_required
+def admin_edit_word_search():
+    query = request.args.get('word_query', '').strip()
+    if not query:
+        flash("Please enter a word to search.", "warning")
+        return redirect(url_for('admin_dashboard'))
+
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM words WHERE word = ?", (query,))
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        flash(f"Word '{query}' not found.", "error")
+        return redirect(url_for('admin_dashboard'))
+
+    # Redirect to edit page
+    return redirect(url_for('admin_edit_word', word_id=row['id']))
+
+
+
+
+
+
+
+
+
+
 
 
 @app.route('/', methods=['GET'])

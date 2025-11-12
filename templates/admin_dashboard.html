@@ -1,6 +1,42 @@
 {% extends "base.html" %}
+
 {% block content %}
 <h2>Admin Dashboard</h2>
-<p>Welcome, admin!</p>
-<p><a href="{{ url_for('logout') }}">Logout</a></p>
+
+<div class="admin-summary">
+    <p>Total words: {{ total_words }}</p>
+</div>
+
+<hr>
+<h3>Manage Words</h3>
+
+<!-- Section 1: Add New Word -->
+<h4>Add New Word</h4>
+<p>
+    <a href="{{ url_for('admin_add_word') }}" class="admin-btn">Add Word</a>
+</p>
+
+<!-- Section 2: Edit Word by entering the word -->
+<h4>Edit Word</h4>
+<form method="get" action="{{ url_for('admin_edit_word_search') }}">
+    <input type="text" name="word_query" placeholder="Enter word to edit" class="admin-input" required>
+    <button type="submit" class="admin-btn">Search</button>
+</form>
+
+<!-- Section 3: Show last 10 added words -->
+<h4>Last 10 Added Words</h4>
+<ul>
+    {% for w in recent_words %}
+        <li>
+            {{ w['word'] }} - 
+            <a href="{{ url_for('admin_edit_word', word_id=w['id']) }}">Edit</a>
+        </li>
+    {% endfor %}
+</ul>
+
+<hr>
+<form method="get" action="{{ url_for('logout') }}">
+    <button type="submit">Logout</button>
+</form>
+
 {% endblock %}

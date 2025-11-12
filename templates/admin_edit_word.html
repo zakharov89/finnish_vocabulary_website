@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Edit Word: "{{ word['word'] }}"</h2>
+
+<div class="admin-add-word-container">
+<form method="post" class="admin-add-word-form">
+
+    <p>
+        <label>Word:</label><br>
+        <input type="text" name="word" value="{{ word['word'] }}" required class="admin-input">
+    </p>
+
+    <p>
+        <label>Part of Speech:</label><br>
+        <select name="pos_id" required class="admin-select">
+            {% for pos in pos_list %}
+            <option value="{{ pos['id'] }}" {% if pos['id'] == word['pos_id'] %}selected{% endif %}>{{ pos['name'] }}</option>
+            {% endfor %}
+        </select>
+    </p>
+
+    <p>
+        <label>Category (optional):</label><br>
+        <select name="category_id" class="admin-select">
+            <option value="">-- None --</option>
+            {% for cat in categories %}
+            <option value="{{ cat['id'] }}" {% if cat['id'] in word['category_ids'] %}selected{% endif %}>{{ cat['name'] }}</option>
+            {% endfor %}
+        </select>
+    </p>
+
+    <hr>
+    <h3>Meanings</h3>
+    <div id="meanings-container" class="meanings-section">
+        {% for meaning in meanings %}
+        <div class="meaning-block" data-meaning-number="{{ meaning['meaning_number'] }}">
+            <input type="hidden" name="meaning_number[]" value="{{ meaning['meaning_number'] }}">
+           
+
+            <p>Translations:</p>
+            <div id="translations-{{ meaning['meaning_number'] }}" class="translations-group">
+                {% for t in meaning['translations'] %}
+                <input type="text" name="translations_{{ meaning['meaning_number'] }}[]" value="{{ t }}" class="admin-input"><br>
+                {% endfor %}
+            </div>
+            <button type="button" onclick="addTranslation({{ meaning['meaning_number'] }})">+ Add Translation</button>
+
+            <p>Examples:</p>
+            <div id="examples-{{ meaning['meaning_number'] }}" class="examples-group">
+                {% for ex, ex_trans in meaning['examples'] %}
+                <div class="example-pair">
+                    <input type="text" name="examples_{{ meaning['meaning_number'] }}[]" value="{{ ex }}" class="admin-input" placeholder="Example">
+                    <input type="text" name="examples_trans_{{ meaning['meaning_number'] }}[]" value="{{ ex_trans or '' }}" class="admin-input" placeholder="Translation">
+                </div>
+                {% endfor %}
+            </div>
+            <button type="button" onclick="addExample({{ meaning['meaning_number'] }})">+ Add Example</button>
+
+            <p>Notes: <input type="text" name="meaning_notes[]" value="{{ meaning['notes'] or '' }}" class="admin-input"></p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <button type="button" onclick="addMeaning()" class="admin-btn">+ Add Meaning</button>
+
+    <p>
+        <button type="submit" class="admin-btn">Update Word</button>
+    </p>
+
+</form>
+</div>
+
+<script>
+(function(){
+    let meaningCount = {{ meanings|length if meanings else 1 }};
+
+    function addTranslation(num) {
+        const container = document.getElementById(`translations-${num}`);
+        const wrapper = document.createElement('div');
+        wrapper.className = 'translation-item';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.name = `translations_${num}[]`;
+        input.className = 'admin-input';
+        input.placeholder = 'Translation';
+        wrapper.appendChild(input);
+        container.appendChild(wrapper);
+    }
+
+    function addExample(num) {
+        const container = document.getElementById(`examples-${num}`);
+        const wrapper = document.createElement('div');
+        wrapper.className = 'example-pair';
+        const text = document.createElement('input');
+        text.type = 'text';
+        text.name = `examples_${num}[]`;
+        text.className = 'admin-input';
+        text.placeholder = 'Example';
+        const trans = document.createElement('input');
+        trans.type = 'text';
+        trans.name = `examples_trans_${num}[]`;
+        trans.className = 'admin-input';
+        trans.placeholder = 'Translation';
+        wrapper.appendChild(text);
+        wrapper.appendChild(trans);
+        container.appendChild(wrapper);
+    }
+
+    window.addMeaning = function() {
+        meaningCount++;
+        const container = document.getElementById('meanings-container');
+        const div = document.createElement('div');
+        div.className = 'meaning-block';
+        div.dataset.meaningNumber = meaningCount;
+        div.innerHTML = `
+            <input type="hidden" name="meaning_number[]" value="${meaningCount}">
+            <p>Translations:</p>
+            <div id="translations-${meaningCount}" class="translations-group">
+                <input type="text" name="translations_${meaningCount}[]" class="admin-input" placeholder="Translation"><br>
+            </div>
+            <button type="button" onclick="addTranslation(${meaningCount})">+ Add Translation</button>
+            <p>Examples:</p>
+            <div id="examples-${meaningCount}" class="examples-group">
+                <div class="example-pair">
+                    <input type="text" name="examples_${meaningCount}[]" class="admin-input" placeholder="Example">
+                    <input type="text" name="examples_trans_${meaningCount}[]" class="admin-input" placeholder="Translation">
+                </div>
+            </div>
+            <button type="button" onclick="addExample(${meaningCount})">+ Add Example</button>
+            <p>Notes: <input type="text" name="meaning_notes[]" class="admin-input"></p>
+        `;
+        container.appendChild(div);
+    }
+
+    window.addTranslation = addTranslation;
+    window.addExample = addExample;
+})();
+</script>
+{% endblock %}

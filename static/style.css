@@ -339,3 +339,90 @@ hr {
     border: 1px solid #1565c0;
 }
 
+.admin-summary {
+    margin: 1em 0;
+    padding: 1em;
+    background-color: #f0f0f0;
+    border-left: 4px solid #1a73e8;
+    border-radius: 6px;
+}
+
+.admin-summary p {
+    margin: 0.4em 0;
+}
+
+form button {
+    background-color: #e53935;
+    color: white;
+    border: none;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+form button:hover {
+    background-color: #b71c1c;
+}
+
+
+
+/* ===== Admin Add Word Form ===== */
+.admin-add-word-container {
+    max-width: 800px;
+    background-color: #ffffff;
+    padding: 20px;
+    margin-top: 1.5em;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+.admin-add-word-form p {
+    margin-bottom: 1em;
+}
+
+.admin-add-word-form label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 0.3em;
+}
+
+.admin-input,
+.admin-select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    margin-bottom: 0.5em;
+}
+
+.admin-btn {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 4px;
+    background-color: #1a73e8;
+    color: white;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: 5px;
+}
+
+.admin-btn:hover {
+    background-color: #1565c0;
+}
+
+/* Meanings & translations section */
+.meanings-section {
+    margin-top: 1.5em;
+    border-top: 1px solid #ddd;
+    padding-top: 1em;
+}
+
+.meaning-block {
+    margin-bottom: 1.2em;
+    padding: 0.8em;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    background-color: #f9f9f9;
+}
