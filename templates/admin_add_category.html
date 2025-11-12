@@ -4,26 +4,26 @@
 <h2>Add New Category</h2>
 
 <div class="admin-add-word-container">
-    <form method="post" class="admin-add-word-form">
-        <p>
-            <label>Category Name:</label><br>
-            <input type="text" name="name" class="admin-input" required>
-        </p>
+<form method="post">
+    <p>
+        <label>Category Name:</label><br>
+        <input type="text" name="name" class="admin-input" required>
+    </p>
 
-        <p>
-            <label>Parent Category (optional):</label><br>
-            <select name="parent_id" class="admin-select">
-                <option value="">-- None --</option>
-                {% for cat in categories %}
-                    <option value="{{ cat['id'] }}">{{ cat['name'] }}</option>
-                {% endfor %}
-            </select>
-        </p>
+    <p>
+        <label>Parent Category (optional):</label><br>
+        <select name="parent_id" class="admin-select">
+            <option value="">-- None --</option>
+            {% for cat in categories %}
+            <option value="{{ cat['id'] }}">{{ cat['name'] }}</option>
+            {% endfor %}
+        </select>
+    </p>
 
-        <p>
-            <button type="submit" class="admin-btn">Add Category</button>
-            <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
-        </p>
-    </form>
+    <p>
+        <button type="submit" class="admin-btn">Create Category</button>
+    </p>
+</form>
 </div>
 {% endblock %}
+

@@ -1,61 +1,28 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Edit Category: "{{ category['name'] }}"</h2>
+<h2>Edit Category: {{ category['name'] }}</h2>
 
-<div class="admin-add-word-container">
-    <form method="post" class="admin-add-word-form">
-        <p>
-            <label>Category Name:</label><br>
-            <input type="text" name="name" value="{{ category['name'] }}" class="admin-input" required>
-        </p>
-
-        <p>
-            <label>Parent Category (optional):</label><br>
-            <select name="parent_id" class="admin-select">
-                <option value="">-- None --</option>
-                {% for cat in categories %}
-                    <option value="{{ cat['id'] }}" {% if cat['id'] == category['parent_id'] %}selected{% endif %}>
-                        {{ cat['name'] }}
+<form method="post">
+    <p>
+        <label>Name:</label><br>
+        <input type="text" name="name" value="{{ category['name'] }}" class="admin-input" required>
+    </p>
+    <p>
+        <label>Parent category (optional):</label><br>
+        <select name="parent_id" class="admin-select">
+            <option value="">-- None --</option>
+            {% for c in all_categories %}
+                {% if c['id'] != category['id'] %}
+                    <option value="{{ c['id'] }}" {% if c['id'] == category['parent_id'] %}selected{% endif %}>
+                        {{ c['name'] }}
                     </option>
-                {% endfor %}
-            </select>
-        </p>
-
-        <hr>
-        <h3>Words in this category</h3>
-        {% if assigned_words %}
-            <ul>
-            {% for w in assigned_words %}
-                <li>
-                    <input type="checkbox" name="remove_words" value="{{ w['id'] }}"> {{ w['word'] }}
-                </li>
+                {% endif %}
             {% endfor %}
-            </ul>
-            <p>Check words you want to remove from this category.</p>
-        {% else %}
-            <p>No words assigned yet.</p>
-        {% endif %}
+        </select>
+    </p>
+    <button type="submit" class="admin-btn">Update Category</button>
+</form>
 
-        <hr>
-        <h3>Add words to this category</h3>
-        {% if available_words %}
-            <ul>
-            {% for w in available_words %}
-                <li>
-                    <input type="checkbox" name="add_words" value="{{ w['id'] }}"> {{ w['word'] }}
-                </li>
-            {% endfor %}
-            </ul>
-            <p>Check words you want to add to this category.</p>
-        {% else %}
-            <p>All words are already in this category.</p>
-        {% endif %}
-
-        <p>
-            <button type="submit" class="admin-btn">Save Changes</button>
-            <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
-        </p>
-    </form>
-</div>
+<p><a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a></p>
 {% endblock %}

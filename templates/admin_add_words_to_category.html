@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Add Words to Category: "{{ category['name'] }}"</h2>
+
+<!-- ===== Search Existing Words ===== -->
+<h4>Step 1: Search for existing words</h4>
+<form method="get" action="">
+    <input type="text" name="search" value="{{ search_query }}" placeholder="Search word..." class="admin-input">
+    <button type="submit" class="admin-btn">Search</button>
+</form>
+
+{% if search_results %}
+    <h5>Search Results:</h5>
+    <ul class="search-results">
+        {% for w in search_results %}
+            <li>
+                {{ w['word'] }}
+                <form method="post" style="display:inline;">
+                    <input type="hidden" name="existing_word_id" value="{{ w['id'] }}">
+                    <button type="submit" class="admin-btn-small">Add to Category</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+{% elif search_query %}
+    <p>No matching words found. You can add a new word below.</p>
+{% endif %}
+
+<hr style="margin: 20px 0;">
+
+<!-- ===== Add New Word Inline ===== -->
+<h4>Step 2: Add a New Word</h4>
+<div class="admin-add-word-container">
+<form method="post" class="admin-add-word-form">
+
+    <p>
+        <label>Finnish Word:</label><br>
+        <input type="text" name="new_word" class="admin-input" required>
+    </p>
+
+    <p>
+        <label>Part of Speech:</label><br>
+        <select name="pos_id" required class="admin-select">
+            {% for pos in pos_list %}
+                <option value="{{ pos['id'] }}">{{ pos['name'] }}</option>
+                    {{ pos['name'] }}
+                </option>
+            {% endfor %}
+        </select>
+    </p>
+    <hr>
+    <h5>Meanings, Translations, Examples</h5>
+    <div id="meanings-container" class="meanings-section">
+        <!-- Initially one meaning block -->
+        <div class="meaning-block" data-meaning-number="1">
+            <input type="hidden" name="meaning_number[]" value="1">
+
+            <p>Translations:</p>
+            <div id="translations-1" class="translations-group">
+                <input type="text" name="translations_1[]" class="admin-input" placeholder="Translation"><br>
+            </div>
+            <button type="button" onclick="addTranslation(1)" class="admin-btn-small">+ Add Translation</button>
+
+            <p>Examples:</p>
+            <div id="examples-1" class="examples-group">
+                <div class="example-pair">
+                    <input type="text" name="examples_1[]" class="admin-input" placeholder="Example">
+                    <input type="text" name="examples_trans_1[]" class="admin-input" placeholder="Translation">
+                </div>
+            </div>
+            <button type="button" onclick="addExample(1)" class="admin-btn-small">+ Add Example</button>
+
+            <p>Notes: <input type="text" name="meaning_notes[]" class="admin-input"></p>
+        </div>
+    </div>
+
+    <button type="button" onclick="addMeaning()" class="admin-btn-small">+ Add Meaning</button>
+
+    <p style="margin-top: 10px;">
+        <button type="submit" class="admin-btn">Create Word & Add to Category</button>
+    </p>
+</form>
+</div>
+
+<hr style="margin-top: 20px;">
+<p>
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+</p>
+
+<script>
+(function(){
+    let meaningCount = 1;
+
+    function addTranslation(num) {
+        const container = document.getElementById(`translations-${num}`);
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.name = `translations_${num}[]`;
+        input.className = 'admin-input';
+        input.placeholder = 'Translation';
+        container.appendChild(input);
+        container.appendChild(document.createElement('br'));
+    }
+
+    function addExample(num) {
+        const container = document.getElementById(`examples-${num}`);
+        const wrapper = document.createElement('div');
+        wrapper.className = 'example-pair';
+        const ex = document.createElement('input');
+        ex.type = 'text';
+        ex.name = `examples_${num}[]`;
+        ex.className = 'admin-input';
+        ex.placeholder = 'Example';
+        const trans = document.createElement('input');
+        trans.type = 'text';
+        trans.name = `examples_trans_${num}[]`;
+        trans.className = 'admin-input';
+        trans.placeholder = 'Translation';
+        wrapper.appendChild(ex);
+        wrapper.appendChild(trans);
+        container.appendChild(wrapper);
+    }
+
+    window.addMeaning = function() {
+        meaningCount++;
+        const container = document.getElementById('meanings-container');
+        const div = document.createElement('div');
+        div.className = 'meaning-block';
+        div.dataset.meaningNumber = meaningCount;
+        div.innerHTML = `
+            <input type="hidden" name="meaning_number[]" value="${meaningCount}">
+            <p>Translations:</p>
+            <div id="translations-${meaningCount}" class="translations-group">
+                <input type="text" name="translations_${meaningCount}[]" class="admin-input" placeholder="Translation"><br>
+            </div>
+            <button type="button" onclick="addTranslation(${meaningCount})" class="admin-btn-small">+ Add Translation</button>
+            <p>Examples:</p>
+            <div id="examples-${meaningCount}" class="examples-group">
+                <div class="example-pair">
+                    <input type="text" name="examples_${meaningCount}[]" class="admin-input" placeholder="Example">
+                    <input type="text" name="examples_trans_${meaningCount}[]" class="admin-input" placeholder="Translation">
+                </div>
+            </div>
+            <button type="button" onclick="addExample(${meaningCount})" class="admin-btn-small">+ Add Example</button>
+            <p>Notes: <input type="text" name="meaning_notes[]" class="admin-input"></p>
+        `;
+        container.appendChild(div);
+    }
+
+    window.addTranslation = addTranslation;
+    window.addExample = addExample;
+})();
+</script>
+
+{% endblock %}
+
