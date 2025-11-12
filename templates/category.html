@@ -13,14 +13,31 @@
 {% endif %}
 
 {% if words %}
-<div class="category-words">
-    <ul>
-    {% for w in words %}
-        <li><a href="{{ url_for('show_word', word_name=w['word']) }}">{{ w['word'] }}</a></li>
-    {% endfor %}
-    </ul>
-</div>
+<table class="category-table">
+    <thead>
+        <tr>
+            <th>Finnish</th>
+            <th>English</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for w in words %}
+        <tr>
+            <td>
+                <a href="{{ url_for('show_word', word_name=w['word']) }}">{{ w['word'] }}</a>
+            </td>
+            <td>
+                {{ ", ".join(w['translations']) }}
+                {% if w.translations|length >= 3 %}…{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No words in this category yet.</p>
 {% endif %}
+
 
 {% if parent %}
 <p class="breadcrumb">

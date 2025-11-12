@@ -181,13 +181,32 @@ def show_category(category_name):
 
     # Fetch words
     cur.execute("""
-        SELECT w.word
+        SELECT w.id, w.word
         FROM words w
         JOIN word_categories wc ON w.id = wc.word_id
         WHERE wc.category_id = ?
         ORDER BY w.word
     """, (category['id'],))
     words = cur.fetchall()
+
+    words_with_translations = []
+
+    for w in words:
+        cur.execute("""
+            SELECT t.translation_text
+            FROM meanings m
+            JOIN translations t ON m.id = t.meaning_id
+            WHERE m.word_id = ?
+            ORDER BY m.meaning_number, t.translation_number
+            LIMIT 3
+        """, (w['id'],))
+        translations = [t['translation_text'] for t in cur.fetchall()]
+
+        words_with_translations.append({
+            'word': w['word'],
+            'translations': translations
+        })
+
 
     # Fetch subcategories
     cur.execute("SELECT id, name FROM categories WHERE parent_id = ? ORDER BY name", (category['id'],))
@@ -204,7 +223,7 @@ def show_category(category_name):
     return render_template(
         "category.html",
         category=category,
-        words=words,
+        words=words_with_translations,
         subcategories=subcategories,
         parent=parent
     )
