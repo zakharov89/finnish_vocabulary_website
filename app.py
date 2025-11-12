@@ -345,14 +345,17 @@ def admin_add_category():
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
+        # Insert the new category
         cur.execute("INSERT INTO categories (name, parent_id) VALUES (?, ?)", (name, parent_id))
         conn.commit()
         category_id = cur.lastrowid
         conn.close()
 
-        return redirect(url_for("admin_add_words_to_category", category_id=category_id))
+        # Now redirect to edit page (which also handles adding words)
+        flash(f"Category '{name}' created successfully. You can now add words.", "success")
+        return redirect(url_for("admin_edit_category", category_id=category_id))
 
-    # GET should supply categories for parent dropdown
+    # GET → show creation form with possible parent categories
     conn = sqlite3.connect("finnish.db", timeout=5)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -363,140 +366,38 @@ def admin_add_category():
     return render_template("admin_add_category.html", categories=categories)
 
 
-@app.route("/admin/add_words_to_category/<int:category_id>", methods=["GET", "POST"])
-@admin_required
-def admin_add_words_to_category(category_id):
-    conn = sqlite3.connect("finnish.db", timeout=5)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
 
-    # Get category info
-    cur.execute("SELECT * FROM categories WHERE id = ?", (category_id,))
-    category = cur.fetchone()
-    if not category:
-        conn.close()
-        flash("Category not found.", "danger")
-        return redirect(url_for("admin_dashboard"))
-
-    # Fetch parts of speech for the inline new-word form
-    cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
-    pos_list = cur.fetchall()
-
-    # Handle adding an existing word (single quick insert)
-    if request.method == "POST" and request.form.get("existing_word_id"):
-        word_id = int(request.form["existing_word_id"])
-        cur.execute(
-            "INSERT OR IGNORE INTO word_categories (word_id, category_id) VALUES (?, ?)",
-            (word_id, category_id)
-        )
-        conn.commit()
-        flash("Word added to category.", "success")
-        conn.close()
-        return redirect(url_for("admin_add_words_to_category", category_id=category_id))
-
-    # Handle adding a new word (batch inserts, commit once at end)
-    if request.method == "POST" and request.form.get("new_word"):
-        try:
-            word = request.form["new_word"].strip()
-            pos_id = int(request.form["pos_id"])
-
-            # Insert word if not exists
-            cur.execute("INSERT OR IGNORE INTO words (word, pos_id) VALUES (?, ?)", (word, pos_id))
-            cur.execute("SELECT id FROM words WHERE word = ?", (word,))
-            word_id_row = cur.fetchone()
-            word_id = word_id_row["id"]
-
-            # We'll accumulate inserts and commit once at the end
-            # Handle meanings, translations, examples
-            meaning_numbers = request.form.getlist("meaning_number[]")
-            for m_num in meaning_numbers:
-                notes = request.form.get(f"meaning_notes[]")  # fallback if using same list; optional adjust
-                # insert meaning
-                cur.execute(
-                    "INSERT INTO meanings (word_id, meaning_number, notes) VALUES (?, ?, ?)",
-                    (word_id, int(m_num), request.form.getlist('meaning_notes[]')[int(m_num)-1] if request.form.getlist('meaning_notes[]') else None)
-                )
-                # fetch meaning id
-                cur.execute(
-                    "SELECT id FROM meanings WHERE word_id = ? AND meaning_number = ?",
-                    (word_id, int(m_num))
-                )
-                meaning_id = cur.fetchone()["id"]
-
-                # Translations
-                translations = request.form.getlist(f"translations_{m_num}[]")
-                for idx, t in enumerate(translations, 1):
-                    t = t.strip()
-                    if t:
-                        cur.execute(
-                            "INSERT INTO translations (meaning_id, translation_text, translation_number) VALUES (?, ?, ?)",
-                            (meaning_id, t, idx)
-                        )
-
-                # Examples
-                example_texts = request.form.getlist(f"examples_{m_num}[]")
-                example_trans = request.form.getlist(f"examples_trans_{m_num}[]")
-                for ex, ex_tr in zip(example_texts, example_trans):
-                    ex = ex.strip()
-                    if ex:
-                        cur.execute(
-                            "INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
-                            (meaning_id, ex, ex_tr.strip() or None)
-                        )
-
-            # Assign to category
-            cur.execute(
-                "INSERT OR IGNORE INTO word_categories (word_id, category_id) VALUES (?, ?)",
-                (word_id, category_id)
-            )
-
-            # Commit once
-            conn.commit()
-            flash(f"New word '{word}' added and assigned to category.", "success")
-        except Exception as e:
-            conn.rollback()
-            flash(f"Error adding word: {e}", "danger")
-        finally:
-            conn.close()
-
-        return redirect(url_for("admin_add_words_to_category", category_id=category_id))
-
-    # GET request → show search form; use 'search' as query param (keep consistent with template)
-    search_query = request.args.get("search", "").strip()
-    search_results = []
-    if search_query:
-        cur.execute(
-            "SELECT id, word FROM words WHERE word LIKE ? ORDER BY word LIMIT 50",
-            (f"{search_query}%",)
-        )
-        search_results = cur.fetchall()
-
-    conn.close()
-    return render_template(
-        "admin_add_words_to_category.html",
-        category=category,
-        pos_list=pos_list,
-        search_query=search_query,
-        search_results=search_results
-    )
 
 
 @app.route("/admin/categories/search")
 @admin_required
 def admin_search_category():
     query = request.args.get("query", "").strip()
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
 
+    results = []
     if query:
-        cur.execute("SELECT id, name FROM categories WHERE name LIKE ? ORDER BY name", (f"%{query}%",))
+        conn = sqlite3.connect("finnish.db")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, name
+            FROM categories
+            WHERE name LIKE ?
+            ORDER BY name
+        """, (f"%{query}%",))
         results = cur.fetchall()
-    else:
-        results = []
+        conn.close()
 
-    conn.close()
-    return render_template("admin_category_search.html", query=query, results=results)
+    return render_template(
+        "admin_search_category.html",
+        query=query,
+        results=results
+    )
+
+
+
+
+
 
 
 @app.route("/admin/categories/<int:category_id>/edit", methods=["GET", "POST"])
@@ -510,26 +411,143 @@ def admin_edit_category(category_id):
     cur.execute("SELECT * FROM categories WHERE id = ?", (category_id,))
     category = cur.fetchone()
     if not category:
-        flash("Category not found.", "danger")
         conn.close()
+        flash("Category not found.", "danger")
         return redirect(url_for("admin_dashboard"))
 
+    # Fetch parent options
+    cur.execute("SELECT id, name FROM categories WHERE id != ?", (category_id,))
+    all_categories = cur.fetchall()
 
-    # Handle POST for updating category
-    if request.method == "POST":
-        name = request.form.get("name").strip()
+    # Fetch POS for word creation
+    cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
+    pos_list = cur.fetchall()
+
+    # ----------------------------
+    # Handle POST actions
+    # ----------------------------
+
+    # 1️⃣ Update category name/parent
+    if request.form.get("action") == "update_category":
+        name = request.form.get("name", "").strip()
         parent_id = request.form.get("parent_id") or None
-        cur.execute("UPDATE categories SET name = ?, parent_id = ? WHERE id = ?", (name, parent_id, category_id))
+        cur.execute("UPDATE categories SET name = ?, parent_id = ? WHERE id = ?", 
+                    (name, parent_id, category_id))
         conn.commit()
-        flash("Category updated.", "success")
-        return redirect(url_for("admin_dashboard"))
+        conn.close()
+        flash("Category updated successfully.", "success")
+        return redirect(url_for("admin_edit_category", category_id=category_id))
 
-    # GET: show edit form
-    cur.execute("SELECT id, name FROM categories")
-    all_categories = cur.fetchall()  # For parent selection
+
+    # 2️⃣ Add existing word to category
+    elif request.form.get("action") == "add_existing":
+        existing_word_id = int(request.form["existing_word_id"])
+        cur.execute("INSERT OR IGNORE INTO word_categories (word_id, category_id) VALUES (?, ?)",
+                    (existing_word_id, category_id))
+        conn.commit()
+        flash("Existing word added to category.", "success")
+
+    # 3️⃣ Add new word with meanings/translations/examples
+    elif request.form.get("action") == "add_new_word":
+        word_text = request.form.get("new_word", "").strip()
+        pos_id = request.form.get("pos_id")
+        if not word_text:
+            flash("Word cannot be empty.", "danger")
+        else:
+            cur.execute("INSERT OR IGNORE INTO words (word, pos_id) VALUES (?, ?)", (word_text, pos_id))
+            conn.commit()
+            cur.execute("SELECT id FROM words WHERE word = ?", (word_text,))
+            word_id = cur.fetchone()["id"]
+
+            meaning_numbers = request.form.getlist("meaning_number[]")
+            for m_num in meaning_numbers:
+                notes = request.form.get(f"notes_{m_num}", None)
+                cur.execute("INSERT INTO meanings (word_id, meaning_number, notes) VALUES (?, ?, ?)",
+                            (word_id, int(m_num), notes))
+                conn.commit()
+                cur.execute("SELECT id FROM meanings WHERE word_id=? AND meaning_number=?", (word_id, int(m_num)))
+                meaning_id = cur.fetchone()["id"]
+
+                # Translations
+                translations = request.form.getlist(f"translations_{m_num}[]")
+                for idx, t in enumerate(translations, 1):
+                    t = t.strip()
+                    if t:
+                        cur.execute(
+                            "INSERT INTO translations (meaning_id, translation_text, translation_number) VALUES (?, ?, ?)",
+                            (meaning_id, t, idx))
+
+                # Examples
+                example_texts = request.form.getlist(f"examples_{m_num}[]")
+                example_trans = request.form.getlist(f"examples_trans_{m_num}[]")
+                for ex, ex_tr in zip(example_texts, example_trans):
+                    if ex.strip():
+                        cur.execute(
+                            "INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
+                            (meaning_id, ex.strip(), ex_tr.strip() or None))
+            conn.commit()
+
+            # Assign new word to this category
+            cur.execute("INSERT OR IGNORE INTO word_categories (word_id, category_id) VALUES (?, ?)",
+                        (word_id, category_id))
+            conn.commit()
+            flash(f"New word '{word_text}' added and assigned to category.", "success")
+
+    # ----------------------------
+    # Fetch category words and search results
+    # ----------------------------
+    search_query = request.args.get("word_query", "").strip()
+    search_results = []
+    if search_query:
+        cur.execute("SELECT id, word FROM words WHERE word LIKE ? ORDER BY word", (f"{search_query}%",))
+        search_results = cur.fetchall()
+
+    # Words already in this category
+    cur.execute("""
+        SELECT w.id, w.word
+        FROM words w
+        JOIN word_categories wc ON w.id = wc.word_id
+        WHERE wc.category_id = ?
+        ORDER BY w.word
+    """, (category_id,))
+    category_words = cur.fetchall()
+
     conn.close()
 
-    return render_template("admin_edit_category.html", category=category, all_categories=all_categories)
+    return render_template(
+        "admin_edit_category.html",
+        category=category,
+        all_categories=all_categories,
+        category_words=category_words,
+        pos_list=pos_list,
+        search_query=search_query,
+        search_results=search_results
+    )
+
+@app.route("/admin/categories/<int:category_id>/delete", methods=["POST"])
+@admin_required
+def admin_delete_category(category_id):
+    conn = sqlite3.connect("finnish.db", timeout=5)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Check if category exists
+    cur.execute("SELECT name FROM categories WHERE id = ?", (category_id,))
+    category = cur.fetchone()
+    if not category:
+        conn.close()
+        flash("Category not found.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
+    # Delete relationships first to avoid foreign key errors
+    cur.execute("DELETE FROM word_categories WHERE category_id = ?", (category_id,))
+    cur.execute("DELETE FROM categories WHERE id = ?", (category_id,))
+    conn.commit()
+    conn.close()
+
+    flash(f"Category '{category['name']}' deleted successfully.", "success")
+    return redirect(url_for("admin_dashboard"))
+
 
 
 

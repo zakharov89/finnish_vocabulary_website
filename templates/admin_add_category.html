@@ -11,14 +11,37 @@
     </p>
 
     <p>
-        <label>Parent Category (optional):</label><br>
-        <select name="parent_id" class="admin-select">
-            <option value="">-- None --</option>
+        <label>Parent category (optional):</label><br>
+
+        <!-- Text box for searching -->
+        <input list="category-list" id="parent-category-input" name="parent_name" class="admin-input" placeholder="Type to search categories...">
+
+        <!-- Hidden input for actual ID -->
+        <input type="hidden" name="parent_id" id="parent-category-id">
+
+        <!-- Datalist options -->
+        <datalist id="category-list">
             {% for cat in categories %}
-            <option value="{{ cat['id'] }}">{{ cat['name'] }}</option>
+            <option data-id="{{ cat['id'] }}" value="{{ cat['name'] }}"></option>
             {% endfor %}
-        </select>
+        </datalist>
     </p>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.getElementById('parent-category-input');
+        const hiddenId = document.getElementById('parent-category-id');
+        const options = document.querySelectorAll('#category-list option');
+
+        // When user types or selects a category
+        input.addEventListener('input', function() {
+            const value = input.value;
+            const match = Array.from(options).find(opt => opt.value === value);
+            hiddenId.value = match ? match.dataset.id : '';  // Set ID if valid
+        });
+    });
+    </script>
+
 
     <p>
         <button type="submit" class="admin-btn">Create Category</button>

@@ -3,26 +3,209 @@
 {% block content %}
 <h2>Edit Category: {{ category['name'] }}</h2>
 
-<form method="post">
-    <p>
-        <label>Name:</label><br>
-        <input type="text" name="name" value="{{ category['name'] }}" class="admin-input" required>
-    </p>
-    <p>
-        <label>Parent category (optional):</label><br>
-        <select name="parent_id" class="admin-select">
-            <option value="">-- None --</option>
-            {% for c in all_categories %}
-                {% if c['id'] != category['id'] %}
-                    <option value="{{ c['id'] }}" {% if c['id'] == category['parent_id'] %}selected{% endif %}>
-                        {{ c['name'] }}
-                    </option>
-                {% endif %}
-            {% endfor %}
-        </select>
-    </p>
-    <button type="submit" class="admin-btn">Update Category</button>
+<div class="admin-add-word-container">
+
+    <!-- ✏️ Edit Category Info -->
+    <form method="POST" action="{{ url_for('admin_edit_category', category_id=category['id']) }}" class="admin-add-word-form">
+        <input type="hidden" name="action" value="update_category">
+
+        <p>
+            <label>Category Name:</label><br>
+            <input type="text" name="name" value="{{ category['name'] }}" required class="admin-input">
+        </p>
+
+        <p>
+            <label>Parent Category (optional):</label><br>
+            <select name="parent_id" class="admin-select">
+                <option value="">-- None --</option>
+                {% for c in all_categories %}
+                    {% if c['id'] != category['id'] %}
+                        <option value="{{ c['id'] }}" {% if c['id'] == category['parent_id'] %}selected{% endif %}>
+                            {{ c['name'] }}
+                        </option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </p>
+
+        <p>
+            <button type="submit" class="admin-btn">Update Category</button>
+        </p>
+    </form>
+
+    <hr>
+
+    <!-- 📋 Words in Category -->
+    <h3>Words in this Category</h3>
+    {% if category_words %}
+        <ul>
+        {% for w in category_words %}
+            <li><a href="{{ url_for('show_word', word_name=w['word']) }}" target="_blank">{{ w['word'] }}</a></li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p><em>No words yet in this category.</em></p>
+    {% endif %}
+
+    <hr>
+
+    <!-- 🔍 Add Existing Word -->
+    <h3>Add Existing Word</h3>
+
+    <form method="GET" action="{{ url_for('admin_edit_category', category_id=category['id']) }}" class="admin-add-word-form">
+        <p>
+            <input type="text" name="word_query" class="admin-input" placeholder="Search for a word..." value="{{ search_query }}">
+            <button type="submit" class="admin-btn">Search</button>
+        </p>
+    </form>
+
+    {% if search_results %}
+    <form method="POST" action="{{ url_for('admin_edit_category', category_id=category['id']) }}" class="admin-add-word-form">
+        <input type="hidden" name="action" value="add_existing">
+        <p>
+            <label>Select a word to add:</label><br>
+            <select name="existing_word_id" class="admin-select" required>
+                {% for w in search_results %}
+                    <option value="{{ w['id'] }}">{{ w['word'] }}</option>
+                {% endfor %}
+            </select>
+        </p>
+        <p>
+            <button type="submit" class="admin-btn">Add Word to Category</button>
+        </p>
+    </form>
+    {% elif search_query %}
+        <p><em>No results found for “{{ search_query }}”.</em></p>
+    {% endif %}
+
+    <hr>
+
+    <!-- 🆕 Add New Word -->
+    <h3>Add New Word to this Category</h3>
+    <form method="POST" action="{{ url_for('admin_edit_category', category_id=category['id']) }}" class="admin-add-word-form">
+        <input type="hidden" name="action" value="add_new_word">
+
+        <p>
+            <label>Word:</label><br>
+            <input type="text" name="new_word" required class="admin-input">
+        </p>
+
+        <p>
+            <label>Part of Speech:</label><br>
+            <select name="pos_id" required class="admin-select">
+                {% for pos in pos_list %}
+                <option value="{{ pos['id'] }}">{{ pos['name'] }}</option>
+                {% endfor %}
+            </select>
+        </p>
+
+        <hr>
+        <h3>Meanings</h3>
+
+        <div id="meanings-container" class="meanings-section">
+            <div class="meaning-block" data-meaning-number="1">
+
+                <p>Translations:</p>
+                <div id="translations-1" class="translations-group">
+                    <input type="text" name="translations_1[]" class="admin-input"><br>
+                </div>
+                <button type="button" class="admin-btn" onclick="addTranslation(1)">+ Add Translation</button>
+
+                <p>Examples:</p>
+                <div id="examples-1" class="examples-group">
+                    <div class="example-pair">
+                        <input type="text" name="examples_1[]" class="admin-input" placeholder="Example">
+                        <input type="text" name="examples_trans_1[]" class="admin-input" placeholder="Translation">
+                    </div>
+                </div>
+                <button type="button" class="admin-btn" onclick="addExample(1)">+ Add Example</button>
+
+                <input type="hidden" name="meaning_number[]" value="1">
+                <p>Notes: <input type="text" name="meaning_notes[]" class="admin-input"></p>
+            </div>
+        </div>
+
+        <button type="button" onclick="addMeaning()" class="admin-btn">+ Add Meaning</button>
+
+        <p>
+            <button type="submit" class="admin-btn">Add Word</button>
+        </p>
+    </form>
+</div>
+
+<form method="POST" action="{{ url_for('admin_delete_category', category_id=category['id']) }}" onsubmit="return confirm('Are you sure you want to delete this category? This cannot be undone.');">
+    <button type="submit" class="admin-btn delete-btn""> Delete Category</button>
 </form>
 
-<p><a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a></p>
+<p>
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+</p>
+
+<script>
+(function(){
+    let meaningCount = 1;
+
+    function addTranslation(num) {
+        const container = document.getElementById(`translations-${num}`);
+        const wrapper = document.createElement('div');
+        wrapper.className = 'translation-item';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.name = `translations_${num}[]`;
+        input.className = 'admin-input';
+        input.placeholder = 'Translation';
+        wrapper.appendChild(input);
+        container.appendChild(wrapper);
+    }
+
+    function addExample(num) {
+        const container = document.getElementById(`examples-${num}`);
+        const wrapper = document.createElement('div');
+        wrapper.className = 'example-pair';
+        const text = document.createElement('input');
+        text.type = 'text';
+        text.name = `examples_${num}[]`;
+        text.className = 'admin-input';
+        text.placeholder = 'Example';
+        const trans = document.createElement('input');
+        trans.type = 'text';
+        trans.name = `examples_trans_${num}[]`;
+        trans.className = 'admin-input';
+        trans.placeholder = 'Translation';
+        wrapper.appendChild(text);
+        wrapper.appendChild(trans);
+        container.appendChild(wrapper);
+    }
+
+    window.addMeaning = function() {
+        meaningCount++;
+        const container = document.getElementById('meanings-container');
+        const div = document.createElement('div');
+        div.className = 'meaning-block';
+        div.dataset.meaningNumber = meaningCount;
+        div.innerHTML = `
+            <input type="hidden" name="meaning_number[]" value="${meaningCount}">
+            <p>Translations:</p>
+            <div id="translations-${meaningCount}" class="translations-group">
+                <input type="text" name="translations_${meaningCount}[]" class="admin-input" placeholder="Translation"><br>
+            </div>
+            <button type="button" onclick="addTranslation(${meaningCount})">+ Add Translation</button>
+
+            <p>Examples:</p>
+            <div id="examples-${meaningCount}" class="examples-group">
+                <div class="example-pair">
+                    <input type="text" name="examples_${meaningCount}[]" class="admin-input" placeholder="Example">
+                    <input type="text" name="examples_trans_${meaningCount}[]" class="admin-input" placeholder="Translation">
+                </div>
+            </div>
+            <button type="button" onclick="addExample(${meaningCount})">+ Add Example</button>
+            <p>Notes: <input type="text" name="meaning_notes[]" class="admin-input"></p>
+        `;
+        container.appendChild(div);
+    }
+
+    window.addTranslation = addTranslation;
+    window.addExample = addExample;
+})();
+</script>
 {% endblock %}

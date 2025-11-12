@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Edit Category: Search Results</h2>
+
+<p>Search query: "<strong>{{ query }}</strong>"</p>
+
+{% if results %}
+<ul class="search-results">
+    {% for c in results %}
+        <li>
+            <a href="{{ url_for('admin_edit_category', category_id=c['id']) }}">
+                {{ c['name'] }}
+            </a>
+            
+        </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>No categories found matching “<strong>{{ query }}</strong>”.</p>
+{% endif %}
+
+<p>
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn">Back to Dashboard</a>
+</p>
+
+{% endblock %}
