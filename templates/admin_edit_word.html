@@ -6,11 +6,13 @@
 <div class="admin-add-word-container">
 <form method="post" class="admin-add-word-form">
 
+    <!-- Word -->
     <p>
         <label>Word:</label><br>
         <input type="text" name="word" value="{{ word['word'] }}" required class="admin-input" placeholder="Enter word">
     </p>
 
+    <!-- Part of Speech -->
     <p>
         <label>Part of Speech:</label><br>
         <select name="pos_id" required class="admin-select">
@@ -19,8 +21,6 @@
             {% endfor %}
         </select>
     </p>
-
-
 
     <hr>
     <h3>Meanings</h3>
@@ -59,9 +59,12 @@
             <input type="text" name="definition_{{ meaning['meaning_number'] }}" class="admin-input" 
                 placeholder="Enter Finnish definition" value="{{ meaning['definition'] or '' }}">
 
-
             <p>Notes (optional):</p>
             <input type="text" name="meaning_notes[]" class="admin-input" placeholder="Enter notes" value="{{ meaning['notes'] or '' }}">
+
+            {% if loop.index > 1 %}
+            <button type="button" class="admin-btn-small delete-btn" onclick="deleteMeaning(this)">Delete Meaning</button>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
@@ -89,38 +92,7 @@
 (function(){
     let meaningCount = {{ meanings|length if meanings else 1 }};
 
-    function addTranslation(num) {
-        const container = document.getElementById(`translations-${num}`);
-        const wrapper = document.createElement('div');
-        wrapper.className = 'translation-item';
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.name = `translations_${num}[]`;
-        input.className = 'admin-input';
-        input.placeholder = 'Enter translation';
-        wrapper.appendChild(input);
-        container.appendChild(wrapper);
-    }
-
-    function addExample(num) {
-        const container = document.getElementById(`examples-${num}`);
-        const wrapper = document.createElement('div');
-        wrapper.className = 'example-pair';
-        const text = document.createElement('input');
-        text.type = 'text';
-        text.name = `examples_${num}[]`;
-        text.className = 'admin-input';
-        text.placeholder = 'Enter example';
-        const trans = document.createElement('input');
-        trans.type = 'text';
-        trans.name = `examples_trans_${num}[]`;
-        trans.className = 'admin-input';
-        trans.placeholder = 'Enter example translation';
-        wrapper.appendChild(text);
-        wrapper.appendChild(trans);
-        container.appendChild(wrapper);
-    }
-
+    // Add a new meaning block
     window.addMeaning = function() {
         meaningCount++;
         const container = document.getElementById('meanings-container');
@@ -134,6 +106,7 @@
                 <input type="text" name="translations_${meaningCount}[]" class="admin-input" placeholder="Enter translation">
             </div>
             <button type="button" class="admin-btn" onclick="addTranslation(${meaningCount})">+ Add Translation</button>
+
             <p>Examples (optional):</p>
             <div id="examples-${meaningCount}" class="examples-group">
                 <div class="example-pair">
@@ -142,15 +115,92 @@
                 </div>
             </div>
             <button type="button" class="admin-btn" onclick="addExample(${meaningCount})">+ Add Example</button>
+
             <p>Finnish definition (optional):</p>
             <input type="text" name="definition_${meaningCount}" class="admin-input" placeholder="Enter Finnish definition">
+
             <p>Notes (optional): <input type="text" name="meaning_notes[]" class="admin-input" placeholder="Enter notes"></p>
+
+            <button type="button" class="admin-btn-small delete-btn" onclick="deleteMeaning(this)">Delete Meaning</button>
+        `;
+        container.appendChild(div);
+        renumberMeanings();
+    }
+
+    // Add translation input
+    window.addTranslation = function(num) {
+        const container = document.getElementById(`translations-${num}`);
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.name = `translations_${num}[]`;
+        input.className = 'admin-input';
+        input.placeholder = 'Enter translation';
+        container.appendChild(input);
+    }
+
+    // Add example input
+    window.addExample = function(num) {
+        const container = document.getElementById(`examples-${num}`);
+        const div = document.createElement('div');
+        div.className = 'example-pair';
+        div.innerHTML = `
+            <input type="text" name="examples_${num}[]" class="admin-input" placeholder="Enter example">
+            <input type="text" name="examples_trans_${num}[]" class="admin-input" placeholder="Enter example translation">
         `;
         container.appendChild(div);
     }
 
-    window.addTranslation = addTranslation;
-    window.addExample = addExample;
+    // Delete meaning
+    window.deleteMeaning = function(button) {
+        const meaningBlock = button.closest('.meaning-block');
+        meaningBlock.remove();
+        renumberMeanings();
+    }
+
+    // Renumber all meanings sequentially
+    function renumberMeanings() {
+        const allBlocks = document.querySelectorAll('.meaning-block');
+        allBlocks.forEach((block, index) => {
+            const newNum = index + 1;
+            block.dataset.meaningNumber = newNum;
+
+            // Update hidden input
+            const hiddenInput = block.querySelector('input[name^="meaning_number"]');
+            if (hiddenInput) hiddenInput.value = newNum;
+
+            // Update translation inputs
+            block.querySelectorAll('input[name^="translations_"]').forEach(input => {
+                input.name = `translations_${newNum}[]`;
+            });
+
+            // Update example inputs
+            block.querySelectorAll('input[name^="examples_"]').forEach(input => {
+                if (input.name.includes('trans')) {
+                    input.name = `examples_trans_${newNum}[]`;
+                } else {
+                    input.name = `examples_${newNum}[]`;
+                }
+            });
+
+            // Update definition input
+            const defInput = block.querySelector('input[name^="definition_"]');
+            if (defInput) defInput.name = `definition_${newNum}`;
+
+            // Update notes input
+            const notesInput = block.querySelector('input[name^="meaning_notes"]');
+            if (notesInput) notesInput.name = `meaning_notes[]`;
+
+            // Show/hide delete button: first meaning cannot be deleted
+            const deleteBtn = block.querySelector('.delete-btn');
+            if (deleteBtn) {
+                deleteBtn.style.display = (index === 0) ? 'none' : 'inline-block';
+            }
+        });
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', renumberMeanings);
+
 })();
 </script>
 {% endblock %}

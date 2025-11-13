@@ -196,7 +196,6 @@ def admin_edit_word(word_id):
     cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
     pos_list = cur.fetchall()
 
-
     # Fetch meanings
     cur.execute("SELECT id, meaning_number, notes, definition FROM meanings WHERE word_id = ? ORDER BY meaning_number", (word_id,))
     meanings_rows = cur.fetchall()
@@ -213,6 +212,7 @@ def admin_edit_word(word_id):
         examples = [(e['example_text'], e['example_translation_text']) for e in cur.fetchall()]
 
         meanings.append({
+            'id': m['id'],
             'meaning_number': m['meaning_number'],
             'notes': m['notes'],
             'definition': m['definition'],  
@@ -220,14 +220,29 @@ def admin_edit_word(word_id):
             'examples': examples
         })
 
-
+    # -------------------------------
+    # Handle POST requests
+    # -------------------------------
     if request.method == 'POST':
-        # Update word text and POS
+        action = request.form.get("action")
+
+        # 🗑 Handle delete meaning
+        if action == "delete_meaning":
+            meaning_id = request.form.get("meaning_id")
+            if meaning_id:
+                cur.execute("DELETE FROM examples WHERE meaning_id = ?", (meaning_id,))
+                cur.execute("DELETE FROM translations WHERE meaning_id = ?", (meaning_id,))
+                cur.execute("DELETE FROM meanings WHERE id = ?", (meaning_id,))
+                conn.commit()
+                flash("Meaning deleted successfully.", "success")
+            conn.close()
+            return redirect(url_for('admin_edit_word', word_id=word_id))
+
+        # 📝 Handle normal word update
         new_word = request.form.get('word', '').strip()
         new_pos_id = request.form.get('pos_id')
         cur.execute("UPDATE words SET word = ?, pos_id = ? WHERE id = ?", (new_word, new_pos_id, word_id))
         conn.commit()
-
 
         # Delete existing meanings + translations + examples
         cur.execute("SELECT id FROM meanings WHERE word_id = ?", (word_id,))
@@ -247,7 +262,6 @@ def admin_edit_word(word_id):
                 "INSERT INTO meanings (word_id, meaning_number, notes, definition) VALUES (?, ?, ?, ?)",
                 (word_id, int(m_num), notes, definition)
             )
-            
 
             cur.execute("SELECT id FROM meanings WHERE word_id=? AND meaning_number=?", (word_id, int(m_num)))
             meaning_id = cur.fetchone()['id']
@@ -259,7 +273,6 @@ def admin_edit_word(word_id):
                 if t:
                     cur.execute("INSERT INTO translations (meaning_id, translation_text, translation_number) VALUES (?, ?, ?)",
                                 (meaning_id, t, idx))
-            
 
             # Examples
             example_texts = request.form.getlist(f'examples_{m_num}[]')
@@ -272,17 +285,15 @@ def admin_edit_word(word_id):
                         "INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
                         (meaning_id, ex_text, ex_trans)
                     )
-        conn.commit()    
 
-        
-            
-
+        conn.commit()
         flash(f"Word '{new_word}' updated successfully!", "success")
         conn.close()
         return redirect(url_for('admin_dashboard'))
 
     conn.close()
     return render_template('admin_edit_word.html', word=word, pos_list=pos_list, meanings=meanings)
+
 
 
 

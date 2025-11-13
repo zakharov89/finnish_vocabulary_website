@@ -52,6 +52,8 @@
             <p>Notes (optional):</p>
             <input type="text" name="meaning_notes_1" class="admin-input" placeholder="Enter notes">
 
+           
+
         </div>
     </div>
 
@@ -102,6 +104,9 @@
 
             <p>Notes (optional):</p>
             <input type="text" name="meaning_notes_${meaningCount}" class="admin-input" placeholder="Enter notes">
+
+            <!-- Delete meaning button -->
+            <button type="button" class="admin-btn-small delete-btn" onclick="deleteMeaning(this)">Delete Meaning</button>
         `;
         container.appendChild(div);
     }
@@ -129,7 +134,11 @@
         container.appendChild(div);
     }
 
-    
+    window.deleteMeaning = function(button) {
+        const meaningBlock = button.closest('.meaning-block');
+        meaningBlock.remove();
+    }
+
 
 })();
 </script>
