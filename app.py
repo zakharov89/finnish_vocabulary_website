@@ -84,6 +84,7 @@ def admin_dashboard():
     )
 
 
+
 @app.route('/admin/add_word', methods=['GET', 'POST'])
 @admin_required
 def admin_add_word():
@@ -94,13 +95,12 @@ def admin_add_word():
     # Fetch parts of speech and categories for the form
     cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
     pos_list = cur.fetchall()
-    cur.execute("SELECT id, name FROM categories ORDER BY name")
-    categories = cur.fetchall()
+
 
     if request.method == 'POST':
         word_text = request.form.get('word', '').strip()
         pos_id = request.form.get('pos_id')
-        category_name = request.form.get('category_name')  # optional
+       
 
         if not word_text:
             flash("Word cannot be empty.", "error")
@@ -112,16 +112,7 @@ def admin_add_word():
             cur.execute("SELECT id FROM words WHERE word = ?", (word_text,))
             word_id = cur.fetchone()['id']
 
-            # Assign category if provided
-            if category_name:
-                # Try to find category by name
-                cur.execute("SELECT id FROM categories WHERE name = ?", (category_name,))
-                cat_row = cur.fetchone()
-                if cat_row:
-                    category_id = cat_row['id']
-                    cur.execute("INSERT OR IGNORE INTO word_categories (word_id, category_id) VALUES (?, ?)",
-                                (word_id, category_id))
-                    conn.commit()
+           
 
             # Insert meanings + translations + examples
             meaning_numbers = request.form.getlist('meaning_number[]')
@@ -174,7 +165,10 @@ def admin_add_word():
             return redirect(url_for('admin_dashboard'))
 
     conn.close()
-    return render_template('admin_add_word.html', pos_list=pos_list, categories=categories)
+    return render_template('admin_add_word.html', pos_list=pos_list)
+
+
+
 
 
 
@@ -202,10 +196,6 @@ def admin_edit_word(word_id):
     cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
     pos_list = cur.fetchall()
 
-    # Fetch assigned category
-    cur.execute("SELECT category_id FROM word_categories WHERE word_id = ?", (word_id,))
-    word_categories = [row['category_id'] for row in cur.fetchall()]
-    word['category_ids'] = word_categories
 
     # Fetch meanings
     cur.execute("SELECT id, meaning_number, notes, definition FROM meanings WHERE word_id = ? ORDER BY meaning_number", (word_id,))
@@ -238,12 +228,6 @@ def admin_edit_word(word_id):
         cur.execute("UPDATE words SET word = ?, pos_id = ? WHERE id = ?", (new_word, new_pos_id, word_id))
         conn.commit()
 
-        # Update category (clear old and insert new)
-        cur.execute("DELETE FROM word_categories WHERE word_id = ?", (word_id,))
-        category_id = request.form.get('category_id')
-        if category_id:
-            cur.execute("INSERT INTO word_categories (word_id, category_id) VALUES (?, ?)", (word_id, category_id))
-        conn.commit()
 
         # Delete existing meanings + translations + examples
         cur.execute("SELECT id FROM meanings WHERE word_id = ?", (word_id,))
@@ -298,7 +282,7 @@ def admin_edit_word(word_id):
         return redirect(url_for('admin_dashboard'))
 
     conn.close()
-    return render_template('admin_edit_word.html', word=word, pos_list=pos_list, categories=categories, meanings=meanings)
+    return render_template('admin_edit_word.html', word=word, pos_list=pos_list, meanings=meanings)
 
 
 
@@ -811,6 +795,88 @@ def show_category(category_name):
 
 
 
+@app.route("/admin/words/<int:word_id>/relations", methods=["GET", "POST"])
+@admin_required
+def admin_word_relations(word_id):
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Fetch the word
+    cur.execute("SELECT * FROM words WHERE id = ?", (word_id,))
+    word = cur.fetchone()
+    if not word:
+        flash("Word not found.", "danger")
+        conn.close()
+        return redirect(url_for("admin_dashboard"))
+
+    # Fetch relation types for dropdown
+    cur.execute("SELECT * FROM relation_types WHERE applies_to='word' ORDER BY name")
+    relation_types = cur.fetchall()
+
+    # Handle POST
+    if request.method == "POST":
+        action = request.form.get("action")
+        related_word_id = int(request.form.get("related_word_id"))
+        relation_type_id = int(request.form.get("relation_type_id"))
+
+        # Insert or remove relation
+        if action == "add_relation":
+            # Check if bidirectional
+            cur.execute("SELECT bidirectional FROM relation_types WHERE id=?", (relation_type_id,))
+            bidirectional = cur.fetchone()["bidirectional"]
+
+            # Insert main relation
+            cur.execute("""
+                INSERT OR IGNORE INTO word_relations (word1_id, word2_id, relation_type_id)
+                VALUES (?, ?, ?)
+            """, (word_id, related_word_id, relation_type_id))
+            # Insert reverse if bidirectional
+            if bidirectional:
+                cur.execute("""
+                    INSERT OR IGNORE INTO word_relations (word1_id, word2_id, relation_type_id)
+                    VALUES (?, ?, ?)
+                """, (related_word_id, word_id, relation_type_id))
+            flash("Relation added successfully!", "success")
+        elif action == "remove_relation":
+            cur.execute("""
+                DELETE FROM word_relations WHERE word1_id=? AND word2_id=? AND relation_type_id=?
+            """, (word_id, related_word_id, relation_type_id))
+            # Remove reverse if bidirectional
+            cur.execute("SELECT bidirectional FROM relation_types WHERE id=?", (relation_type_id,))
+            bidirectional = cur.fetchone()["bidirectional"]
+            if bidirectional:
+                cur.execute("""
+                    DELETE FROM word_relations WHERE word1_id=? AND word2_id=? AND relation_type_id=?
+                """, (related_word_id, word_id, relation_type_id))
+            flash("Relation removed successfully!", "success")
+
+        conn.commit()
+        return redirect(url_for("admin_word_relations", word_id=word_id))
+
+    # Fetch existing relations for display
+    cur.execute("""
+        SELECT wr.id, w2.id AS word2_id, w2.word, rt.name AS relation_name, rt.id AS relation_type_id
+        FROM word_relations wr
+        JOIN words w2 ON wr.word2_id = w2.id
+        JOIN relation_types rt ON wr.relation_type_id = rt.id
+        WHERE wr.word1_id=?
+        ORDER BY rt.name, w2.word
+    """, (word_id,))
+    relations = cur.fetchall()
+
+    # Fetch all other words for dropdown
+    cur.execute("SELECT id, word FROM words WHERE id != ?", (word_id,))
+    all_words = cur.fetchall()
+
+    conn.close()
+    return render_template(
+        "admin_word_relations.html",
+        word=word,
+        relations=relations,
+        all_words=all_words,
+        relation_types=relation_types
+    )
 
 
 

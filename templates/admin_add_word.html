@@ -22,12 +22,7 @@
         </select>
     </p>
 
-    <!-- Category -->
-    <p>
-        <label>Category (optional):</label><br>
-        <input type="text" name="category_name" class="admin-input" id="category-input" placeholder="Type to search category...">
-        <div id="category-suggestions" class="suggestions-list"></div>
-    </p>
+
 
     <!-- Meanings -->
     <h3>Meanings</h3>
@@ -134,42 +129,7 @@
         container.appendChild(div);
     }
 
-    // Category suggestions
-    const input = document.getElementById('category-input');
-    const suggestions = document.getElementById('category-suggestions');
-    let categories = [
-        {% for cat in categories %}
-        { id: {{ cat['id'] }}, name: "{{ cat['name'] }}" },
-        {% endfor %}
-    ];
-
-    input.addEventListener('input', function() {
-        const val = this.value.toLowerCase();
-        suggestions.innerHTML = '';
-        if (!val) return;
-
-        const matches = categories
-            .filter(c => c.name.toLowerCase().startsWith(val))
-            .slice(0, 5);
-
-        matches.forEach(c => {
-            const div = document.createElement('div');
-            div.classList.add('suggestion-item');
-            div.textContent = c.name;
-            div.dataset.id = c.id;
-            div.addEventListener('click', () => {
-                input.value = c.name;
-                suggestions.innerHTML = '';
-            });
-            suggestions.appendChild(div);
-        });
-    });
-
-    document.addEventListener('click', e => {
-        if (!input.contains(e.target) && !suggestions.contains(e.target)) {
-            suggestions.innerHTML = '';
-        }
-    });
+    
 
 })();
 </script>
