@@ -113,15 +113,15 @@
 
                 <p>Translations:</p>
                 <div id="translations-1" class="translations-group">
-                    <input type="text" name="translations_1[]" class="admin-input">
+                    <input type="text" name="translations_1[]" class="admin-input" placeholder="Enter translation">
                 </div>
                 <button type="button" class="admin-btn" onclick="addTranslation(1)">+ Add Translation</button>
 
                 <p>Examples:</p>
                 <div id="examples-1" class="examples-group">
                     <div class="example-pair">
-                        <input type="text" name="examples_1[]" class="admin-input" placeholder="Example">
-                        <input type="text" name="examples_trans_1[]" class="admin-input" placeholder="Translation">
+                        <input type="text" name="examples_1[]" class="admin-input" placeholder="Enter example">
+                        <input type="text" name="examples_trans_1[]" class="admin-input" placeholder="Enter example translation">
                     </div>
                 </div>
                 <button type="button" class="admin-btn" onclick="addExample(1)">+ Add Example</button>
@@ -130,7 +130,7 @@
                 <input type="text" name="definition_1" class="admin-input" placeholder="Enter definition">
 
                 <p>Notes:</p>
-                <input type="text" name="meaning_notes[]" class="admin-input">
+                <input type="text" name="meaning_notes[]" class="admin-input" placeholder="Enter notes">
             </div>
         </div>
 
@@ -197,15 +197,15 @@
 
             <p>Translations:</p>
             <div id="translations-${meaningCount}" class="translations-group">
-                <input type="text" name="translations_${meaningCount}[]" class="admin-input" placeholder="Translation">
+                <input type="text" name="translations_${meaningCount}[]" class="admin-input" placeholder="Enter translation">
             </div>
             <button type="button" class="admin-btn" onclick="addTranslation(${meaningCount})">+ Add Translation</button>
 
             <p>Examples:</p>
             <div id="examples-${meaningCount}" class="examples-group">
                 <div class="example-pair">
-                    <input type="text" name="examples_${meaningCount}[]" class="admin-input" placeholder="Example">
-                    <input type="text" name="examples_trans_${meaningCount}[]" class="admin-input" placeholder="Translation">
+                    <input type="text" name="examples_${meaningCount}[]" class="admin-input" placeholder="Enter example">
+                    <input type="text" name="examples_trans_${meaningCount}[]" class="admin-input" placeholder="Enter example translation">
                 </div>
             </div>
             <button type="button" class="admin-btn" onclick="addExample(${meaningCount})">+ Add Example</button>
@@ -214,7 +214,7 @@
             <input type="text" name="definition_${meaningCount}" class="admin-input" placeholder="Enter definition">
 
             <p>Notes:</p>
-            <input type="text" name="meaning_notes[]" class="admin-input">
+            <input type="text" name="meaning_notes[]" class="admin-input" placeholder="Enter notes">
         `;
         container.appendChild(div);
     }
