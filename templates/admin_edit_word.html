@@ -36,19 +36,26 @@
             <p>Translations:</p>
             <div id="translations-{{ meaning['meaning_number'] }}" class="translations-group">
                 {% for t in meaning['translations'] %}
-                <input type="text" name="translations_{{ meaning['meaning_number'] }}[]" value="{{ t }}" class="admin-input" placeholder="Enter translation"><br>
+                <input type="text" name="translations_{{ meaning['meaning_number'] }}[]" value="{{ t }}" class="admin-input" placeholder="Enter translation">
                 {% endfor %}
             </div>
             <button type="button" class="admin-btn" onclick="addTranslation({{ meaning['meaning_number'] }})">+ Add Translation</button>
 
             <p>Examples (optional):</p>
             <div id="examples-{{ meaning['meaning_number'] }}" class="examples-group">
-                {% for ex, ex_trans in meaning['examples'] %}
-                <div class="example-pair">
-                    <input type="text" name="examples_{{ meaning['meaning_number'] }}[]" value="{{ ex }}" class="admin-input" placeholder="Enter example">
-                    <input type="text" name="examples_trans_{{ meaning['meaning_number'] }}[]" value="{{ ex_trans or '' }}" class="admin-input" placeholder="Enter example translation">
-                </div>
-                {% endfor %}
+                {% if meaning['examples'] %}
+                    {% for ex, ex_trans in meaning['examples'] %}
+                    <div class="example-pair">
+                        <input type="text" name="examples_{{ meaning['meaning_number'] }}[]" value="{{ ex }}" class="admin-input" placeholder="Enter example">
+                        <input type="text" name="examples_trans_{{ meaning['meaning_number'] }}[]" value="{{ ex_trans or '' }}" class="admin-input" placeholder="Enter example translation">
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="example-pair">
+                        <input type="text" name="examples_{{ meaning['meaning_number'] }}[]" class="admin-input" placeholder="Enter example">
+                        <input type="text" name="examples_trans_{{ meaning['meaning_number'] }}[]" class="admin-input" placeholder="Enter example translation">
+                    </div>
+                {% endif %}
             </div>
             <button type="button" class="admin-btn" onclick="addExample({{ meaning['meaning_number'] }})">+ Add Example</button>
 
@@ -128,7 +135,7 @@
             <input type="hidden" name="meaning_number[]" value="${meaningCount}">
             <p>Translations:</p>
             <div id="translations-${meaningCount}" class="translations-group">
-                <input type="text" name="translations_${meaningCount}[]" class="admin-input" placeholder="Enter translation"><br>
+                <input type="text" name="translations_${meaningCount}[]" class="admin-input" placeholder="Enter translation">
             </div>
             <button type="button" class="admin-btn" onclick="addTranslation(${meaningCount})">+ Add Translation</button>
             <p>Examples (optional):</p>
