@@ -451,6 +451,8 @@ button.delete-btn:hover {
     width: 250px;
     border-radius: 4px;
     border: 1px solid #ccc;
+    display: block;
+    margin-bottom: 6px; 
 }
 
 
@@ -516,4 +518,29 @@ button.delete-btn:hover {
   padding: 2rem;
   border-radius: 12px;
   box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+}
+
+.suggestions-list {
+    border: 1px solid #ccc;
+    background: #fff;
+    max-height: 150px;
+    overflow-y: auto;
+    margin-top: 2px;
+    position: absolute;
+    width: 300px;
+    z-index: 1000;
+}
+
+.suggestion-item {
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+.suggestion-item:hover {
+    background-color: #e0e0e0;
+}
+
+
+.meaning-block p {
+    margin: 6px 0 3px 0;
 }

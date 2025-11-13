@@ -3,59 +3,60 @@
 {% block content %}
 <h2>Add New Word</h2>
 
-
-
-
-
 <div class="admin-add-word-container">
 <form method="post" class="admin-add-word-form">
 
+    <!-- Word -->
     <p>
         <label>Word:</label><br>
-        <input type="text" name="word" required class="admin-input">
+        <input type="text" name="word" required class="admin-input" placeholder="Enter new word">
     </p>
 
+    <!-- Part of Speech -->
     <p>
         <label>Part of Speech:</label><br>
-        <select name="pos_id" required class="admin-select">
+        <select name="pos_id" required class="admin-select" style="width: 200px;">
             {% for pos in pos_list %}
             <option value="{{ pos['id'] }}">{{ pos['name'] }}</option>
             {% endfor %}
         </select>
     </p>
 
+    <!-- Category -->
     <p>
         <label>Category (optional):</label><br>
-        <select name="category_id" class="admin-select">
-            <option value="">-- None --</option>
-            {% for cat in categories %}
-            <option value="{{ cat['id'] }}">{{ cat['name'] }}</option>
-            {% endfor %}
-        </select>
+        <input type="text" name="category_name" class="admin-input" id="category-input" placeholder="Type to search category...">
+        <div id="category-suggestions" class="suggestions-list"></div>
     </p>
 
-    <hr>
+    <!-- Meanings -->
     <h3>Meanings</h3>
     <div id="meanings-container" class="meanings-section">
         <div class="meaning-block" data-meaning-number="1">
-         
+
+            <input type="hidden" name="meaning_number[]" value="1">
+
             <p>Translations:</p>
             <div id="translations-1" class="translations-group">
-                <input type="text" name="translations_1[]" class="admin-input"><br>
+                <input type="text" name="translations_1[]" class="admin-input" placeholder="Enter translation"><br>
             </div>
             <button type="button" class="admin-btn" onclick="addTranslation(1)">+ Add Translation</button>
 
-            <p>Examples:</p>
+            <p>Examples (optional):</p>
             <div id="examples-1" class="examples-group">
                 <div class="example-pair">
-                    <input type="text" name="examples_1[]" class="admin-input" placeholder="Example">
-                    <input type="text" name="examples_trans_1[]" class="admin-input" placeholder="Translation">
+                    <input type="text" name="examples_1[]" class="admin-input" placeholder="Enter example">
+                    <input type="text" name="examples_trans_1[]" class="admin-input" placeholder="Enter example translation">
                 </div>
             </div>
             <button type="button" class="admin-btn" onclick="addExample(1)">+ Add Example</button>
 
-            <input type="hidden" name="meaning_number[]" value="1">
-            <p>Notes: <input type="text" name="meaning_notes[]" class="admin-input"></p>
+            <p>Finnish definition (optional):</p>
+            <input type="text" name="definition_1" class="admin-input" placeholder="Enter Finnish definition">
+
+            <p>Notes (optional):</p>
+            <input type="text" name="meaning_notes_1" class="admin-input" placeholder="Enter notes">
+
         </div>
     </div>
 
@@ -64,9 +65,9 @@
     <p>
         <button type="submit" class="admin-btn">Add Word</button>
     </p>
+
 </form>
 </div>
-
 
 <p>
     <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
@@ -76,38 +77,7 @@
 (function(){
     let meaningCount = 1;
 
-    function addTranslation(num) {
-        const container = document.getElementById(`translations-${num}`);
-        const wrapper = document.createElement('div');
-        wrapper.className = 'translation-item';
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.name = `translations_${num}[]`;
-        input.className = 'admin-input';
-        input.placeholder = 'Translation';
-        wrapper.appendChild(input);
-        container.appendChild(wrapper);
-    }
-
-    function addExample(num) {
-        const container = document.getElementById(`examples-${num}`);
-        const wrapper = document.createElement('div');
-        wrapper.className = 'example-pair';
-        const text = document.createElement('input');
-        text.type = 'text';
-        text.name = `examples_${num}[]`;
-        text.className = 'admin-input';
-        text.placeholder = 'Example';
-        const trans = document.createElement('input');
-        trans.type = 'text';
-        trans.name = `examples_trans_${num}[]`;
-        trans.className = 'admin-input';
-        trans.placeholder = 'Translation';
-        wrapper.appendChild(text);
-        wrapper.appendChild(trans);
-        container.appendChild(wrapper);
-    }
-
+    // Add new meaning block
     window.addMeaning = function() {
         meaningCount++;
         const container = document.getElementById('meanings-container');
@@ -116,65 +86,92 @@
         div.dataset.meaningNumber = meaningCount;
         div.innerHTML = `
             <input type="hidden" name="meaning_number[]" value="${meaningCount}">
+
             <p>Translations:</p>
             <div id="translations-${meaningCount}" class="translations-group">
-                <input type="text" name="translations_${meaningCount}[]" class="admin-input" placeholder="Translation"><br>
+                <input type="text" name="translations_${meaningCount}[]" class="admin-input" placeholder="Enter translation"><br>
             </div>
-            <button type="button" onclick="addTranslation(${meaningCount})">+ Add Translation</button>
+            <button type="button" class="admin-btn" onclick="addTranslation(${meaningCount})">+ Add Translation</button>
 
-            <p>Examples:</p>
+            <p>Examples (optional):</p>
             <div id="examples-${meaningCount}" class="examples-group">
                 <div class="example-pair">
-                    <input type="text" name="examples_${meaningCount}[]" class="admin-input" placeholder="Example">
-                    <input type="text" name="examples_trans_${meaningCount}[]" class="admin-input" placeholder="Translation">
+                    <input type="text" name="examples_${meaningCount}[]" class="admin-input" placeholder="Enter example">
+                    <input type="text" name="examples_trans_${meaningCount}[]" class="admin-input" placeholder="Enter example translation">
                 </div>
             </div>
-            <button type="button" onclick="addExample(${meaningCount})">+ Add Example</button>
-            <p>Notes: <input type="text" name="meaning_notes[]" class="admin-input"></p>
+            <button type="button" class="admin-btn" onclick="addExample(${meaningCount})">+ Add Example</button>
+
+            <p>Finnish definition (optional):</p>
+            <input type="text" name="definition_${meaningCount}" class="admin-input" placeholder="Enter Finnish definition">
+
+            <p>Notes (optional):</p>
+            <input type="text" name="meaning_notes_${meaningCount}" class="admin-input" placeholder="Enter notes">
         `;
         container.appendChild(div);
     }
 
-    window.addTranslation = addTranslation;
-    window.addExample = addExample;
-})();
+    // Add translation input
+    window.addTranslation = function(num) {
+        const container = document.getElementById(`translations-${num}`);
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.name = `translations_${num}[]`;
+        input.className = 'admin-input';
+        input.placeholder = 'Enter translation';
+        container.appendChild(input);
+    }
 
+    // Add example input
+    window.addExample = function(num) {
+        const container = document.getElementById(`examples-${num}`);
+        const div = document.createElement('div');
+        div.className = 'example-pair';
+        div.innerHTML = `
+            <input type="text" name="examples_${num}[]" class="admin-input" placeholder="Enter example">
+            <input type="text" name="examples_trans_${num}[]" class="admin-input" placeholder="Enter example translation">
+        `;
+        container.appendChild(div);
+    }
 
+    // Category suggestions
+    const input = document.getElementById('category-input');
+    const suggestions = document.getElementById('category-suggestions');
+    let categories = [
+        {% for cat in categories %}
+        { id: {{ cat['id'] }}, name: "{{ cat['name'] }}" },
+        {% endfor %}
+    ];
 
-// Validation: alert + highlight + scroll
-document.querySelector('.admin-add-word-form').addEventListener('submit', function(e) {
-    const meaningBlocks = document.querySelectorAll('.meaning-block');
-    let valid = true;
+    input.addEventListener('input', function() {
+        const val = this.value.toLowerCase();
+        suggestions.innerHTML = '';
+        if (!val) return;
 
-    // Clear previous highlights
-    meaningBlocks.forEach(block => block.style.border = 'none');
+        const matches = categories
+            .filter(c => c.name.toLowerCase().startsWith(val))
+            .slice(0, 5);
 
-    meaningBlocks.forEach((block, idx) => {
-        const num = block.dataset.meaningNumber;
-        const translations = block.querySelectorAll(`input[name="translations_${num}[]"]`);
-        const hasTranslation = Array.from(translations).some(input => input.value.trim() !== '');
+        matches.forEach(c => {
+            const div = document.createElement('div');
+            div.classList.add('suggestion-item');
+            div.textContent = c.name;
+            div.dataset.id = c.id;
+            div.addEventListener('click', () => {
+                input.value = c.name;
+                suggestions.innerHTML = '';
+            });
+            suggestions.appendChild(div);
+        });
+    });
 
-        if (!hasTranslation && valid) { // first invalid block
-            valid = false;
-
-            // Alert
-            alert(`Meaning #${num} must have at least one translation.`);
-
-            // Highlight the meaning block
-            block.style.border = '2px solid red';
-            block.style.padding = '10px';
-
-            // Scroll into view
-            block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.addEventListener('click', e => {
+        if (!input.contains(e.target) && !suggestions.contains(e.target)) {
+            suggestions.innerHTML = '';
         }
     });
 
-    if (!valid) {
-        e.preventDefault(); // Stop form submission
-    }
-});
-
-
-
+})();
 </script>
+
 {% endblock %}
