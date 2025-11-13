@@ -431,7 +431,7 @@ def admin_search_category():
 @app.route("/admin/categories/<int:category_id>/edit", methods=["GET", "POST"])
 @admin_required
 def admin_edit_category(category_id):
-    conn = sqlite3.connect("finnish.db")
+    conn = sqlite3.connect("finnish.db", timeout=10)  # longer timeout
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
@@ -443,94 +443,82 @@ def admin_edit_category(category_id):
         flash("Category not found.", "danger")
         return redirect(url_for("admin_dashboard"))
 
-    # Fetch parent options
+    # Fetch parent options and POS
     cur.execute("SELECT id, name FROM categories WHERE id != ?", (category_id,))
     all_categories = cur.fetchall()
-
-    # Fetch POS for word creation
     cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
     pos_list = cur.fetchall()
 
-    # ----------------------------
-    # Handle POST actions
-    # ----------------------------
-
-    # 1️⃣ Update category name/parent
-    if request.form.get("action") == "update_category":
-        name = request.form.get("name", "").strip()
-        parent_id = request.form.get("parent_id") or None
-        cur.execute("UPDATE categories SET name = ?, parent_id = ? WHERE id = ?", 
-                    (name, parent_id, category_id))
-        conn.commit()
-        conn.close()
-        flash("Category updated successfully.", "success")
-        return redirect(url_for("admin_edit_category", category_id=category_id))
-
-
-    # 2️⃣ Add existing word to category
-    elif request.form.get("action") == "add_existing":
-        existing_word_id = int(request.form["existing_word_id"])
-        cur.execute("INSERT OR IGNORE INTO word_categories (word_id, category_id) VALUES (?, ?)",
-                    (existing_word_id, category_id))
-        conn.commit()
-        flash("Existing word added to category.", "success")
-
-    # 3️⃣ Add new word with meanings/translations/examples
-    elif request.form.get("action") == "add_new_word":
-        word_text = request.form.get("new_word", "").strip()
-        pos_id = request.form.get("pos_id")
-        if not word_text:
-            flash("Word cannot be empty.", "danger")
-        else:
-            cur.execute("INSERT OR IGNORE INTO words (word, pos_id) VALUES (?, ?)", (word_text, pos_id))
+    action = request.form.get("action")
+    if action:
+        if action == "update_category":
+            name = request.form.get("name", "").strip()
+            parent_id = request.form.get("parent_id") or None
+            cur.execute("UPDATE categories SET name = ?, parent_id = ? WHERE id = ?",
+                        (name, parent_id, category_id))
             conn.commit()
+            conn.close()
+            flash("Category updated successfully.", "success")
+            return redirect(url_for("admin_edit_category", category_id=category_id))
+
+        elif action == "add_existing":
+            existing_word_id = int(request.form["existing_word_id"])
+            cur.execute("INSERT OR IGNORE INTO word_categories (word_id, category_id) VALUES (?, ?)",
+                        (existing_word_id, category_id))
+            conn.commit()
+            conn.close()
+            flash("Existing word added to category.", "success")
+            return redirect(url_for("admin_edit_category", category_id=category_id))
+
+        elif action == "add_new_word":
+            word_text = request.form.get("new_word", "").strip()
+            pos_id = request.form.get("pos_id")
+            if not word_text:
+                flash("Word cannot be empty.", "danger")
+                return redirect(url_for("admin_edit_category", category_id=category_id))
+
+            cur.execute("INSERT OR IGNORE INTO words (word, pos_id) VALUES (?, ?)", (word_text, pos_id))
             cur.execute("SELECT id FROM words WHERE word = ?", (word_text,))
             word_id = cur.fetchone()["id"]
 
+            # Insert all meanings, translations, examples
             meaning_numbers = request.form.getlist("meaning_number[]")
             for m_num in meaning_numbers:
                 notes = request.form.get(f"notes_{m_num}", None)
-                cur.execute("INSERT INTO meanings (word_id, meaning_number, notes) VALUES (?, ?, ?)",
-                            (word_id, int(m_num), notes))
-                conn.commit()
+                definition = request.form.get(f"definition_{m_num}", '').strip() or None
+                cur.execute(
+                    "INSERT INTO meanings (word_id, meaning_number, notes, definition) VALUES (?, ?, ?, ?)",
+                    (word_id, int(m_num), notes, definition)
+                )
+               
                 cur.execute("SELECT id FROM meanings WHERE word_id=? AND meaning_number=?", (word_id, int(m_num)))
                 meaning_id = cur.fetchone()["id"]
 
-                # Translations
-                translations = request.form.getlist(f"translations_{m_num}[]")
-                for idx, t in enumerate(translations, 1):
+                for idx, t in enumerate(request.form.getlist(f"translations_{m_num}[]"), 1):
                     t = t.strip()
                     if t:
-                        cur.execute(
-                            "INSERT INTO translations (meaning_id, translation_text, translation_number) VALUES (?, ?, ?)",
-                            (meaning_id, t, idx))
+                        cur.execute("INSERT INTO translations (meaning_id, translation_text, translation_number) VALUES (?, ?, ?)",
+                                    (meaning_id, t, idx))
 
-                # Examples
-                example_texts = request.form.getlist(f"examples_{m_num}[]")
-                example_trans = request.form.getlist(f"examples_trans_{m_num}[]")
-                for ex, ex_tr in zip(example_texts, example_trans):
+                for ex, ex_tr in zip(request.form.getlist(f"examples_{m_num}[]"), request.form.getlist(f"examples_trans_{m_num}[]")):
                     if ex.strip():
-                        cur.execute(
-                            "INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
-                            (meaning_id, ex.strip(), ex_tr.strip() or None))
-            conn.commit()
+                        cur.execute("INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
+                                    (meaning_id, ex.strip(), ex_tr.strip() or None))
 
-            # Assign new word to this category
-            cur.execute("INSERT OR IGNORE INTO word_categories (word_id, category_id) VALUES (?, ?)",
-                        (word_id, category_id))
+            # Assign to category
+            cur.execute("INSERT OR IGNORE INTO word_categories (word_id, category_id) VALUES (?, ?)", (word_id, category_id))
             conn.commit()
+            conn.close()
             flash(f"New word '{word_text}' added and assigned to category.", "success")
+            return redirect(url_for("admin_edit_category", category_id=category_id))
 
-    # ----------------------------
     # Fetch category words and search results
-    # ----------------------------
     search_query = request.args.get("word_query", "").strip()
     search_results = []
     if search_query:
         cur.execute("SELECT id, word FROM words WHERE word LIKE ? ORDER BY word", (f"{search_query}%",))
         search_results = cur.fetchall()
 
-    # Words already in this category
     cur.execute("""
         SELECT w.id, w.word
         FROM words w
@@ -541,7 +529,6 @@ def admin_edit_category(category_id):
     category_words = cur.fetchall()
 
     conn.close()
-
     return render_template(
         "admin_edit_category.html",
         category=category,
@@ -551,6 +538,23 @@ def admin_edit_category(category_id):
         search_query=search_query,
         search_results=search_results
     )
+
+
+@app.route("/admin/categories/<int:category_id>/remove_word/<int:word_id>", methods=["POST"])
+@admin_required
+def admin_remove_word_from_category(category_id, word_id):
+    conn = sqlite3.connect("finnish.db")
+    cur = conn.cursor()
+    
+    # Remove word from category
+    cur.execute("DELETE FROM word_categories WHERE word_id=? AND category_id=?", (word_id, category_id))
+    conn.commit()
+    conn.close()
+    
+    flash("Word removed from category.", "success")
+    return redirect(url_for("admin_edit_category", category_id=category_id))
+
+
 
 @app.route("/admin/categories/<int:category_id>/delete", methods=["POST"])
 @admin_required
