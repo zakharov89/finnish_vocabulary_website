@@ -701,3 +701,57 @@ button.delete-btn:hover {
 .subcats-toggle button:hover {
     background-color: #07378c;
 }
+
+
+/* Button for toggling visibility */
+.toggle-btn {
+    background-color: #007BFF;
+    color: white;
+    padding: 8px 12px;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.toggle-btn:hover {
+    background-color: #0056b3;
+}
+
+/* Hidden content (Initially hidden, to be toggled) */
+.example-content,
+.category-content {
+    margin-top: 10px;
+    padding-left: 20px;
+    display: none; /* Initially hidden */
+}
+
+/* Category pill style */
+.category-pill {
+    display: inline-block;
+    padding: 5px 10px;
+    margin: 5px;
+    background-color: #f0f0f0;
+    border-radius: 5px;
+    text-decoration: none;
+    color: #333;
+}
+
+.category-pill:hover {
+    background-color: #e0e0e0;
+}
+
+.hidden {
+    display: none;
+}
+
+
+.example-content, .category-content {
+    display: none; /* Hidden by default */
+    margin-top: 10px;
+    padding-left: 20px;
+}
+
+.example-content.hidden, .category-content.hidden {
+    display: none !important; /* Forcefully hide content */
+}

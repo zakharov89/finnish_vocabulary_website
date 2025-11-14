@@ -743,68 +743,6 @@ def categories():
     return render_template('categories.html', categories=categories_dict)
 
 
-'''
-@app.route('/categories/<category_name>')
-def show_category(category_name):
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-
-    # Fetch the category itself
-    cur.execute("SELECT id, name, parent_id FROM categories WHERE name = ?", (category_name,))
-    category = cur.fetchone()
-    if not category:
-        return f"Category '{category_name}' not found."
-
-    # Fetch words
-    cur.execute("""
-        SELECT w.id, w.word
-        FROM words w
-        JOIN word_categories wc ON w.id = wc.word_id
-        WHERE wc.category_id = ?
-        ORDER BY w.word
-    """, (category['id'],))
-    words = cur.fetchall()
-
-    words_with_translations = []
-
-    for w in words:
-        cur.execute("""
-            SELECT t.translation_text
-            FROM meanings m
-            JOIN translations t ON m.id = t.meaning_id
-            WHERE m.word_id = ?
-            ORDER BY m.meaning_number, t.translation_number
-            LIMIT 3
-        """, (w['id'],))
-        translations = [t['translation_text'] for t in cur.fetchall()]
-
-        words_with_translations.append({
-            'word': w['word'],
-            'translations': translations
-        })
-
-
-    # Fetch subcategories
-    cur.execute("SELECT id, name FROM categories WHERE parent_id = ? ORDER BY name", (category['id'],))
-    subcategories = cur.fetchall()
-
-    # Fetch parent (if any)
-    parent = None
-    if category['parent_id']:
-        cur.execute("SELECT name FROM categories WHERE id = ?", (category['parent_id'],))
-        parent = cur.fetchone()
-
-    conn.close()
-
-    return render_template(
-        "category.html",
-        category=category,
-        words=words_with_translations,
-        subcategories=subcategories,
-        parent=parent
-    )
-'''
 
 
 @app.route('/categories/<category_name>')
@@ -813,9 +751,6 @@ def show_category(category_name):
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # ──────────────────────────────────────────────
-    # 1. Fetch ALL categories to build categories_dict
-    # ──────────────────────────────────────────────
     cur.execute("SELECT id, name, parent_id FROM categories ORDER BY name")
     all_rows = cur.fetchall()
 
@@ -824,9 +759,7 @@ def show_category(category_name):
         parent = row['parent_id']
         categories_dict.setdefault(parent, []).append(row)
 
-    # ──────────────────────────────────────────────
-    # 2. Fetch the category user requested
-    # ──────────────────────────────────────────────
+    
     cur.execute("SELECT id, name, parent_id FROM categories WHERE name = ?", (category_name,))
     category = cur.fetchone()
     if not category:
@@ -834,14 +767,8 @@ def show_category(category_name):
 
     category_id = category["id"]
 
-    # ──────────────────────────────────────────────
-    # 3. Fetch subcategories of this category
-    # ──────────────────────────────────────────────
     subcategories = categories_dict.get(category_id, [])
 
-    # ──────────────────────────────────────────────
-    # 4. Fetch words directly associated with this category
-    # ──────────────────────────────────────────────
     cur.execute("""
         SELECT w.id, w.word
         FROM words w
@@ -851,9 +778,6 @@ def show_category(category_name):
     """, (category_id,))
     words = cur.fetchall()
 
-    # ──────────────────────────────────────────────
-    # 5. For each word, fetch up to 3 translations
-    # ──────────────────────────────────────────────
     words_with_translations = []
 
     for w in words:
@@ -873,9 +797,6 @@ def show_category(category_name):
             "translations": translations
         })
 
-    # ──────────────────────────────────────────────
-    # 6. Fetch parent category (if exists)
-    # ──────────────────────────────────────────────
     parent = None
     if category["parent_id"]:
         parent_rows = categories_dict.get(category["parent_id"], [])
@@ -887,9 +808,7 @@ def show_category(category_name):
 
     conn.close()
 
-    # ──────────────────────────────────────────────
-    # 7. Render template with full data
-    # ──────────────────────────────────────────────
+
     return render_template(
         "category.html",
         category=category,

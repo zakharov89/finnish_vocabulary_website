@@ -22,20 +22,23 @@
         <span class="translation">{{ ", ".join(meaning.translations) }}</span>
     </p>
 
-    {% if meaning.examples %}
+   {% if meaning.examples %}
     <div class="examples">
-        <p><strong>Examples:</strong></p>
-        {% for ex in meaning.examples %}
-            <p>
-                {{ ex.text }}
-                {% if ex.translation %}
-                    <br><em>{{ ex.translation }}</em>
-                {% endif %}
-            </p>
-        {% endfor %}
+        <button class="expand-btn">Show Examples</button>
+        <div class="example-content" style="display: none;">
+            {% for ex in meaning.examples %}
+                <p>
+                    {{ ex.text }}
+                    {% if ex.translation %}
+                        <br><em>{{ ex.translation }}</em>
+                    {% endif %}
+                </p>
+            {% endfor %}
+        </div>
     </div>
     {% endif %}
 
+    <!--
     {% if meaning.relations %}
     <div class="relations">
         {% set rel_types = {} %}
@@ -56,9 +59,12 @@
         {% endfor %}
     </div>
     {% endif %}
+    -->
+
 </div>
 {% endfor %}
 
+<!--
 {% if word_relations %}
 <div class="relations">
     {% set wr_types = {} %}
@@ -79,7 +85,20 @@
     {% endfor %}
 </div>
 {% endif %}
+-->
 
+<!--
+{% if categories %}
+<div class="categories">
+    <button class="expand-btn">Show Categories</button>
+    <div class="category-content" style="display: none;">
+        {% for cat in categories %}
+            <a href="{{ url_for('show_category', category_name=cat['name']) }}" class="category-pill">{{ cat['name'] }}</a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+-->
 {% if categories %}
 <div class="categories">
     <strong>Categories:</strong>
@@ -89,5 +108,17 @@
 </div>
 {% endif %}
 
-
+<script>
+document.querySelectorAll('.expand-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const content = btn.nextElementSibling; // hidden div (.example-content or .category-content)
+        content.style.display = content.style.display === 'none' ? 'block' : 'none';
+        btn.textContent = content.style.display === 'none' ? 
+            btn.textContent.replace('Hide', 'Show') : 
+            btn.textContent.replace('Show', 'Hide');
+    });
+});
+</script>
+  
 {% endblock %}
+
