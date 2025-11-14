@@ -544,3 +544,33 @@ button.delete-btn:hover {
 .meaning-block p {
     margin: 6px 0 3px 0;
 }
+
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.category-card {
+    border: 1px solid #ccc;
+    padding: 12px;
+    border-radius: 12px;
+    background: #fafafa;
+    box-shadow: 0 1px 3px rgba(0,0,0,.1);
+}
+
+.category-card .title {
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.category-card .subcats {
+    margin-top: 8px;
+}
+
+.category-card .subcat {
+    display: block;
+    font-size: .9em;
+    margin: 2px 0;
+    color: #555;
+}

@@ -48,7 +48,6 @@ cur.execute("INSERT OR IGNORE INTO categories (name, parent_id) VALUES ('Animals
 
 
 
-
 conn.commit()
 conn.close()
 

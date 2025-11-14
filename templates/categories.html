@@ -1,21 +1,29 @@
 {% extends "base.html" %}
 {% block content %}
+
+
 <h2>Categories</h2>
 
-<div class="categories-list">
-{% if categories.get(None) %}
-<ul>
-{% for cat in categories.get(None) %}
-    <li>
+<div class="category-grid">
+{% for cat in categories.get(None, []) %}
+    <div class="category-card">
         <a href="{{ url_for('show_category', category_name=cat['name']) }}">
-            {{ cat['name'] }}
+            <span class="title">{{ cat['name'] }}</span>
         </a>
-    </li>
+
+        <!-- Subcategories inside card -->
+        {% if categories.get(cat['id']) %}
+        <div class="subcats">
+            {% for sub in categories.get(cat['id']) %}
+                <a class="subcat" href="{{ url_for('show_category', category_name=sub['name']) }}">
+                    {{ sub['name'] }}
+                </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
 {% endfor %}
-</ul>
-{% else %}
-<p>No categories found.</p>
-{% endif %}
 </div>
+
 
 {% endblock %}
