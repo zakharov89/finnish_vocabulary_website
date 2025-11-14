@@ -299,3 +299,12 @@ footer {
     color: #777;
     border-top: 1px solid #ddd;
 }
+
+.flash {
+    padding: 0.5em 1em;
+    border-radius: 4px;
+    margin-bottom: 1em;
+}
+.flash.success { background-color: #d4edda; color: #155724; }
+.flash.warning { background-color: #fff3cd; color: #856404; }
+.flash.error   { background-color: #f8d7da; color: #721c24; }

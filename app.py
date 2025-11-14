@@ -105,8 +105,17 @@ def admin_add_word():
         if not word_text:
             flash("Word cannot be empty.", "error")
         else:
+
+            # Check if the word already exists
+            cur.execute("SELECT id FROM words WHERE word = ?", (word_text,))
+            existing = cur.fetchone()
+            if existing:
+                flash(f"Word '{word_text}' already exists in the database.", "warning")
+                conn.close()
+                return render_template('admin_add_word.html', pos_list=pos_list)
+            
             # Insert word
-            cur.execute("INSERT OR IGNORE INTO words (word, pos_id) VALUES (?, ?)", (word_text, pos_id))
+            cur.execute("INSERT INTO words (word, pos_id) VALUES (?, ?)", (word_text, pos_id))
             conn.commit()
 
             cur.execute("SELECT id FROM words WHERE word = ?", (word_text,))
