@@ -743,6 +743,7 @@ def categories():
     return render_template('categories.html', categories=categories_dict)
 
 
+'''
 @app.route('/categories/<category_name>')
 def show_category(category_name):
     conn = sqlite3.connect("finnish.db")
@@ -803,6 +804,113 @@ def show_category(category_name):
         subcategories=subcategories,
         parent=parent
     )
+'''
+
+
+@app.route('/categories/<category_name>')
+def show_category(category_name):
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # ──────────────────────────────────────────────
+    # 1. Fetch ALL categories to build categories_dict
+    # ──────────────────────────────────────────────
+    cur.execute("SELECT id, name, parent_id FROM categories ORDER BY name")
+    all_rows = cur.fetchall()
+
+    categories_dict = {}
+    for row in all_rows:
+        parent = row['parent_id']
+        categories_dict.setdefault(parent, []).append(row)
+
+    # ──────────────────────────────────────────────
+    # 2. Fetch the category user requested
+    # ──────────────────────────────────────────────
+    cur.execute("SELECT id, name, parent_id FROM categories WHERE name = ?", (category_name,))
+    category = cur.fetchone()
+    if not category:
+        return f"Category '{category_name}' not found."
+
+    category_id = category["id"]
+
+    # ──────────────────────────────────────────────
+    # 3. Fetch subcategories of this category
+    # ──────────────────────────────────────────────
+    subcategories = categories_dict.get(category_id, [])
+
+    # ──────────────────────────────────────────────
+    # 4. Fetch words directly associated with this category
+    # ──────────────────────────────────────────────
+    cur.execute("""
+        SELECT w.id, w.word
+        FROM words w
+        JOIN word_categories wc ON w.id = wc.word_id
+        WHERE wc.category_id = ?
+        ORDER BY w.word
+    """, (category_id,))
+    words = cur.fetchall()
+
+    # ──────────────────────────────────────────────
+    # 5. For each word, fetch up to 3 translations
+    # ──────────────────────────────────────────────
+    words_with_translations = []
+
+    for w in words:
+        cur.execute("""
+            SELECT t.translation_text
+            FROM meanings m
+            JOIN translations t ON m.id = t.meaning_id
+            WHERE m.word_id = ?
+            ORDER BY m.meaning_number, t.translation_number
+            LIMIT 3
+        """, (w['id'],))
+
+        translations = [row["translation_text"] for row in cur.fetchall()]
+
+        words_with_translations.append({
+            "word": w["word"],
+            "translations": translations
+        })
+
+    # ──────────────────────────────────────────────
+    # 6. Fetch parent category (if exists)
+    # ──────────────────────────────────────────────
+    parent = None
+    if category["parent_id"]:
+        parent_rows = categories_dict.get(category["parent_id"], [])
+        # find the parent in rows
+        for r in all_rows:
+            if r["id"] == category["parent_id"]:
+                parent = r
+                break
+
+    conn.close()
+
+    # ──────────────────────────────────────────────
+    # 7. Render template with full data
+    # ──────────────────────────────────────────────
+    return render_template(
+        "category.html",
+        category=category,
+        subcategories=subcategories,
+        words=words_with_translations,
+        parent=parent,
+        categories=categories_dict   
+    )
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

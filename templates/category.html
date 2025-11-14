@@ -1,51 +1,85 @@
 {% extends "base.html" %}
+
 {% block content %}
-<h2>{{ category['name'] }}</h2>
+<h2>{{ category['name'] }}</h2> 
 
 {% if subcategories %}
-<div class="categories-list">
-    <ul>
-    {% for sub in subcategories %}
-        <li><a href="{{ url_for('show_category', category_name=sub['name']) }}">{{ sub['name'] }}</a></li>
-    {% endfor %}
-    </ul>
-</div>
+    <div class="subcategories-section">
+        <!-- <h3>Subcategories</h3>  -->
+        <div class="category-grid">
+            {% for sub in subcategories %}
+                <div class="category-card">
+                    <a href="{{ url_for('show_category', category_name=sub['name']) }}" class="category-link">
+                        <span class="title">{{ sub['name'] }}</span>
+                    </a>
+
+                    <!-- Subcategories inside card (expandable) -->
+                    {% if categories.get(sub['id']) %}
+                        <div class="subcats-toggle">
+                            <button class="expand-btn">Show Subcategories</button>
+                            <div class="subcats" style="display: none;">
+                                {% for child in categories.get(sub['id']) %}
+                                    <a class="subcat" href="{{ url_for('show_category', category_name=child['name']) }}" >
+                                        {{ child['name'] }}
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
 {% endif %}
 
 {% if words %}
-<table class="category-table">
-    <thead>
-        <tr>
-            <th>Finnish</th>
-            <th>English</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for w in words %}
-        <tr>
-            <td>
-                <a href="{{ url_for('show_word', word_name=w['word']) }}">{{ w['word'] }}</a>
-            </td>
-            <td>
-                {{ ", ".join(w['translations']) }}
-                {% if w.translations|length >= 3 %}…{% endif %}
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+    <div class="words-section">
+        <!-- <h3>Words in this category</h3>  -->
+        <table class="category-table">
+            <thead>
+                <tr>
+                    <th>Finnish</th>
+                    <th>English</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in words %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('show_word', word_name=w['word']) }}" target="_blank">{{ w['word'] }} </a>
+                        </td>
+                        <td>
+                            {{ ", ".join(w['translations']) }}
+                            {% if w.translations|length >= 3 %}…{% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 {% else %}
-<p>No words in this category yet.</p>
+    <p>No words in this category yet.</p>
 {% endif %}
-
 
 {% if parent %}
-<p class="breadcrumb">
-    <a href="{{ url_for('show_category', category_name=parent['name']) }}">Back to {{ parent['name'] }}</a>
-</p>
+    <p class="breadcrumb">
+        <a href="{{ url_for('show_category', category_name=parent['name']) }}">Back to {{ parent['name'] }}</a>
+    </p>
 {% else %}
-<p class="breadcrumb">
-    <a href="{{ url_for('categories') }}">Back to all categories</a>
-</p>
+    <p class="breadcrumb">
+        <a href="{{ url_for('categories') }}">Back to all categories</a>
+    </p>
 {% endif %}
+
+<script>
+    // JavaScript for expanding/collapsing subcategories
+    document.querySelectorAll('.expand-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const subcats = btn.nextElementSibling; // Get the .subcats div
+            subcats.style.display = subcats.style.display === 'none' ? 'block' : 'none';
+            btn.textContent = subcats.style.display === 'none' ? 'Show Subcategories' : 'Hide Subcategories';
+        });
+    });
+</script>
+
 {% endblock %}

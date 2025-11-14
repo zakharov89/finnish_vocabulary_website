@@ -7,23 +7,36 @@
 <div class="category-grid">
 {% for cat in categories.get(None, []) %}
     <div class="category-card">
-        <a href="{{ url_for('show_category', category_name=cat['name']) }}">
+        <a href="{{ url_for('show_category', category_name=cat['name']) }} " class="category-link">
             <span class="title">{{ cat['name'] }}</span>
         </a>
 
         <!-- Subcategories inside card -->
         {% if categories.get(cat['id']) %}
-        <div class="subcats">
-            {% for sub in categories.get(cat['id']) %}
-                <a class="subcat" href="{{ url_for('show_category', category_name=sub['name']) }}">
-                    {{ sub['name'] }}
-                </a>
-            {% endfor %}
+        <div class="subcats-toggle">
+            <button class="expand-btn">Show Subcategories</button>
+            <div class="subcats" style="display: none;">
+                {% for sub in categories.get(cat['id']) %}
+                    <a class="subcat" href="{{ url_for('show_category', category_name=sub['name']) }} " >
+                        {{ sub['name'] }}
+                    </a>
+                {% endfor %}
+            </div>
         </div>
-        {% endif %}
+    {% endif %}
     </div>
 {% endfor %}
 </div>
 
+<script>
+    document.querySelectorAll('.expand-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const subcats = btn.nextElementSibling; // Get the .subcats div
+        subcats.style.display = subcats.style.display === 'none' ? 'block' : 'none';
+        btn.textContent = subcats.style.display === 'none' ? 'Show Subcategories' : 'Hide Subcategories';
+    });
+});
+
+</script>
 
 {% endblock %}
