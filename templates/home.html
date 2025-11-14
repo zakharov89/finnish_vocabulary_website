@@ -1,15 +1,32 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h3>Welcome to the Finnish Vocabulary Website</h3>
+<h2>Welcome to the Finnish Vocabulary Website</h2>
 
-<form method="get" action="{{ url_for('home') }}">
-    <input type="text" name="query" placeholder="Enter a Finnish word" value="{{ query }}">
+<form method="get" action="{{ url_for('home') }}" autocomplete="off" style="margin-bottom:25px;">
+
+    <div class="search-container">
+        <input type="text" id="search-input" name="query" placeholder="Enter a word" value="{{ query }}">
+        <ul id="suggestions" class="suggestions-list"></ul>
+    </div>
+    <div style="height:10px"></div>
+
+    <div class="search-modes">
+        <label>
+            <input type="radio" name="mode" value="finnish" {% if mode == 'finnish' %}checked{% endif %}> Finnish Word
+        </label>
+        <label>
+            <input type="radio" name="mode" value="translation" {% if mode == 'translation' %}checked{% endif %}> Translation
+        </label>
+    </div>
+
     <button type="submit">Search</button>
 </form>
 
+
+
 {% if query %}
-    <h3>Search Results for "{{ query }}"</h3>
+    <h3>Search Results for "{{ query }}" ({{ mode|capitalize }})</h3>
 
     {% if results %}
         <ul>
@@ -23,4 +40,42 @@
 {% endif %}
 
 
+<script>
+const input = document.getElementById('search-input');
+const suggestionsList = document.getElementById('suggestions');
+
+input.addEventListener('input', async function() {
+    const query = this.value;
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+
+    if (!query) {
+        suggestionsList.innerHTML = '';
+        return;
+    }
+
+    const response = await fetch(`/autocomplete?query=${encodeURIComponent(query)}&mode=${mode}`);
+    const suggestions = await response.json();
+
+    suggestionsList.innerHTML = '';
+    suggestions.forEach(word => {
+        const li = document.createElement('li');
+        li.textContent = word;
+        li.classList.add('suggestion-item');
+        li.addEventListener('click', () => {
+            window.location.href = `/word/${encodeURIComponent(word)}`;
+        });
+
+        suggestionsList.appendChild(li);
+    });
+});
+
+// Close suggestions when clicking outside
+document.addEventListener('click', function(e) {
+    if (!input.contains(e.target)) {
+        suggestionsList.innerHTML = '';
+    }
+});
+</script>
+
 {% endblock %}
+

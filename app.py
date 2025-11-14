@@ -1,4 +1,4 @@
-from flask import Flask, session, redirect, url_for, request, render_template, flash
+from flask import Flask, session, redirect, url_for, request, render_template, flash, jsonify
 import sqlite3
 import os
 from dotenv import load_dotenv
@@ -577,29 +577,79 @@ def admin_delete_category(category_id):
 
 
 
-
-
 @app.route('/', methods=['GET'])
 def home():
-    query = request.args.get('query', '').strip()  # get the query from the URL
-
+    query = request.args.get('query', '').strip()
+    mode = request.args.get('mode', 'finnish')
     results = []
-    if query:  # only search if something was entered
+
+    if query:
         conn = sqlite3.connect("finnish.db")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
+        if mode == 'finnish':
+            cur.execute("""
+                SELECT word FROM words
+                WHERE word LIKE ?
+                ORDER BY word
+                LIMIT 20
+            """, (f"{query}%",))
+            results = [row['word'] for row in cur.fetchall()]
+
+        elif mode == 'translation':
+            cur.execute("""
+                SELECT DISTINCT w.word
+                FROM words w
+                JOIN meanings m ON m.word_id = w.id
+                JOIN translations t ON t.meaning_id = m.id
+                WHERE t.translation_text LIKE ?
+                ORDER BY w.word
+                LIMIT 20
+            """, (f"{query}%",))
+            results = [row['word'] for row in cur.fetchall()]
+
+        conn.close()
+
+    return render_template('home.html', query=query, results=results, mode=mode)
+
+@app.route('/autocomplete', methods=['GET'])
+def autocomplete():
+    query = request.args.get('query', '').strip()
+    mode = request.args.get('mode', 'finnish')
+
+    if not query:
+        return jsonify([])
+
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    if mode == 'finnish':
         cur.execute("""
             SELECT word FROM words
             WHERE word LIKE ?
             ORDER BY word
-            LIMIT 20
+            LIMIT 10
         """, (f"{query}%",))
-        results = [row['word'] for row in cur.fetchall()]
+        suggestions = [row['word'] for row in cur.fetchall()]
 
-        conn.close()
+    elif mode == 'translation':
+        cur.execute("""
+            SELECT DISTINCT w.word
+            FROM words w
+            JOIN meanings m ON m.word_id = w.id
+            JOIN translations t ON t.meaning_id = m.id
+            WHERE t.translation_text LIKE ?
+            ORDER BY w.word
+            LIMIT 10
+        """, (f"{query}%",))
+        suggestions = [row['word'] for row in cur.fetchall()]
 
-    return render_template('home.html', query=query, results=results)
+    conn.close()
+    return jsonify(suggestions)
+
+
 
 @app.route('/about')
 def about():
