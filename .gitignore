@@ -1,5 +1,5 @@
 .venv311/
 __pycache__/
 *.pyc
-.db
+*.db
 .env
