@@ -626,14 +626,8 @@ def autocomplete():
     cur = conn.cursor()
 
     if mode == 'finnish':
-        cur.execute("""
-            SELECT word FROM words
-            WHERE word LIKE ?
-            ORDER BY word
-            LIMIT 10
-        """, (f"{query}%",))
+        cur.execute("SELECT word FROM words WHERE word LIKE ? ORDER BY word LIMIT 10", (f"{query}%",))
         suggestions = [row['word'] for row in cur.fetchall()]
-
     elif mode == 'translation':
         cur.execute("""
             SELECT DISTINCT w.word
@@ -645,9 +639,18 @@ def autocomplete():
             LIMIT 10
         """, (f"{query}%",))
         suggestions = [row['word'] for row in cur.fetchall()]
+    elif mode == 'category':
+        cur.execute("""
+            SELECT name FROM categories
+            WHERE name LIKE ?
+            ORDER BY name
+            LIMIT 10
+        """, (f"{query}%",))
+        suggestions = [row['name'] for row in cur.fetchall()]
 
     conn.close()
     return jsonify(suggestions)
+
 
 
 

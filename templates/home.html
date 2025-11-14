@@ -6,7 +6,7 @@
 <form method="get" action="{{ url_for('home') }}" autocomplete="off" style="margin-bottom:25px;">
 
     <div class="search-container">
-        <input type="text" id="search-input" name="query" placeholder="Enter a word" value="{{ query }}">
+        <input type="text" id="search-input" name="query" placeholder="Enter a word or category" value="{{ query }}">
         <ul id="suggestions" class="suggestions-list"></ul>
     </div>
     <div style="height:10px"></div>
@@ -18,24 +18,29 @@
         <label>
             <input type="radio" name="mode" value="translation" {% if mode == 'translation' %}checked{% endif %}> Translation
         </label>
+        <label>
+            <input type="radio" name="mode" value="category" {% if mode == 'category' %}checked{% endif %}> Category
+        </label>
     </div>
-
+    <div style="height:5px"></div>
     <button type="submit">Search</button>
 </form>
-
-
 
 {% if query %}
     <h3>Search Results for "{{ query }}" ({{ mode|capitalize }})</h3>
 
     {% if results %}
         <ul>
-        {% for word in results %}
-            <li><a href="{{ url_for('show_word', word_name=word) }}">{{ word }}</a></li>
+        {% for item in results %}
+            {% if mode == 'category' %}
+                <li><a href="{{ url_for('show_category', category_name=item) }}">{{ item }}</a></li>
+            {% else %}
+                <li><a href="{{ url_for('show_word', word_name=item) }}">{{ item }}</a></li>
+            {% endif %}
         {% endfor %}
         </ul>
     {% else %}
-        <p>No words found matching your search.</p>
+        <p>No results found matching your search.</p>
     {% endif %}
 {% endif %}
 
@@ -57,12 +62,17 @@ input.addEventListener('input', async function() {
     const suggestions = await response.json();
 
     suggestionsList.innerHTML = '';
-    suggestions.forEach(word => {
+    suggestions.forEach(item => {
         const li = document.createElement('li');
-        li.textContent = word;
+        li.textContent = item;
         li.classList.add('suggestion-item');
         li.addEventListener('click', () => {
-            window.location.href = `/word/${encodeURIComponent(word)}`;
+            suggestionsList.innerHTML = '';
+            if (mode === 'category') {
+                window.location.href = `/categories/${encodeURIComponent(item)}`;
+            } else {
+                window.location.href = `/word/${encodeURIComponent(item)}`;
+            }
         });
 
         suggestionsList.appendChild(li);
@@ -78,4 +88,3 @@ document.addEventListener('click', function(e) {
 </script>
 
 {% endblock %}
-
