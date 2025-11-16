@@ -199,6 +199,8 @@ def admin_edit_word(word_id):
 
     word = dict(word)
 
+
+  
     # Fetch categories and POS
     cur.execute("SELECT id, name FROM categories ORDER BY name")
     categories = cur.fetchall()
@@ -250,6 +252,15 @@ def admin_edit_word(word_id):
         # 📝 Handle normal word update
         new_word = request.form.get('word', '').strip()
         new_pos_id = request.form.get('pos_id')
+
+          # Check for duplicates (excluding the current word)
+        cur.execute("SELECT id FROM words WHERE word = ? AND id != ?", (new_word, word_id))
+        if cur.fetchone():
+            flash(f"The word '{new_word}' already exists.", "error")
+            conn.close()
+            return redirect(url_for('admin_edit_word', word_id=word_id))
+
+
         cur.execute("UPDATE words SET word = ?, pos_id = ? WHERE id = ?", (new_word, new_pos_id, word_id))
         conn.commit()
 
@@ -371,14 +382,24 @@ def admin_delete_word(word_id):
 def admin_add_category():
     if request.method == "POST":
         name = request.form["name"].strip()
+
         parent_id = request.form.get("parent_id") or None
 
         conn = sqlite3.connect("finnish.db", timeout=5)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
-        # Insert the new category
+        
+                # Check for duplicates first
+        cur.execute("SELECT id FROM categories WHERE name = ?", (name,))
+        if cur.fetchone():
+            flash(f"Category '{name}' already exists.", "danger")
+            conn.close()
+            return redirect(url_for("admin_add_category"))
+
+        # Insert if not exists
         cur.execute("INSERT INTO categories (name, parent_id) VALUES (?, ?)", (name, parent_id))
+
         conn.commit()
         category_id = cur.lastrowid
         conn.close()
@@ -458,22 +479,24 @@ def admin_edit_category(category_id):
         if action == "update_category":
             name = request.form.get("name", "").strip()
             parent_id = request.form.get("parent_id") or None
-            cur.execute("UPDATE categories SET name = ?, parent_id = ? WHERE id = ?",
-                        (name, parent_id, category_id))
+            # Check duplicate name (excluding current category)
+            cur.execute("SELECT id FROM categories WHERE name = ? AND id != ?", (name, category_id))
+            if cur.fetchone():
+                flash(f"Another category with the name '{name}' already exists.", "danger")
+                conn.close()
+                return redirect(url_for("admin_edit_category", category_id=category_id))
+
+            # Proceed with update
+            cur.execute("UPDATE categories SET name = ?, parent_id = ? WHERE id = ?", (name, parent_id, category_id))
+
             conn.commit()
             conn.close()
             flash("Category updated successfully.", "success")
             return redirect(url_for("admin_edit_category", category_id=category_id))
 
-        elif action == "add_existing":
-            existing_word_id = int(request.form["existing_word_id"])
-            cur.execute("INSERT OR IGNORE INTO word_categories (word_id, category_id) VALUES (?, ?)",
-                        (existing_word_id, category_id))
-            conn.commit()
-            conn.close()
-            flash("Existing word added to category.", "success")
-            return redirect(url_for("admin_edit_category", category_id=category_id))
-
+        # -----------------------
+        # Add new word to category
+        # -----------------------
         elif action == "add_new_word":
             word_text = request.form.get("new_word", "").strip()
             pos_id = request.form.get("pos_id")
@@ -481,11 +504,18 @@ def admin_edit_category(category_id):
                 flash("Word cannot be empty.", "danger")
                 return redirect(url_for("admin_edit_category", category_id=category_id))
 
-            cur.execute("INSERT OR IGNORE INTO words (word, pos_id) VALUES (?, ?)", (word_text, pos_id))
+            # Check if word already exists in database
             cur.execute("SELECT id FROM words WHERE word = ?", (word_text,))
-            word_id = cur.fetchone()["id"]
+            if cur.fetchone():
+                flash(f"The word '{word_text}' already exists in the database.", "warning")
+                return redirect(url_for("admin_edit_category", category_id=category_id))
 
-            # Insert all meanings, translations, examples
+            # Insert the new word
+            cur.execute("INSERT INTO words (word, pos_id) VALUES (?, ?)", (word_text, pos_id))
+            conn.commit()
+            word_id = cur.lastrowid
+
+            # Insert meanings, translations, examples (as before)
             meaning_numbers = request.form.getlist("meaning_number[]")
             for m_num in meaning_numbers:
                 notes = request.form.get(f"notes_{m_num}", None)
@@ -494,27 +524,55 @@ def admin_edit_category(category_id):
                     "INSERT INTO meanings (word_id, meaning_number, notes, definition) VALUES (?, ?, ?, ?)",
                     (word_id, int(m_num), notes, definition)
                 )
-               
                 cur.execute("SELECT id FROM meanings WHERE word_id=? AND meaning_number=?", (word_id, int(m_num)))
                 meaning_id = cur.fetchone()["id"]
 
+                # Insert translations
                 for idx, t in enumerate(request.form.getlist(f"translations_{m_num}[]"), 1):
                     t = t.strip()
                     if t:
-                        cur.execute("INSERT INTO translations (meaning_id, translation_text, translation_number) VALUES (?, ?, ?)",
-                                    (meaning_id, t, idx))
+                        cur.execute(
+                            "INSERT INTO translations (meaning_id, translation_text, translation_number) VALUES (?, ?, ?)",
+                            (meaning_id, t, idx)
+                        )
 
+                # Insert examples
                 for ex, ex_tr in zip(request.form.getlist(f"examples_{m_num}[]"), request.form.getlist(f"examples_trans_{m_num}[]")):
                     if ex.strip():
-                        cur.execute("INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
-                                    (meaning_id, ex.strip(), ex_tr.strip() or None))
+                        cur.execute(
+                            "INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
+                            (meaning_id, ex.strip(), ex_tr.strip() or None)
+                        )
 
             # Assign to category
-            cur.execute("INSERT OR IGNORE INTO word_categories (word_id, category_id) VALUES (?, ?)", (word_id, category_id))
+            cur.execute("INSERT INTO word_categories (word_id, category_id) VALUES (?, ?)", (word_id, category_id))
             conn.commit()
             conn.close()
+
             flash(f"New word '{word_text}' added and assigned to category.", "success")
             return redirect(url_for("admin_edit_category", category_id=category_id))
+
+
+        # -----------------------
+        # Add existing word to category
+        # -----------------------
+        elif action == "add_existing":
+            existing_word_id = int(request.form["existing_word_id"])
+            
+            # Check if the word is already in this category
+            cur.execute("SELECT 1 FROM word_categories WHERE word_id=? AND category_id=?", (existing_word_id, category_id))
+            if cur.fetchone():
+                flash("This word is already in the category.", "warning")
+                conn.close()
+                return redirect(url_for("admin_edit_category", category_id=category_id))
+
+            cur.execute("INSERT INTO word_categories (word_id, category_id) VALUES (?, ?)", (existing_word_id, category_id))
+            conn.commit()
+            conn.close()
+            flash("Existing word added to category.", "success")
+            return redirect(url_for("admin_edit_category", category_id=category_id))
+
+
 
     # Fetch category words and search results
     search_query = request.args.get("word_query", "").strip()

@@ -132,6 +132,16 @@ form label {
     box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
+.meaning-block {
+    border: 1px solid #ddd;   /* light border around each meaning */
+    padding: 12px 15px;
+    border-radius: 8pcx;
+    margin-bottom: 15px;      /* space between meanings */
+    background-color: #fafafa; /* subtle background to differentiate */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+
 .translation { font-weight: bold; color: #2e7d32; }
 
 .examples {
@@ -308,3 +318,21 @@ footer {
 .flash.success { background-color: #d4edda; color: #155724; }
 .flash.warning { background-color: #fff3cd; color: #856404; }
 .flash.error   { background-color: #f8d7da; color: #721c24; }
+
+
+/* Make all delete buttons red */
+.admin-btn.delete-btn,
+.admin-btn-small.delete-btn {
+    background-color: #d9534f; /* bootstrap-style red */
+    color: white;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    padding: 5px 10px;
+    transition: background-color 0.2s;
+}
+
+.admin-btn.delete-btn:hover,
+.admin-btn-small.delete-btn:hover {
+    background-color: #c9302c; /* darker red on hover */
+}
