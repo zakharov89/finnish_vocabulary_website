@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+
+<h2>Add Meaning for "{{ word['word'] }}"</h2>
+
+<form method="post">
+   
+    <hr>
+    <h4>Translations</h4>
+    <div id="translations-container">
+        <div class="translation-row mb-2">
+            <input type="text" name="translations[]" class="form-control mb-1" placeholder="Enter translation">
+        </div>
+    </div>
+    <button type="button" class="btn btn-sm btn-secondary mb-3" onclick="addTranslation()">Add Another Translation</button>
+
+    <hr>
+    <h4>Examples</h4>
+    <div id="examples-container">
+        <div class="example-row mb-2">
+            <input type="text" name="examples[]" class="form-control mb-1" placeholder="Enter example">
+            <input type="text" name="examples_trans[]" class="form-control mb-1" placeholder="Enter example translation">
+        </div>
+    </div>
+    <button type="button" class="btn btn-sm btn-secondary mb-3" onclick="addExample()">Add Another Example</button>
+    <div class="mb-3">
+        <label for="definition" class="form-label">Finnish definition (optional):</label>
+        <input type="text" class="form-control" name="definition" id="definition" placeholder="Enter Finnish definition">
+    </div>
+
+    <div class="mb-3">
+        <label for="notes" class="form-label">Notes (optional):</label>
+        <input type="text" class="form-control" name="notes" id="notes" placeholder="Enter notes">
+    </div>
+
+    <br>
+    <button type="submit" class="admin-btn">Add Meaning</button>
+</form>
+
+<script>
+function addTranslation() {
+    let container = document.getElementById('translations-container');
+    let input = document.createElement('input');
+    input.type = 'text';
+    input.name = 'translations[]';
+    input.className = 'form-control mb-1';
+    input.placeholder = 'Enter translation';
+    container.appendChild(input);
+}
+
+function addExample() {
+    let container = document.getElementById('examples-container');
+    let div = document.createElement('div');
+    div.className = 'example-row mb-2';
+    div.innerHTML = `
+        <input type="text" name="examples[]" class="form-control mb-1" placeholder="Enter example">
+        <input type="text" name="examples_trans[]" class="form-control mb-1" placeholder="Enter example translation">
+    `;
+    container.appendChild(div);
+}
+</script>
+{% endblock %}

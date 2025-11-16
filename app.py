@@ -180,8 +180,6 @@ def admin_add_word():
 
 
 
-
-
 @app.route('/admin/edit_word/<int:word_id>', methods=['GET', 'POST'])
 @admin_required
 def admin_edit_word(word_id):
@@ -196,28 +194,21 @@ def admin_edit_word(word_id):
         flash("Word not found.", "error")
         conn.close()
         return redirect(url_for('admin_dashboard'))
-
     word = dict(word)
 
-
-  
-    # Fetch categories and POS
-    cur.execute("SELECT id, name FROM categories ORDER BY name")
-    categories = cur.fetchall()
+    # POS list
     cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
     pos_list = cur.fetchall()
 
     # Fetch meanings
-    cur.execute("SELECT id, meaning_number, notes, definition FROM meanings WHERE word_id = ? ORDER BY meaning_number", (word_id,))
+    cur.execute("SELECT * FROM meanings WHERE word_id = ? ORDER BY meaning_number", (word_id,))
     meanings_rows = cur.fetchall()
     meanings = []
     for m in meanings_rows:
         meaning_id = m['id']
-
         # Translations
         cur.execute("SELECT translation_text FROM translations WHERE meaning_id = ? ORDER BY translation_number", (meaning_id,))
         translations = [t['translation_text'] for t in cur.fetchall()]
-
         # Examples
         cur.execute("SELECT example_text, example_translation_text FROM examples WHERE meaning_id = ?", (meaning_id,))
         examples = [(e['example_text'], e['example_translation_text']) for e in cur.fetchall()]
@@ -226,86 +217,24 @@ def admin_edit_word(word_id):
             'id': m['id'],
             'meaning_number': m['meaning_number'],
             'notes': m['notes'],
-            'definition': m['definition'],  
+            'definition': m['definition'],
             'translations': translations,
             'examples': examples
         })
 
-    # -------------------------------
-    # Handle POST requests
-    # -------------------------------
+    # Handle POST (update word only)
     if request.method == 'POST':
-        action = request.form.get("action")
-
-        # 🗑 Handle delete meaning
-        if action == "delete_meaning":
-            meaning_id = request.form.get("meaning_id")
-            if meaning_id:
-                cur.execute("DELETE FROM examples WHERE meaning_id = ?", (meaning_id,))
-                cur.execute("DELETE FROM translations WHERE meaning_id = ?", (meaning_id,))
-                cur.execute("DELETE FROM meanings WHERE id = ?", (meaning_id,))
-                conn.commit()
-                flash("Meaning deleted successfully.", "success")
-            conn.close()
-            return redirect(url_for('admin_edit_word', word_id=word_id))
-
-        # 📝 Handle normal word update
         new_word = request.form.get('word', '').strip()
         new_pos_id = request.form.get('pos_id')
 
-          # Check for duplicates (excluding the current word)
-        cur.execute("SELECT id FROM words WHERE word = ? AND id != ?", (new_word, word_id))
+        # Check duplicates
+        cur.execute("SELECT id FROM words WHERE word=? AND id != ?", (new_word, word_id))
         if cur.fetchone():
             flash(f"The word '{new_word}' already exists.", "error")
             conn.close()
             return redirect(url_for('admin_edit_word', word_id=word_id))
 
-
-        cur.execute("UPDATE words SET word = ?, pos_id = ? WHERE id = ?", (new_word, new_pos_id, word_id))
-        conn.commit()
-
-        # Delete existing meanings + translations + examples
-        cur.execute("SELECT id FROM meanings WHERE word_id = ?", (word_id,))
-        meaning_ids = [row['id'] for row in cur.fetchall()]
-        for mid in meaning_ids:
-            cur.execute("DELETE FROM translations WHERE meaning_id = ?", (mid,))
-            cur.execute("DELETE FROM examples WHERE meaning_id = ?", (mid,))
-        cur.execute("DELETE FROM meanings WHERE word_id = ?", (word_id,))
-        conn.commit()
-
-        # Insert updated meanings
-        meaning_numbers = request.form.getlist('meaning_number[]')
-        for i, m_num in enumerate(meaning_numbers):
-            notes = request.form.getlist('meaning_notes[]')[i] or None
-            definition = request.form.get(f'definition_{m_num}', '').strip() or None
-            cur.execute(
-                "INSERT INTO meanings (word_id, meaning_number, notes, definition) VALUES (?, ?, ?, ?)",
-                (word_id, int(m_num), notes, definition)
-            )
-
-            cur.execute("SELECT id FROM meanings WHERE word_id=? AND meaning_number=?", (word_id, int(m_num)))
-            meaning_id = cur.fetchone()['id']
-
-            # Translations
-            translations = request.form.getlist(f'translations_{m_num}[]')
-            for idx, t in enumerate(translations, start=1):
-                t = t.strip()
-                if t:
-                    cur.execute("INSERT INTO translations (meaning_id, translation_text, translation_number) VALUES (?, ?, ?)",
-                                (meaning_id, t, idx))
-
-            # Examples
-            example_texts = request.form.getlist(f'examples_{m_num}[]')
-            example_translations = request.form.getlist(f'examples_trans_{m_num}[]')
-            for ex_text, ex_trans in zip(example_texts, example_translations):
-                ex_text = ex_text.strip()
-                ex_trans = ex_trans.strip() or None
-                if ex_text:
-                    cur.execute(
-                        "INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
-                        (meaning_id, ex_text, ex_trans)
-                    )
-
+        cur.execute("UPDATE words SET word=?, pos_id=? WHERE id=?", (new_word, new_pos_id, word_id))
         conn.commit()
         flash(f"Word '{new_word}' updated successfully!", "success")
         conn.close()
@@ -313,6 +242,134 @@ def admin_edit_word(word_id):
 
     conn.close()
     return render_template('admin_edit_word.html', word=word, pos_list=pos_list, meanings=meanings)
+
+
+
+@app.route('/admin/edit_meaning/<int:meaning_id>', methods=['GET', 'POST'])
+@admin_required
+def admin_edit_meaning(meaning_id):
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM meanings WHERE id=?", (meaning_id,))
+    meaning = cur.fetchone()
+    if not meaning:
+        flash("Meaning not found.", "error")
+        conn.close()
+        return redirect(url_for('admin_dashboard'))
+    meaning = dict(meaning)
+
+    word_id = meaning['word_id']
+
+    # Fetch translations
+    cur.execute("SELECT translation_text, translation_number FROM translations WHERE meaning_id=? ORDER BY translation_number", (meaning_id,))
+    translations = cur.fetchall()
+
+    # Fetch examples
+    cur.execute("SELECT example_text, example_translation_text FROM examples WHERE meaning_id=?", (meaning_id,))
+    examples = cur.fetchall()
+
+    if request.method == 'POST':
+        # Update definition and notes
+        definition = request.form.get('definition', '').strip() or None
+        notes = request.form.get('notes', '').strip() or None
+        cur.execute("UPDATE meanings SET definition=?, notes=? WHERE id=?", (definition, notes, meaning_id))
+
+        # Update translations
+        new_translations = request.form.getlist('translations[]')
+        cur.execute("DELETE FROM translations WHERE meaning_id=?", (meaning_id,))
+        for idx, t in enumerate(new_translations, start=1):
+            t = t.strip()
+            if t:
+                cur.execute("INSERT INTO translations (meaning_id, translation_text, translation_number) VALUES (?, ?, ?)", (meaning_id, t, idx))
+
+        # Update examples
+        new_examples = request.form.getlist('examples[]')
+        new_examples_trans = request.form.getlist('examples_trans[]')
+        cur.execute("DELETE FROM examples WHERE meaning_id=?", (meaning_id,))
+        for ex, ex_trans in zip(new_examples, new_examples_trans):
+            ex = ex.strip()
+            ex_trans = ex_trans.strip() or None
+            if ex:
+                cur.execute("INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)", (meaning_id, ex, ex_trans))
+
+        conn.commit()
+        flash("Meaning updated successfully!", "success")
+        conn.close()
+        return redirect(url_for('admin_edit_word', word_id=word_id))
+
+    conn.close()
+    return render_template('admin_edit_meaning.html', meaning=meaning, translations=translations, examples=examples)
+
+
+
+@app.route('/admin/add_meaning/<int:word_id>', methods=['GET', 'POST'])
+@admin_required
+def admin_add_meaning(word_id):
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Fetch word
+    cur.execute("SELECT * FROM words WHERE id=?", (word_id,))
+    word = cur.fetchone()
+    if not word:
+        flash("Word not found.", "error")
+        conn.close()
+        return redirect(url_for('admin_dashboard'))
+
+    if request.method == 'POST':
+        # Determine next meaning_number
+        cur.execute("SELECT MAX(meaning_number) AS max_num FROM meanings WHERE word_id=?", (word_id,))
+        row = cur.fetchone()
+        next_number = (row['max_num'] or 0) + 1
+
+        definition = request.form.get('definition', '').strip() or None
+        notes = request.form.get('notes', '').strip() or None
+
+        # Insert meaning
+        cur.execute(
+            "INSERT INTO meanings (word_id, meaning_number, definition, notes) VALUES (?, ?, ?, ?)",
+            (word_id, next_number, definition, notes)
+        )
+        conn.commit()
+
+        # Get the inserted meaning_id
+        cur.execute("SELECT id FROM meanings WHERE word_id=? AND meaning_number=?", (word_id, next_number))
+        meaning_id = cur.fetchone()['id']
+
+        # Insert translations
+        translations = request.form.getlist('translations[]')
+        for idx, t in enumerate(translations, start=1):
+            t = t.strip()
+            if t:
+                cur.execute(
+                    "INSERT INTO translations (meaning_id, translation_text, translation_number) VALUES (?, ?, ?)",
+                    (meaning_id, t, idx)
+                )
+
+        # Insert examples
+        examples = request.form.getlist('examples[]')
+        examples_trans = request.form.getlist('examples_trans[]')
+        for ex, ex_trans in zip(examples, examples_trans):
+            ex = ex.strip()
+            ex_trans = ex_trans.strip() or None
+            if ex:
+                cur.execute(
+                    "INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
+                    (meaning_id, ex, ex_trans)
+                )
+
+        conn.commit()
+        conn.close()
+        flash(f"Meaning added successfully!", "success")
+        return redirect(url_for('admin_edit_word', word_id=word_id))
+
+    conn.close()
+    return render_template('admin_add_meaning.html', word=word)
+
+
 
 
 
@@ -373,6 +430,34 @@ def admin_delete_word(word_id):
 
     flash(f"Word '{word_text}' deleted successfully!", "success")
     return redirect(url_for('admin_dashboard'))
+
+
+@app.route("/admin/delete_meaning/<int:meaning_id>", methods=["POST"])
+@admin_required
+def admin_delete_meaning(meaning_id):
+    conn = sqlite3.connect("finnish.db")
+    cur = conn.cursor()
+    # Find word_id for redirect
+    cur.execute("SELECT word_id FROM meanings WHERE id=?", (meaning_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        flash("Meaning not found.", "error")
+        return redirect(url_for("admin_dashboard"))
+
+    word_id = row[0]
+    # Delete meaning
+    cur.execute("DELETE FROM examples WHERE meaning_id=?", (meaning_id,))
+    cur.execute("DELETE FROM translations WHERE meaning_id=?", (meaning_id,))
+    cur.execute("DELETE FROM meanings WHERE id=?", (meaning_id,))
+    conn.commit()
+    conn.close()
+    flash("Meaning deleted successfully.", "success")
+    return redirect(url_for("admin_edit_word", word_id=word_id))
+
+
+
+
 
 
 
@@ -1043,4 +1128,3 @@ def admin_word_relations(word_id):
 
 if __name__ == '__main__':
     app.run(debug=True)
-

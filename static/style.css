@@ -135,7 +135,7 @@ form label {
 .meaning-block {
     border: 1px solid #ddd;   /* light border around each meaning */
     padding: 12px 15px;
-    border-radius: 8pcx;
+    border-radius: 8px;
     margin-bottom: 15px;      /* space between meanings */
     background-color: #fafafa; /* subtle background to differentiate */
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
@@ -149,6 +149,7 @@ form label {
     margin-bottom: 1.5em;
     padding-left: 15px;
     border-left: 3px solid #ddd;
+    list-style-type: none; 
 }
 
 .examples p strong { display: block; margin-bottom: 0.6em; }

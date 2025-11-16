@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+
+<div class="container mt-5">
+    <h2>Edit Meaning</h2>
+
+    <form method="POST" class="mb-3">
+       
+
+        <!-- Translations -->
+        <div class="mb-3">
+            <label class="form-label">Translations</label>
+            {% for t in translations %}
+                <input type="text" class="admin-input mb-1" name="translations[]" value="{{ t['translation_text'] }}" placeholder="Enter translation">
+            {% endfor %}
+            <button type="button" class="admin-btn btn-success" onclick="addTranslation()">Add Translation</button>
+        </div>
+
+        <!-- Examples -->
+        <div class="mb-3">
+            <label class="form-label">Examples</label>
+            {% for ex in examples %}
+                <input type="text" class="admin-input mb-1" name="examples[]" value="{{ ex['example_text'] }}" placeholder="Enter example">
+                <input type="text" class="admin-input mb-1" name="examples_trans[]" value="{{ ex['example_translation_text'] }}" placeholder="Enter example translation">
+            {% endfor %}
+            <button type="button" class="admin-btn btn-success" onclick="addExample()">Add Example</button>
+        </div>
+
+         <div class="mb-3">
+            <label for="definition" class="form-label">Finnish definition (optional)</label>
+            <input type="text" class="admin-input" name="definition" id="definition" value="{{ meaning.definition or '' }}" placeholder="Enter Finnish definition">
+        </div>
+
+        <div class="mb-3">
+            <label for="notes" class="form-label">Notes (optional)</label>
+            <input type="text" class="admin-input" name="notes" id="notes" value="{{ meaning.notes or '' }}" placeholder="Enter notes">
+        </div>
+
+        <button type="submit" class="admin-btn">Save Meaning</button>
+    </form>
+
+   
+    <a href="{{ url_for('admin_edit_word', word_id=meaning.word_id) }}" class="admin-btn-small">Back to Word</a>
+</div>
+
+<script>
+function addTranslation() {
+    const div = event.target.parentNode;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.name = 'translations[]';
+    input.className = 'admin-input mb-1';
+    input.placeholder = 'New translation';
+    div.insertBefore(input, event.target);
+}
+
+function addExample() {
+    const div = event.target.parentNode;
+
+    const inputText = document.createElement('input');
+    inputText.type = 'text';
+    inputText.name = 'examples[]';
+    inputText.className = 'admin-input mb-1';
+    inputText.placeholder = 'Example text';
+    div.insertBefore(inputText, event.target);
+
+    const inputTrans = document.createElement('input');
+    inputTrans.type = 'text';
+    inputTrans.name = 'examples_trans[]';
+    inputTrans.className = 'admin-input mb-1';
+    inputTrans.placeholder = 'Translation (optional)';
+    div.insertBefore(inputTrans, event.target);
+}
+</script>
+{% endblock %}
