@@ -85,6 +85,8 @@ def admin_dashboard():
 
 
 
+
+
 @app.route('/admin/add_word', methods=['GET', 'POST'])
 @admin_required
 def admin_add_word():
@@ -92,58 +94,46 @@ def admin_add_word():
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Fetch parts of speech and categories for the form
+    # Fetch parts of speech for the form
     cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
-    pos_list = cur.fetchall()
-
+    pos_list = [dict(pos) for pos in cur.fetchall()]
 
     if request.method == 'POST':
         word_text = request.form.get('word', '').strip()
-        pos_id = request.form.get('pos_id')
-       
-
         if not word_text:
             flash("Word cannot be empty.", "error")
         else:
-
             # Check if the word already exists
             cur.execute("SELECT id FROM words WHERE word = ?", (word_text,))
-            existing = cur.fetchone()
-            if existing:
-                flash(f"Word '{word_text}' already exists in the database.", "warning")
+            if cur.fetchone():
+                flash(f"Word '{word_text}' already exists.", "warning")
                 conn.close()
                 return render_template('admin_add_word.html', pos_list=pos_list)
-            
-            # Insert word
-            cur.execute("INSERT INTO words (word, pos_id) VALUES (?, ?)", (word_text, pos_id))
+
+            # Insert the word
+            cur.execute("INSERT INTO words (word) VALUES (?)", (word_text,))
             conn.commit()
+            word_id = cur.lastrowid
 
-            cur.execute("SELECT id FROM words WHERE word = ?", (word_text,))
-            word_id = cur.fetchone()['id']
-
-           
-
-            # Insert meanings + translations + examples
+            # Insert meanings
             meaning_numbers = request.form.getlist('meaning_number[]')
-            meaning_notes = request.form.getlist('meaning_notes[]')
-
             for idx, m_num in enumerate(meaning_numbers):
                 m_num_int = int(m_num)
 
-                # Fetch notes and definition for this meaning
-                notes = meaning_notes[idx] if idx < len(meaning_notes) else None
+                # POS per meaning
+                pos_id = request.form.get(f"pos_id_{m_num}")  # NEW
+
+                notes = request.form.get(f"meaning_notes_{m_num}", "").strip() or None
                 definition = request.form.get(f"definition_{m_num}", "").strip() or None
 
                 # Insert meaning
                 cur.execute(
-                    "INSERT INTO meanings (word_id, meaning_number, notes, definition) VALUES (?, ?, ?, ?)",
-                    (word_id, m_num_int, notes, definition)
+                    "INSERT INTO meanings (word_id, meaning_number, notes, definition, pos_id) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (word_id, m_num_int, notes, definition, pos_id)
                 )
                 conn.commit()
-
-                # Get inserted meaning id
-                cur.execute("SELECT id FROM meanings WHERE word_id=? AND meaning_number=?", (word_id, m_num_int))
-                meaning_id = cur.fetchone()['id']
+                meaning_id = cur.lastrowid
 
                 # Insert translations
                 translations = request.form.getlist(f'translations_{m_num}[]')
@@ -151,20 +141,21 @@ def admin_add_word():
                     t = t.strip()
                     if t:
                         cur.execute(
-                            "INSERT INTO translations (meaning_id, translation_text, translation_number) VALUES (?, ?, ?)",
+                            "INSERT INTO translations (meaning_id, translation_text, translation_number) "
+                            "VALUES (?, ?, ?)",
                             (meaning_id, t, t_idx)
                         )
-                conn.commit()
 
                 # Insert examples
                 example_texts = request.form.getlist(f'examples_{m_num}[]')
-                example_translations = request.form.getlist(f'examples_trans_{m_num}[]')
-                for ex_text, ex_trans in zip(example_texts, example_translations):
+                example_trans = request.form.getlist(f'examples_trans_{m_num}[]')
+                for ex_text, ex_trans in zip(example_texts, example_trans):
                     ex_text = ex_text.strip()
                     ex_trans = ex_trans.strip() or None
                     if ex_text:
                         cur.execute(
-                            "INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
+                            "INSERT INTO examples (meaning_id, example_text, example_translation_text) "
+                            "VALUES (?, ?, ?)",
                             (meaning_id, ex_text, ex_trans)
                         )
                 conn.commit()
@@ -180,6 +171,8 @@ def admin_add_word():
 
 
 
+
+
 @app.route('/admin/edit_word/<int:word_id>', methods=['GET', 'POST'])
 @admin_required
 def admin_edit_word(word_id):
@@ -189,43 +182,54 @@ def admin_edit_word(word_id):
 
     # Fetch the word
     cur.execute("SELECT * FROM words WHERE id = ?", (word_id,))
-    word = cur.fetchone()
-    if not word:
+    word_row = cur.fetchone()
+    if not word_row:
         flash("Word not found.", "error")
         conn.close()
         return redirect(url_for('admin_dashboard'))
-    word = dict(word)
+    word = dict(word_row)
 
-    # POS list
+    # Fetch POS list
     cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
-    pos_list = cur.fetchall()
+    pos_list = [dict(pos) for pos in cur.fetchall()]  # convert to dict to avoid JSON errors
 
-    # Fetch meanings
-    cur.execute("SELECT * FROM meanings WHERE word_id = ? ORDER BY meaning_number", (word_id,))
+    # Fetch meanings along with their POS
+    cur.execute("""
+        SELECT m.*, p.id as pos_id, p.name as pos_name
+        FROM meanings m
+        LEFT JOIN parts_of_speech p ON m.pos_id = p.id
+        WHERE m.word_id = ?
+        ORDER BY m.meaning_number
+    """, (word_id,))
     meanings_rows = cur.fetchall()
+
     meanings = []
     for m in meanings_rows:
+        m = dict(m)
         meaning_id = m['id']
+
         # Translations
         cur.execute("SELECT translation_text FROM translations WHERE meaning_id = ? ORDER BY translation_number", (meaning_id,))
         translations = [t['translation_text'] for t in cur.fetchall()]
+
         # Examples
         cur.execute("SELECT example_text, example_translation_text FROM examples WHERE meaning_id = ?", (meaning_id,))
         examples = [(e['example_text'], e['example_translation_text']) for e in cur.fetchall()]
 
         meanings.append({
-            'id': m['id'],
+            'id': meaning_id,
             'meaning_number': m['meaning_number'],
             'notes': m['notes'],
             'definition': m['definition'],
             'translations': translations,
-            'examples': examples
+            'examples': examples,
+            'pos_id': m['pos_id'],
+            'pos_name': m['pos_name']
         })
 
-    # Handle POST (update word only)
+    # Handle POST (update word text only)
     if request.method == 'POST':
         new_word = request.form.get('word', '').strip()
-        new_pos_id = request.form.get('pos_id')
 
         # Check duplicates
         cur.execute("SELECT id FROM words WHERE word=? AND id != ?", (new_word, word_id))
@@ -234,14 +238,14 @@ def admin_edit_word(word_id):
             conn.close()
             return redirect(url_for('admin_edit_word', word_id=word_id))
 
-        cur.execute("UPDATE words SET word=?, pos_id=? WHERE id=?", (new_word, new_pos_id, word_id))
+        cur.execute("UPDATE words SET word=? WHERE id=?", (new_word, word_id))
         conn.commit()
         flash(f"Word '{new_word}' updated successfully!", "success")
         conn.close()
         return redirect(url_for('admin_dashboard'))
 
     conn.close()
-    return render_template('admin_edit_word.html', word=word, pos_list=pos_list, meanings=meanings)
+    return render_template('admin_edit_word.html', word=word, meanings=meanings, pos_list=pos_list)
 
 
 
@@ -262,32 +266,34 @@ def admin_edit_meaning(meaning_id):
 
     word_id = meaning['word_id']
 
-    # Fetch translations
+    # Fetch POS list
+    cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
+    pos_list = cur.fetchall()
+
+    # Fetch translations and examples as before
     cur.execute("SELECT translation_text, translation_number FROM translations WHERE meaning_id=? ORDER BY translation_number", (meaning_id,))
     translations = cur.fetchall()
-
-    # Fetch examples
     cur.execute("SELECT example_text, example_translation_text FROM examples WHERE meaning_id=?", (meaning_id,))
     examples = cur.fetchall()
 
     if request.method == 'POST':
-        # Update definition and notes
+        # Update POS, definition, notes
+        pos_id = request.form.get('pos_id')
         definition = request.form.get('definition', '').strip() or None
         notes = request.form.get('notes', '').strip() or None
-        cur.execute("UPDATE meanings SET definition=?, notes=? WHERE id=?", (definition, notes, meaning_id))
+        cur.execute("UPDATE meanings SET pos_id=?, definition=?, notes=? WHERE id=?", (pos_id, definition, notes, meaning_id))
 
-        # Update translations
-        new_translations = request.form.getlist('translations[]')
+        # Update translations and examples as before...
         cur.execute("DELETE FROM translations WHERE meaning_id=?", (meaning_id,))
+        new_translations = request.form.getlist('translations[]')
         for idx, t in enumerate(new_translations, start=1):
             t = t.strip()
             if t:
                 cur.execute("INSERT INTO translations (meaning_id, translation_text, translation_number) VALUES (?, ?, ?)", (meaning_id, t, idx))
 
-        # Update examples
+        cur.execute("DELETE FROM examples WHERE meaning_id=?", (meaning_id,))
         new_examples = request.form.getlist('examples[]')
         new_examples_trans = request.form.getlist('examples_trans[]')
-        cur.execute("DELETE FROM examples WHERE meaning_id=?", (meaning_id,))
         for ex, ex_trans in zip(new_examples, new_examples_trans):
             ex = ex.strip()
             ex_trans = ex_trans.strip() or None
@@ -295,13 +301,12 @@ def admin_edit_meaning(meaning_id):
                 cur.execute("INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)", (meaning_id, ex, ex_trans))
 
         conn.commit()
-        flash("Meaning updated successfully!", "success")
         conn.close()
+        flash("Meaning updated successfully!", "success")
         return redirect(url_for('admin_edit_word', word_id=word_id))
 
     conn.close()
-    return render_template('admin_edit_meaning.html', meaning=meaning, translations=translations, examples=examples)
-
+    return render_template('admin_edit_meaning.html', meaning=meaning, translations=translations, examples=examples, pos_list=pos_list)
 
 
 @app.route('/admin/add_meaning/<int:word_id>', methods=['GET', 'POST'])
@@ -319,6 +324,10 @@ def admin_add_meaning(word_id):
         conn.close()
         return redirect(url_for('admin_dashboard'))
 
+    # Fetch POS list
+    cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
+    pos_list = cur.fetchall()
+
     if request.method == 'POST':
         # Determine next meaning_number
         cur.execute("SELECT MAX(meaning_number) AS max_num FROM meanings WHERE word_id=?", (word_id,))
@@ -327,19 +336,17 @@ def admin_add_meaning(word_id):
 
         definition = request.form.get('definition', '').strip() or None
         notes = request.form.get('notes', '').strip() or None
+        pos_id = request.form.get('pos_id')  # New POS selection
 
-        # Insert meaning
+        # Insert meaning with pos_id
         cur.execute(
-            "INSERT INTO meanings (word_id, meaning_number, definition, notes) VALUES (?, ?, ?, ?)",
-            (word_id, next_number, definition, notes)
+            "INSERT INTO meanings (word_id, meaning_number, definition, notes, pos_id) VALUES (?, ?, ?, ?, ?)",
+            (word_id, next_number, definition, notes, pos_id)
         )
         conn.commit()
 
-        # Get the inserted meaning_id
-        cur.execute("SELECT id FROM meanings WHERE word_id=? AND meaning_number=?", (word_id, next_number))
-        meaning_id = cur.fetchone()['id']
-
-        # Insert translations
+        # Insert translations and examples as before...
+        meaning_id = cur.lastrowid
         translations = request.form.getlist('translations[]')
         for idx, t in enumerate(translations, start=1):
             t = t.strip()
@@ -349,7 +356,6 @@ def admin_add_meaning(word_id):
                     (meaning_id, t, idx)
                 )
 
-        # Insert examples
         examples = request.form.getlist('examples[]')
         examples_trans = request.form.getlist('examples_trans[]')
         for ex, ex_trans in zip(examples, examples_trans):
@@ -363,11 +369,12 @@ def admin_add_meaning(word_id):
 
         conn.commit()
         conn.close()
-        flash(f"Meaning added successfully!", "success")
+        flash("Meaning added successfully!", "success")
         return redirect(url_for('admin_edit_word', word_id=word_id))
 
     conn.close()
-    return render_template('admin_add_meaning.html', word=word)
+    return render_template('admin_add_meaning.html', word=word, pos_list=pos_list)
+
 
 
 
@@ -813,39 +820,36 @@ def about():
 
 @app.route('/word/<word_name>')
 def show_word(word_name):
-    # Connect to SQLite
     conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row  # Access columns by name
+    conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Fetch word info and part of speech
-    cur.execute("""
-        SELECT w.id AS word_id, w.word, p.name AS pos_name
-        FROM words w
-        LEFT JOIN parts_of_speech p ON w.pos_id = p.id
-        WHERE w.word = ?
-    """, (word_name,))
-    
+    # Fetch word info
+    cur.execute("SELECT id AS word_id, word FROM words WHERE word = ?", (word_name,))
     word_row = cur.fetchone()
     if not word_row:
         conn.close()
         return f"No data found for word: {word_name}"
-
+    
     word_id = word_row['word_id']
-    pos_name = word_row['pos_name']
 
-    # Fetch meanings for the word
+    # Fetch meanings grouped by POS
     cur.execute("""
-        SELECT m.id AS meaning_id, m.meaning_number, m.notes
+        SELECT m.id AS meaning_id, m.meaning_number, m.notes, m.definition, p.name AS pos_name, p.id AS pos_id
         FROM meanings m
+        LEFT JOIN parts_of_speech p ON m.pos_id = p.id
         WHERE m.word_id = ?
-        ORDER BY m.meaning_number
+        ORDER BY p.name, m.meaning_number
     """, (word_id,))
+    
     meanings_rows = cur.fetchall()
 
-    # Collect translations and examples for each meaning
-    meanings = []
+    # Group meanings by POS
+    meanings_by_pos = {}
     for row in meanings_rows:
+        pos_name = row['pos_name'] or "Unknown"
+        if pos_name not in meanings_by_pos:
+            meanings_by_pos[pos_name] = []
         meaning_id = row['meaning_id']
 
         # Translations
@@ -868,36 +872,15 @@ def show_word(word_name):
             for e in cur.fetchall()
         ]
 
-        # Meaning-level relations
-        cur.execute("""
-            SELECT mr.meaning2_id, rt.name AS relation_type, w.word AS related_word
-            FROM meaning_relations mr
-            JOIN relation_types rt ON mr.relation_type_id = rt.id
-            JOIN meanings m2 ON mr.meaning2_id = m2.id
-            JOIN words w ON m2.word_id = w.id
-            WHERE mr.meaning1_id = ?
-        """, (meaning_id,))
-        relations = [{'type': r['relation_type'], 'word': r['related_word']} for r in cur.fetchall()]
-
-        meanings.append({
+        meanings_by_pos[pos_name].append({
             'meaning_number': row['meaning_number'],
+            'definition': row['definition'],
             'notes': row['notes'],
             'translations': translations,
-            'examples': examples,
-            'relations': relations  
+            'examples': examples
         })
 
-    # Word-level relations
-    cur.execute("""
-        SELECT wr.word2_id, rt.name AS relation_type, w2.word AS related_word
-        FROM word_relations wr
-        JOIN relation_types rt ON wr.relation_type_id = rt.id
-        JOIN words w2 ON wr.word2_id = w2.id
-        WHERE wr.word1_id = ?
-    """, (word_id,))
-    word_relations = [{'type': r['relation_type'], 'word': r['related_word']} for r in cur.fetchall()]
-
-    # --- Fetch categories ---
+    # Fetch categories
     cur.execute("""
         SELECT c.id, c.name
         FROM categories c
@@ -909,16 +892,11 @@ def show_word(word_name):
 
     conn.close()
 
-    if not meanings:
-        return f"No data found for word: {word_name}"
-
     return render_template(
-        'word.html', 
-        word_name=word_name, 
-        pos_name=pos_name, 
-        meanings=meanings,
-        word_relations=word_relations,
-        categories=categories  
+        'word.html',
+        word_name=word_name,
+        meanings_by_pos=meanings_by_pos,
+        categories=categories
     )
 
 

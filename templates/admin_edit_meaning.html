@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
 
-
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     {% for category, message in messages %}
@@ -10,12 +9,20 @@
   {% endif %}
 {% endwith %}
 
-
 <div class="container mt-5">
     <h2>Edit Meaning</h2>
 
     <form method="POST" class="mb-3">
-       
+
+        <!-- POS -->
+        <div class="mb-3">
+            <label for="pos_id" class="form-label">Part of Speech</label>
+            <select name="pos_id" id="pos_id" class="form-select" required>
+                {% for pos in pos_list %}
+                    <option value="{{ pos.id }}" {% if meaning.pos_id == pos.id %}selected{% endif %}>{{ pos.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
 
         <!-- Translations -->
         <div class="mb-3">
@@ -36,7 +43,7 @@
             <button type="button" class="admin-btn btn-success" onclick="addExample()">Add Example</button>
         </div>
 
-         <div class="mb-3">
+        <div class="mb-3">
             <label for="definition" class="form-label">Finnish definition (optional)</label>
             <input type="text" class="admin-input" name="definition" id="definition" value="{{ meaning.definition or '' }}" placeholder="Enter Finnish definition">
         </div>
@@ -49,7 +56,6 @@
         <button type="submit" class="admin-btn">Save Meaning</button>
     </form>
 
-   
     <a href="{{ url_for('admin_edit_word', word_id=meaning.word_id) }}" class="admin-btn-small">Back to Word</a>
 </div>
 
@@ -82,4 +88,5 @@ function addExample() {
     div.insertBefore(inputTrans, event.target);
 }
 </script>
+
 {% endblock %}

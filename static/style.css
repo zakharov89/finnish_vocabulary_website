@@ -337,3 +337,9 @@ footer {
 .admin-btn-small.delete-btn:hover {
     background-color: #c9302c; /* darker red on hover */
 }
+
+
+.translation-label {
+    color: #1a237e;  /* greenish color, same as your .translation text maybe */
+    font-weight: bold;
+}

@@ -9,11 +9,18 @@
   {% endif %}
 {% endwith %}
 
-
 <h2>Add Meaning for "{{ word['word'] }}"</h2>
 
 <form method="post">
-   
+    <div class="mb-3">
+        <label for="pos_id" class="form-label">Part of Speech</label>
+        <select name="pos_id" id="pos_id" class="form-select" required>
+            {% for pos in pos_list %}
+                <option value="{{ pos.id }}">{{ pos.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
     <hr>
     <h4>Translations</h4>
     <div id="translations-container">
@@ -32,6 +39,7 @@
         </div>
     </div>
     <button type="button" class="btn btn-sm btn-secondary mb-3" onclick="addExample()">Add Another Example</button>
+
     <div class="mb-3">
         <label for="definition" class="form-label">Finnish definition (optional):</label>
         <input type="text" class="form-control" name="definition" id="definition" placeholder="Enter Finnish definition">
@@ -44,8 +52,12 @@
 
     <br>
     <button type="submit" class="admin-btn">Add Meaning</button>
-</form>
 
+    <br>
+    
+</form>
+    <a href="{{ url_for('admin_edit_word', word_id=word['id']) }}" class="admin-btn-small">Back to Word</a>
+    
 <script>
 function addTranslation() {
     let container = document.getElementById('translations-container');
@@ -68,4 +80,5 @@ function addExample() {
     container.appendChild(div);
 }
 </script>
+
 {% endblock %}

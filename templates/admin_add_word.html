@@ -21,24 +21,20 @@
         <input type="text" name="word" required class="admin-input" placeholder="Enter new word">
     </p>
 
-    <!-- Part of Speech -->
-    <p>
-        <label>Part of Speech:</label><br>
-        <select name="pos_id" required class="admin-select" style="width: 200px;">
-            {% for pos in pos_list %}
-            <option value="{{ pos['id'] }}">{{ pos['name'] }}</option>
-            {% endfor %}
-        </select>
-    </p>
-
-
-
     <!-- Meanings -->
     <h3>Meanings</h3>
     <div id="meanings-container" class="meanings-section">
         <div class="meaning-block" data-meaning-number="1">
 
             <input type="hidden" name="meaning_number[]" value="1">
+
+            <!-- Part of Speech -->
+            <p>Part of Speech:</p>
+            <select name="pos_id_1" required class="admin-select">
+                {% for pos in pos_list %}
+                    <option value="{{ pos['id'] }}">{{ pos['name'] }}</option>
+                {% endfor %}
+            </select>
 
             <p>Translations:</p>
             <div id="translations-1" class="translations-group">
@@ -61,8 +57,7 @@
             <p>Notes (optional):</p>
             <input type="text" name="meaning_notes_1" class="admin-input" placeholder="Enter notes">
 
-           
-
+            <button type="button" class="admin-btn-small delete-btn" onclick="deleteMeaning(this)">Delete Meaning</button>
         </div>
     </div>
 
@@ -83,15 +78,27 @@
 (function(){
     let meaningCount = 1;
 
-    // Add new meaning block
+    const pos_list = {{ pos_list|tojson }};
+
     window.addMeaning = function() {
         meaningCount++;
         const container = document.getElementById('meanings-container');
+
+        let posOptions = '';
+        pos_list.forEach(pos => {
+            posOptions += `<option value="${pos.id}">${pos.name}</option>`;
+        });
+
         const div = document.createElement('div');
         div.className = 'meaning-block';
         div.dataset.meaningNumber = meaningCount;
         div.innerHTML = `
             <input type="hidden" name="meaning_number[]" value="${meaningCount}">
+
+            <p>Part of Speech:</p>
+            <select name="pos_id_${meaningCount}" required class="admin-select">
+                ${posOptions}
+            </select>
 
             <p>Translations:</p>
             <div id="translations-${meaningCount}" class="translations-group">
@@ -114,13 +121,11 @@
             <p>Notes (optional):</p>
             <input type="text" name="meaning_notes_${meaningCount}" class="admin-input" placeholder="Enter notes">
 
-            <!-- Delete meaning button -->
             <button type="button" class="admin-btn-small delete-btn" onclick="deleteMeaning(this)">Delete Meaning</button>
         `;
         container.appendChild(div);
     }
 
-    // Add translation input
     window.addTranslation = function(num) {
         const container = document.getElementById(`translations-${num}`);
         const input = document.createElement('input');
@@ -131,7 +136,6 @@
         container.appendChild(input);
     }
 
-    // Add example input
     window.addExample = function(num) {
         const container = document.getElementById(`examples-${num}`);
         const div = document.createElement('div');
@@ -147,7 +151,6 @@
         const meaningBlock = button.closest('.meaning-block');
         meaningBlock.remove();
     }
-
 
 })();
 </script>
