@@ -771,6 +771,8 @@ def admin_category_meanings(category_id):
         return redirect(url_for("admin_dashboard"))
 
     if request.method == "POST":
+   
+
         # --- SAVE REPRESENTATIVE MEANINGS ---
         for key, value in request.form.items():
             if key.startswith("rep_meaning_"):
@@ -783,14 +785,11 @@ def admin_category_meanings(category_id):
                     WHERE word_id = ? AND category_id = ?
                 """, (meaning_id, word_id, category_id))
 
-        # --- SAVE SORT ORDER ---
+                # Update sort order
         for key, value in request.form.items():
-            if key.startswith("order_"):
-                word_id = int(key.replace("order_", ""))
-                
-                # If the field is empty → push to the bottom
-                sort_order = int(value) if value.strip() else 9999
-
+            if key.startswith("sort_order_"):
+                word_id = int(key.split("_")[-1])
+                sort_order = int(value)
                 cur.execute("""
                     UPDATE word_categories
                     SET sort_order = ?
