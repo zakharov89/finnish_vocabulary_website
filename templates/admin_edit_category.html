@@ -10,7 +10,6 @@
   {% endif %}
 {% endwith %}
 
-
 <h2>Edit Category: {{ category['name'] }}</h2>
 
 <div class="admin-add-word-container">
@@ -58,7 +57,6 @@
                     onsubmit="return confirm('Are you sure you want to remove this word from the category?');">
                     <button type="submit" class="admin-btn-small delete-btn">Remove</button>
                 </form>
-
             </li>
         {% endfor %}
         </ul>
@@ -70,7 +68,6 @@
 
     <!-- 🔍 Add Existing Word -->
     <h3>Add Existing Word</h3>
-
     <form method="GET" action="{{ url_for('admin_edit_category', category_id=category['id']) }}" class="admin-add-word-form">
         <p>
             <input type="text" name="word_query" class="admin-input" placeholder="Search for a word..." value="{{ search_query }}">
@@ -99,7 +96,7 @@
 
     <hr>
 
-    <!-- 🆕 Add New Word -->
+    <!-- 🆕 Add New Word to this Category -->
     <h3>Add New Word to this Category</h3>
     <form method="POST" action="{{ url_for('admin_edit_category', category_id=category['id']) }}" class="admin-add-word-form">
         <input type="hidden" name="action" value="add_new_word">
@@ -109,21 +106,20 @@
             <input type="text" name="new_word" required class="admin-input">
         </p>
 
-        <p>
-            <label>Part of Speech:</label><br>
-            <select name="pos_id" required class="admin-select">
-                {% for pos in pos_list %}
-                <option value="{{ pos['id'] }}">{{ pos['name'] }}</option>
-                {% endfor %}
-            </select>
-        </p>
-
         <hr>
         <p>Meanings</p>
 
         <div id="meanings-container" class="meanings-section">
+            <!-- First meaning block -->
             <div class="meaning-block" data-meaning-number="1">
                 <input type="hidden" name="meaning_number[]" value="1">
+
+                <p>Part of Speech:</p>
+                <select name="pos_id_1" required class="admin-select">
+                    {% for pos in pos_list %}
+                    <option value="{{ pos['id'] }}">{{ pos['name'] }}</option>
+                    {% endfor %}
+                </select>
 
                 <p>Translations:</p>
                 <div id="translations-1" class="translations-group">
@@ -209,6 +205,13 @@
         div.innerHTML = `
             <input type="hidden" name="meaning_number[]" value="${meaningCount}">
 
+            <p>Part of Speech:</p>
+            <select name="pos_id_${meaningCount}" required class="admin-select">
+                {% for pos in pos_list %}
+                <option value="{{ pos['id'] }}">{{ pos['name'] }}</option>
+                {% endfor %}
+            </select>
+
             <p>Translations:</p>
             <div id="translations-${meaningCount}" class="translations-group">
                 <input type="text" name="translations_${meaningCount}[]" class="admin-input" placeholder="Enter translation">
@@ -237,5 +240,6 @@
     window.addExample = addExample;
 })();
 </script>
+
 {% endblock %}
 

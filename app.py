@@ -600,36 +600,41 @@ def admin_edit_category(category_id):
         # -----------------------
         elif action == "add_new_word":
             word_text = request.form.get("new_word", "").strip()
-            pos_id = request.form.get("pos_id")
             if not word_text:
                 flash("Word cannot be empty.", "danger")
+                conn.close()
                 return redirect(url_for("admin_edit_category", category_id=category_id))
 
             # Check if word already exists in database
             cur.execute("SELECT id FROM words WHERE word = ?", (word_text,))
             if cur.fetchone():
                 flash(f"The word '{word_text}' already exists in the database.", "warning")
+                conn.close()
                 return redirect(url_for("admin_edit_category", category_id=category_id))
 
-            # Insert the new word
-            cur.execute("INSERT INTO words (word, pos_id) VALUES (?, ?)", (word_text, pos_id))
+            # Insert the new word with a dummy pos_id (can be NULL)
+            cur.execute("INSERT INTO words (word) VALUES (?)", (word_text,))
             conn.commit()
             word_id = cur.lastrowid
 
-            # Insert meanings, translations, examples (as before)
+            # Insert meanings
             meaning_numbers = request.form.getlist("meaning_number[]")
             for m_num in meaning_numbers:
-                notes = request.form.get(f"notes_{m_num}", None)
+                pos_id = request.form.get(f"pos_id_{m_num}")  # <-- now per meaning
+                notes = request.form.get(f"meaning_notes[]")  # same for all meanings if multiple? can adjust
                 definition = request.form.get(f"definition_{m_num}", '').strip() or None
+
                 cur.execute(
-                    "INSERT INTO meanings (word_id, meaning_number, notes, definition) VALUES (?, ?, ?, ?)",
-                    (word_id, int(m_num), notes, definition)
+                    "INSERT INTO meanings (word_id, meaning_number, pos_id, notes, definition) VALUES (?, ?, ?, ?, ?)",
+                    (word_id, int(m_num), pos_id, notes, definition)
                 )
+                conn.commit()
                 cur.execute("SELECT id FROM meanings WHERE word_id=? AND meaning_number=?", (word_id, int(m_num)))
                 meaning_id = cur.fetchone()["id"]
 
                 # Insert translations
-                for idx, t in enumerate(request.form.getlist(f"translations_{m_num}[]"), 1):
+                translations = request.form.getlist(f"translations_{m_num}[]")
+                for idx, t in enumerate(translations, 1):
                     t = t.strip()
                     if t:
                         cur.execute(
@@ -638,7 +643,9 @@ def admin_edit_category(category_id):
                         )
 
                 # Insert examples
-                for ex, ex_tr in zip(request.form.getlist(f"examples_{m_num}[]"), request.form.getlist(f"examples_trans_{m_num}[]")):
+                examples = request.form.getlist(f"examples_{m_num}[]")
+                examples_trans = request.form.getlist(f"examples_trans_{m_num}[]")
+                for ex, ex_tr in zip(examples, examples_trans):
                     if ex.strip():
                         cur.execute(
                             "INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
@@ -649,9 +656,9 @@ def admin_edit_category(category_id):
             cur.execute("INSERT INTO word_categories (word_id, category_id) VALUES (?, ?)", (word_id, category_id))
             conn.commit()
             conn.close()
-
             flash(f"New word '{word_text}' added and assigned to category.", "success")
             return redirect(url_for("admin_edit_category", category_id=category_id))
+
 
 
         # -----------------------
@@ -837,7 +844,6 @@ def show_word(word_name):
     cur.execute("SELECT id, word FROM words WHERE word = ?", (word_name,))
     word_row = cur.fetchone()
     if not word_row:
-        flash(f"Word '{word_name}' not found.", "error")
         conn.close()
         return render_template("word.html", meanings_by_pos=None, word_name=None)
 
