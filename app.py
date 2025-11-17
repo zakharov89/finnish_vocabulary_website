@@ -762,7 +762,7 @@ def admin_category_meanings(category_id):
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Fetch category info
+    # Fetch category
     cur.execute("SELECT * FROM categories WHERE id = ?", (category_id,))
     category = cur.fetchone()
     if not category:
@@ -771,28 +771,44 @@ def admin_category_meanings(category_id):
         return redirect(url_for("admin_dashboard"))
 
     if request.method == "POST":
-        # Save representative meanings
-        for key, meaning_id in request.form.items():
+        # --- SAVE REPRESENTATIVE MEANINGS ---
+        for key, value in request.form.items():
             if key.startswith("rep_meaning_"):
-                word_id = int(key.split("_")[-1])
-                if meaning_id:
-                    cur.execute("""
-                        UPDATE word_categories
-                        SET meaning_id = ?
-                        WHERE word_id = ? AND category_id = ?
-                    """, (meaning_id, word_id, category_id))
-                else:
-                    cur.execute("""
-                        UPDATE word_categories
-                        SET meaning_id = NULL
-                        WHERE word_id = ? AND category_id = ?
-                    """, (word_id, category_id))
-        conn.commit()
-        flash("Representative meanings updated.", "success")
+                word_id = int(key.replace("rep_meaning_", ""))
+                meaning_id = int(value) if value else None
 
-    # Fetch words in the category
+                cur.execute("""
+                    UPDATE word_categories
+                    SET meaning_id = ?
+                    WHERE word_id = ? AND category_id = ?
+                """, (meaning_id, word_id, category_id))
+
+        # --- SAVE SORT ORDER ---
+        for key, value in request.form.items():
+            if key.startswith("order_"):
+                word_id = int(key.replace("order_", ""))
+                
+                # If the field is empty → push to the bottom
+                sort_order = int(value) if value.strip() else 9999
+
+                cur.execute("""
+                    UPDATE word_categories
+                    SET sort_order = ?
+                    WHERE word_id = ? AND category_id = ?
+                """, (sort_order, word_id, category_id))
+
+        conn.commit()
+        flash("Meaning choices and order saved.", "success")
+        conn.close()
+        return redirect(url_for("admin_category_meanings", category_id=category_id))
+
+    # ------- GET MODE -------
+    # Fetch words in category including sort_order
     cur.execute("""
-        SELECT wc.word_id, w.word, wc.meaning_id
+        SELECT wc.word_id,
+               w.word,
+               wc.meaning_id,
+               wc.sort_order
         FROM word_categories wc
         JOIN words w ON wc.word_id = w.id
         WHERE wc.category_id = ?
@@ -802,8 +818,11 @@ def admin_category_meanings(category_id):
 
     # Fetch meanings for each word
     for w in words:
+        # All meanings of the word
         cur.execute("""
-            SELECT m.id, m.meaning_number, p.name AS pos_name,
+            SELECT m.id,
+                   m.meaning_number,
+                   p.name AS pos_name,
                    GROUP_CONCAT(t.translation_text, ', ') AS translations
             FROM meanings m
             LEFT JOIN parts_of_speech p ON m.pos_id = p.id
@@ -814,7 +833,7 @@ def admin_category_meanings(category_id):
         """, (w['word_id'],))
         w['meanings'] = [dict(m) for m in cur.fetchall()]
 
-        # If a representative meaning is selected, fetch translations
+        # Representative meaning translations
         if w['meaning_id']:
             cur.execute("""
                 SELECT GROUP_CONCAT(t.translation_text, ' | ') AS rep_translations
@@ -827,12 +846,12 @@ def admin_category_meanings(category_id):
             w['rep_translations'] = None
 
     conn.close()
+
     return render_template(
         "admin_category_meanings.html",
         category=dict(category),
         words=words
     )
-
 
 
 

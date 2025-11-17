@@ -13,7 +13,9 @@
 <h2>Choosing Meanings for Category: {{ category['name'] }}</h2>
 
 <p>
-    <a href="{{ url_for('show_category', category_name=category['name']) }}" class="admin-btn-small" target="_blank">
+    <a href="{{ url_for('show_category', category_name=category['name']) }}" 
+       class="admin-btn-small" 
+       target="_blank">
         View Category Page
     </a>
 </p>
@@ -23,44 +25,66 @@
         <thead>
             <tr>
                 <th>Word</th>
-                <th>Meaning choice</th>
-                
+                <th>Meaning</th>
+                <th style="width: 90px;">Order</th>
             </tr>
         </thead>
+
         <tbody>
-        {% for word in words %}
+        {% for w in words %}
             <tr>
+                <!-- WORD -->
                 <td>
-                    <a href="{{ url_for('show_word', word_name=word['word']) }}" target="_blank">{{ word['word'] }}</a>
+                    <a href="{{ url_for('show_word', word_name=w.word) }}" target="_blank">
+                        {{ w.word }}
+                    </a>
                 </td>
+
+                <!-- MEANING SELECTION -->
                 <td>
-                    {% if word.meanings %}
-                        <select name="rep_meaning_{{ word['word_id'] }}">
+                    {% if w.meanings %}
+                        <select name="rep_meaning_{{ w.word_id }}">
                             <option value="">-- None --</option>
-                            {% for m in word.meanings %}
-                                <option value="{{ m['id'] }}"
-                                {% if word.get('meaning_id') == m['id'] %}selected{% endif %}>
-                                    {{ m['meaning_number'] }}. {{ m['translations'] }}
+
+                            {% for m in w.meanings %}
+                                <option value="{{ m.id }}"
+                                    {% if w.meaning_id == m.id %}selected{% endif %}>
+                                    {{ m.meaning_number }}. {{ m.translations }}
                                 </option>
                             {% endfor %}
                         </select>
+
+
                     {% else %}
                         <em>No meanings available</em>
                     {% endif %}
                 </td>
-                
+
+                <!-- ORDER FIELD -->
+                <td>
+                    <input 
+                        type="number"
+                        name="order_{{ w.word_id }}"
+                        value="{{ w.sort_order }}"
+                        style="width: 60px;"
+                    >
+                </td>
             </tr>
         {% endfor %}
         </tbody>
     </table>
 
     <p>
-        <button type="submit" class="admin-btn">Save Meanings</button>
+        <button type="submit" class="admin-btn">
+            Save All Changes
+        </button>
     </p>
 </form>
 
 <p>
-    <a href="{{ url_for('admin_edit_category', category_id=category['id']) }}" class="admin-btn-small">Back to Category Edit</a>
+    <a href="{{ url_for('admin_edit_category', category_id=category.id) }}" class="admin-btn-small">
+        Back to Category Edit
+    </a>
 </p>
 
 {% endblock %}
