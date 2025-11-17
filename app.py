@@ -406,9 +406,6 @@ def admin_edit_word_search():
     results = cur.fetchall()
     conn.close()
 
-    if not results:
-        flash(f"No words found starting with '{query}'.", "info")
-        return redirect(url_for('admin_dashboard'))
 
     return render_template("admin_edit_word_search.html", results=results, query=query)
 
