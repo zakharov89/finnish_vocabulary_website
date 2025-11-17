@@ -76,23 +76,32 @@
     </form>
 
     {% if search_results %}
-    <form method="POST" action="{{ url_for('admin_edit_category', category_id=category['id']) }}" class="admin-add-word-form">
-        <input type="hidden" name="action" value="add_existing">
-        <p>
-            <label>Select a word to add:</label><br>
-            <select name="existing_word_id" class="admin-select" required>
-                {% for w in search_results %}
-                    <option value="{{ w['id'] }}">{{ w['word'] }}</option>
-                {% endfor %}
-            </select>
-        </p>
-        <p>
-            <button type="submit" class="admin-btn">Add Word to Category</button>
-        </p>
-    </form>
+        <ul>
+        {% for w in search_results %}
+            <li>
+                <a href="{{ url_for('show_word', word_name=w['word']) }}" target="_blank">{{ w['word'] }}</a>
+            </li>
+        {% endfor %}
+        </ul>
+
+        <form method="POST" action="{{ url_for('admin_edit_category', category_id=category['id']) }}" class="admin-add-word-form">
+            <input type="hidden" name="action" value="add_existing">
+            <p>
+                <label>Select a word to add:</label><br>
+                <select name="existing_word_id" class="admin-select" required>
+                    {% for w in search_results %}
+                        <option value="{{ w['id'] }}">{{ w['word'] }}</option>
+                    {% endfor %}
+                </select>
+            </p>
+            <p>
+                <button type="submit" class="admin-btn">Add Word to Category</button>
+            </p>
+        </form>
     {% elif search_query %}
         <p><em>No results found for “{{ search_query }}”.</em></p>
     {% endif %}
+
 
     <hr>
 
