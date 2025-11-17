@@ -1059,62 +1059,72 @@ def categories():
 
 
 
+
+
+
+
+
+
 @app.route('/categories/<category_name>')
 def show_category(category_name):
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
+    # Load all categories into memory
     cur.execute("SELECT id, name, parent_id FROM categories ORDER BY name")
     all_rows = cur.fetchall()
-
     categories_dict = {}
     for row in all_rows:
         parent = row['parent_id']
         categories_dict.setdefault(parent, []).append(row)
 
-    
+    # Load current category
     cur.execute("SELECT id, name, parent_id FROM categories WHERE name = ?", (category_name,))
     category = cur.fetchone()
     if not category:
+        conn.close()
         return f"Category '{category_name}' not found."
 
     category_id = category["id"]
 
+    # Subcategories
     subcategories = categories_dict.get(category_id, [])
 
+    # Fetch words and their representative meaning_id
     cur.execute("""
-        SELECT w.id, w.word
+        SELECT w.id AS word_id, w.word, wc.meaning_id
         FROM words w
         JOIN word_categories wc ON w.id = wc.word_id
         WHERE wc.category_id = ?
-        ORDER BY w.word
+        ORDER BY wc.sort_order, w.word
     """, (category_id,))
     words = cur.fetchall()
 
     words_with_translations = []
-
     for w in words:
-        cur.execute("""
-            SELECT t.translation_text
-            FROM meanings m
-            JOIN translations t ON m.id = t.meaning_id
-            WHERE m.word_id = ?
-            ORDER BY m.meaning_number, t.translation_number
-            LIMIT 3
-        """, (w['id'],))
+        meaning_id = w["meaning_id"]
 
-        translations = [row["translation_text"] for row in cur.fetchall()]
+        translations = []
+        if meaning_id:
+            # Only fetch translations for the selected representative meaning
+            cur.execute("""
+                SELECT translation_text
+                FROM translations
+                WHERE meaning_id = ?
+                ORDER BY translation_number
+                LIMIT 3
+            """, (meaning_id,))
+            translations = [row["translation_text"] for row in cur.fetchall()]
 
         words_with_translations.append({
             "word": w["word"],
             "translations": translations
         })
 
+    # Parent breadcrumb
     parent = None
     if category["parent_id"]:
-        parent_rows = categories_dict.get(category["parent_id"], [])
-        # find the parent in rows
         for r in all_rows:
             if r["id"] == category["parent_id"]:
                 parent = r
@@ -1122,27 +1132,14 @@ def show_category(category_name):
 
     conn.close()
 
-
     return render_template(
         "category.html",
         category=category,
         subcategories=subcategories,
         words=words_with_translations,
         parent=parent,
-        categories=categories_dict   
+        categories=categories_dict
     )
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
