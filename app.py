@@ -752,6 +752,123 @@ def admin_delete_category(category_id):
 
 
 
+
+
+
+@app.route("/admin/categories/<int:category_id>/meanings", methods=["GET", "POST"])
+@admin_required
+def admin_category_meanings(category_id):
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Fetch category info
+    cur.execute("SELECT * FROM categories WHERE id = ?", (category_id,))
+    category = cur.fetchone()
+    if not category:
+        conn.close()
+        flash("Category not found.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
+    if request.method == "POST":
+        # Save representative meanings
+        for key, meaning_id in request.form.items():
+            if key.startswith("rep_meaning_"):
+                word_id = int(key.split("_")[-1])
+                if meaning_id:
+                    cur.execute("""
+                        UPDATE word_categories
+                        SET meaning_id = ?
+                        WHERE word_id = ? AND category_id = ?
+                    """, (meaning_id, word_id, category_id))
+                else:
+                    cur.execute("""
+                        UPDATE word_categories
+                        SET meaning_id = NULL
+                        WHERE word_id = ? AND category_id = ?
+                    """, (word_id, category_id))
+        conn.commit()
+        flash("Representative meanings updated.", "success")
+
+    # Fetch words in the category
+    cur.execute("""
+        SELECT wc.word_id, w.word, wc.meaning_id
+        FROM word_categories wc
+        JOIN words w ON wc.word_id = w.id
+        WHERE wc.category_id = ?
+        ORDER BY wc.sort_order, w.word
+    """, (category_id,))
+    words = [dict(w) for w in cur.fetchall()]
+
+    # Fetch meanings for each word
+    for w in words:
+        cur.execute("""
+            SELECT m.id, m.meaning_number, p.name AS pos_name,
+                   GROUP_CONCAT(t.translation_text, ' | ') AS translations
+            FROM meanings m
+            LEFT JOIN parts_of_speech p ON m.pos_id = p.id
+            LEFT JOIN translations t ON t.meaning_id = m.id
+            WHERE m.word_id = ?
+            GROUP BY m.id
+            ORDER BY m.meaning_number
+        """, (w['word_id'],))
+        w['meanings'] = [dict(m) for m in cur.fetchall()]
+
+        # If a representative meaning is selected, fetch translations
+        if w['meaning_id']:
+            cur.execute("""
+                SELECT GROUP_CONCAT(t.translation_text, ' | ') AS rep_translations
+                FROM translations t
+                WHERE t.meaning_id = ?
+            """, (w['meaning_id'],))
+            row = cur.fetchone()
+            w['rep_translations'] = row['rep_translations'] if row else None
+        else:
+            w['rep_translations'] = None
+
+    conn.close()
+    return render_template(
+        "admin_category_meanings.html",
+        category=dict(category),
+        words=words
+    )
+
+
+
+
+@app.route("/admin/set_main_meaning", methods=["POST"])
+@admin_required
+def admin_set_main_meaning():
+    data = request.get_json()
+    word_id = data.get("word_id")
+    meaning_id = data.get("meaning_id")
+
+    if not word_id or not meaning_id:
+        return jsonify({"status": "error", "message": "Missing data"}), 400
+
+    conn = sqlite3.connect("finnish.db")
+    cur = conn.cursor()
+
+    # upsert word_category_meaning table
+    cur.execute("""
+        INSERT INTO word_category_meaning (word_id, meaning_id)
+        VALUES (?, ?)
+        ON CONFLICT(word_id) DO UPDATE SET meaning_id=excluded.meaning_id
+    """, (word_id, meaning_id))
+
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "ok"})
+
+
+
+
+
+
+
+
+
+
 @app.route('/', methods=['GET'])
 def home():
     query = request.args.get('query', '').strip()

@@ -10,7 +10,8 @@
     {% set counter = namespace(n=0) %}
 
     {% for pos_name, meanings in meanings_by_pos.items() %}
-        <h3>{{ pos_name }}</h3>
+        <br>
+         <i> {{ pos_name }} </i> 
 
         {% for meaning in meanings %}
             {% set counter.n = counter.n + 1 %}

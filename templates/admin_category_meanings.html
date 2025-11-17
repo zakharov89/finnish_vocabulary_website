@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<h2>Representative Meanings for Category: {{ category['name'] }}</h2>
+
+<p>
+    <a href="{{ url_for('show_category', category_name=category['name']) }}" class="admin-btn-small" target="_blank">
+        View Category Page
+    </a>
+</p>
+
+<form method="POST" action="{{ url_for('admin_category_meanings', category_id=category['id']) }}">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Word</th>
+                <th>Representative Meaning</th>
+                <th>Translations</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for word in words %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('show_word', word_name=word['word']) }}" target="_blank">{{ word['word'] }}</a>
+                </td>
+                <td>
+                    {% if word.meanings %}
+                        <select name="rep_meaning_{{ word['word_id'] }}" onchange="this.form.submit()">
+                            <option value="">-- None --</option>
+                            {% for m in word.meanings %}
+                                <option value="{{ m['id'] }}"
+                                {% if word.get('meaning_id') == m['id'] %}selected{% endif %}>
+                                    {{ m['meaning_number'] }}. {{ m['translations'] }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    {% else %}
+                        <em>No meanings available</em>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if word.get('meaning_id') %}
+                        {% set selected = word.meanings | selectattr('id', 'equalto', word['meaning_id']) | list %}
+                        {% if selected %}
+                            {{ selected[0]['translations'] }}
+                        {% endif %}
+                    {% else %}
+                        <em>None selected</em>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <p>
+        <button type="submit" class="admin-btn">Save Representative Meanings</button>
+    </p>
+</form>
+
+<p>
+    <a href="{{ url_for('admin_edit_category', category_id=category['id']) }}" class="admin-btn-small">Back to Category Edit</a>
+</p>
+
+{% endblock %}

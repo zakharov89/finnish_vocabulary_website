@@ -66,6 +66,11 @@
 
     <hr>
 
+    <a href="{{ url_for('admin_category_meanings', category_id=category['id']) }}" class="admin-btn-small">
+    View / Edit Main Meanings
+    </a>
+
+
     <!-- 🔍 Add Existing Word -->
     <h3>Add Existing Word</h3>
     <form method="GET" action="{{ url_for('admin_edit_category', category_id=category['id']) }}" class="admin-add-word-form">
