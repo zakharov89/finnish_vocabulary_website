@@ -839,12 +839,12 @@ def show_word(word_name):
     if not word_row:
         flash(f"Word '{word_name}' not found.", "error")
         conn.close()
-        return redirect(url_for('index'))
+        return render_template("word.html", meanings_by_pos=None, word_name=None)
 
     word_id = word_row['id']
-    word_name = word_row['word']  # normalize casing, etc.
+    word_name = word_row['word']
 
-    # Fetch meanings with translations, examples, and POS in logical order
+    # Fetch meanings + POS + translations + examples
     cur.execute("""
         SELECT 
             m.id, m.meaning_number, m.definition, m.notes,
@@ -864,13 +864,14 @@ def show_word(word_name):
                 WHEN 'adverb' THEN 4
                 ELSE 5
             END,
-            m.meaning_number,
-            t.translation_text,
-            e.example_text
+            m.meaning_number
     """, (word_id,))
 
     rows = cur.fetchall()
     conn.close()
+
+    if not rows:
+        return render_template("word.html", meanings_by_pos=None, word_name=word_name)
 
     # Organize meanings by POS
     meanings_by_pos = {}
@@ -879,7 +880,6 @@ def show_word(word_name):
         if pos_name not in meanings_by_pos:
             meanings_by_pos[pos_name] = []
 
-        # Check if this meaning_number already exists in the list
         meaning = next((m for m in meanings_by_pos[pos_name] if m['id'] == row['id']), None)
         if not meaning:
             meaning = {
@@ -892,20 +892,23 @@ def show_word(word_name):
             }
             meanings_by_pos[pos_name].append(meaning)
 
-        # Add translation if not already added
         if row['translation_text'] and row['translation_text'] not in meaning['translations']:
             meaning['translations'].append(row['translation_text'])
 
-        # Add example
         if row['example_text']:
             meaning['examples'].append({
                 'text': row['example_text'],
                 'translation': row['example_translation_text']
             })
 
-    return render_template('word.html', word_name=word_name, meanings_by_pos=meanings_by_pos)
+    # ---- THROUGH-NUMBERING ----
+    counter = 1
+    for pos in meanings_by_pos.values():
+        for meaning in pos:
+            meaning['display_number'] = counter
+            counter += 1
 
-
+    return render_template("word.html", word_name=word_name, meanings_by_pos=meanings_by_pos)
 
 
 

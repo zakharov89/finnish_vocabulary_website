@@ -1,42 +1,56 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h1>{{ word_name }}</h1>
 
-{% for pos_name, meanings in meanings_by_pos.items() %}
-    <h3>{{ pos_name }}</h3>
-    {% for meaning in meanings %}
-        <div class="meaning">
-            <p>
-                <strong>{{ loop.index }}.</strong> <!-- loop.index gives 1,2,3... per POS -->
-                <span class="translation">{{ ", ".join(meaning.translations) }}</span>
-            </p>
 
-            {% if meaning.examples %}
-            <div class="examples">
-                <button class="expand-btn">Show Examples</button>
-                <div class="example-content" style="display: none;">
-                    {% for ex in meaning.examples %}
-                        <p>
-                            {{ ex.text }}
-                            {% if ex.translation %}
-                                <br><em>{{ ex.translation }}</em>
-                            {% endif %}
-                        </p>
-                    {% endfor %}
+{% if meanings_by_pos is none %}
+    <p>Word "{{ request.view_args.word_name }}" not found.</p>
+{% else %}
+    <h1>{{ word_name }}</h1>
+    {% set counter = namespace(n=0) %}
+
+    {% for pos_name, meanings in meanings_by_pos.items() %}
+        <h3>{{ pos_name }}</h3>
+
+        {% for meaning in meanings %}
+            {% set counter.n = counter.n + 1 %}
+
+            <div class="meaning">
+                <p>
+                    <strong>{{ counter.n }}.</strong>
+                    <span class="translation">{{ ", ".join(meaning.translations) }}</span>
+                </p>
+
+                {% if meaning.examples %}
+                <div class="examples">
+                    <button class="expand-btn">Show Examples</button>
+                    <div class="example-content" style="display: none;">
+                        {% for ex in meaning.examples %}
+                            <p>
+                                {{ ex.text }}
+                                {% if ex.translation %}
+                                    <br><em>{{ ex.translation }}</em>
+                                {% endif %}
+                            </p>
+                        {% endfor %}
+                    </div>
                 </div>
+                {% endif %}
             </div>
-            {% endif %}
-        </div>
+
+        {% endfor %}
     {% endfor %}
-{% endfor %}
+
+{% endif %}
 
 <script>
 document.querySelectorAll('.expand-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
         const content = btn.nextElementSibling;
         content.style.display = content.style.display === 'none' ? 'block' : 'none';
-        btn.textContent = content.style.display === 'none' ? 'Show Examples' : 'Hide Examples';
+        btn.textContent = content.style.display === 'none'
+            ? 'Show Examples'
+            : 'Hide Examples';
     });
 });
 </script>
