@@ -46,20 +46,28 @@
 
     <!-- 📋 Words in Category -->
     <h3>Words in this Category</h3>
+
     {% if category_words %}
-        <ul>
-        {% for w in category_words %}
-            <li>
-                <a href="{{ url_for('show_word', word_name=w['word']) }}" target="_blank">{{ w['word'] }}</a>
-                <form method="POST" 
-                    action="{{ url_for('admin_remove_word_from_category', category_id=category['id'], word_id=w['id']) }}" 
-                    style="display:inline;"
-                    onsubmit="return confirm('Are you sure you want to remove this word from the category?');">
-                    <button type="submit" class="admin-btn-small delete-btn">Remove</button>
-                </form>
-            </li>
-        {% endfor %}
-        </ul>
+        <table class="admin-table">
+           
+            <tbody>
+            {% for w in category_words %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('show_word', word_name=w['word']) }}" target="_blank">{{ w['word'] }}</a>
+                    </td>
+                    <td>
+                        <form method="POST" 
+                            action="{{ url_for('admin_remove_word_from_category', category_id=category['id'], word_id=w['id']) }}" 
+                            style="display:inline;"
+                            onsubmit="return confirm('Are you sure you want to remove this word from the category?');">
+                            <button type="submit" class="admin-btn-small delete-btn">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     {% else %}
         <p><em>No words yet in this category.</em></p>
     {% endif %}

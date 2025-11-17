@@ -1,8 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
 
-
-
 {% if meanings_by_pos is none %}
     <p>Word "{{ request.view_args.word_name }}" not found.</p>
 {% else %}
@@ -11,7 +9,7 @@
 
     {% for pos_name, meanings in meanings_by_pos.items() %}
         <br>
-         <i> {{ pos_name }} </i> 
+        <i>{{ pos_name }}</i> 
 
         {% for meaning in meanings %}
             {% set counter.n = counter.n + 1 %}
@@ -41,6 +39,18 @@
 
         {% endfor %}
     {% endfor %}
+
+    {% if categories %}
+    <div class="word-categories"> <p>
+        Categories:
+        
+        {% for cat in categories %}
+        <a href="{{ url_for('show_category', category_name=cat) }}">{{ cat }}</a>
+        {% endfor %}
+        
+    </p>
+    </div>
+    {% endif %}
 
 {% endif %}
 

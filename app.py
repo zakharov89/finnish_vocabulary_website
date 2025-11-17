@@ -804,7 +804,7 @@ def admin_category_meanings(category_id):
     for w in words:
         cur.execute("""
             SELECT m.id, m.meaning_number, p.name AS pos_name,
-                   GROUP_CONCAT(t.translation_text, ' | ') AS translations
+                   GROUP_CONCAT(t.translation_text, ', ') AS translations
             FROM meanings m
             LEFT JOIN parts_of_speech p ON m.pos_id = p.id
             LEFT JOIN translations t ON t.meaning_id = m.id
@@ -991,10 +991,21 @@ def show_word(word_name):
     """, (word_id,))
 
     rows = cur.fetchall()
+
+ # Fetch categories the word belongs to
+    cur.execute("""
+        SELECT c.name
+        FROM categories c
+        JOIN word_categories wc ON c.id = wc.category_id
+        WHERE wc.word_id = ?
+        ORDER BY c.name
+    """, (word_id,))
+    categories = [row['name'] for row in cur.fetchall()]
+
     conn.close()
 
     if not rows:
-        return render_template("word.html", meanings_by_pos=None, word_name=word_name)
+        return render_template("word.html", meanings_by_pos=None, word_name=word_name, categories=None)
 
     # Organize meanings by POS
     meanings_by_pos = {}
@@ -1030,8 +1041,10 @@ def show_word(word_name):
         for meaning in pos:
             meaning['display_number'] = counter
             counter += 1
+   
 
-    return render_template("word.html", word_name=word_name, meanings_by_pos=meanings_by_pos)
+    return render_template("word.html", word_name=word_name, meanings_by_pos=meanings_by_pos, categories=categories)
+
 
 
 
@@ -1083,15 +1096,13 @@ def show_category(category_name):
     cur.execute("SELECT id, name, parent_id FROM categories WHERE name = ?", (category_name,))
     category = cur.fetchone()
     if not category:
-        conn.close()
         return f"Category '{category_name}' not found."
-
     category_id = category["id"]
 
     # Subcategories
     subcategories = categories_dict.get(category_id, [])
 
-    # Fetch words and their representative meaning_id
+    # Fetch all words in the category including selected meaning_id
     cur.execute("""
         SELECT w.id AS word_id, w.word, wc.meaning_id
         FROM words w
@@ -1102,20 +1113,31 @@ def show_category(category_name):
     words = cur.fetchall()
 
     words_with_translations = []
+
     for w in words:
         meaning_id = w["meaning_id"]
 
-        translations = []
         if meaning_id:
-            # Only fetch translations for the selected representative meaning
+            # Use representative meaning
             cur.execute("""
-                SELECT translation_text
-                FROM translations
-                WHERE meaning_id = ?
-                ORDER BY translation_number
+                SELECT t.translation_text
+                FROM translations t
+                WHERE t.meaning_id = ?
+                ORDER BY t.translation_number
                 LIMIT 3
             """, (meaning_id,))
-            translations = [row["translation_text"] for row in cur.fetchall()]
+        else:
+            # Fallback: use first meaning of the word
+            cur.execute("""
+                SELECT t.translation_text
+                FROM meanings m
+                JOIN translations t ON t.meaning_id = m.id
+                WHERE m.word_id = ?
+                ORDER BY m.meaning_number, t.translation_number
+                LIMIT 3
+            """, (w["word_id"],))
+
+        translations = [row["translation_text"] for row in cur.fetchall()]
 
         words_with_translations.append({
             "word": w["word"],

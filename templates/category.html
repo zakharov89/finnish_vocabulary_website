@@ -47,7 +47,7 @@
                 </td>
                 <td>
                     {{ ", ".join(w['translations']) }}
-                    {% if w.translations|length >= 3 %}…{% endif %}
+                    {% if w.translations|length > 3 %}…{% endif %}
                 </td>
             </tr>
             {% endfor %}
