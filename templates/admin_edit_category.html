@@ -23,19 +23,17 @@
             <input type="text" name="name" value="{{ category['name'] }}" required class="admin-input">
         </p>
 
-        <p>
-            <label>Parent Category (optional):</label><br>
-            <select name="parent_id" class="admin-select">
-                <option value="">-- None --</option>
-                {% for c in all_categories %}
-                    {% if c['id'] != category['id'] %}
-                        <option value="{{ c['id'] }}" {% if c['id'] == category['parent_id'] %}selected{% endif %}>
-                            {{ c['name'] }}
-                        </option>
-                    {% endif %}
-                {% endfor %}
-            </select>
-        </p>
+            <p>
+       <label>Parent Category</label> <br>
+        <input type="text" id="categoryInput" autocomplete="off" placeholder="Type to search…">
+        <input type="hidden" name="parent_id" id="categoryId">
+
+        <div id="suggestions" class="autocomplete-list"></div>
+
+    </p>
+
+    <ul id="category_suggestions" class="autocomplete-list"></ul>
+
 
         <p>
             <button type="submit" class="admin-btn">Update Category</button>
@@ -261,7 +259,58 @@
     window.addTranslation = addTranslation;
     window.addExample = addExample;
 })();
+
+
+
+const categories = [
+    {% for c in all_categories %}
+        { id: {{ c.id }}, name: "{{ c.name }}" },
+    {% endfor %}
+];
+
+const input = document.getElementById("categoryInput");
+const idField = document.getElementById("categoryId");
+const list = document.getElementById("suggestions");
+
+function showSuggestions(value) {
+    list.innerHTML = "";
+    list.style.display = "block";
+
+    // prefix-only matching, but show all if empty
+    const filtered = categories.filter(c =>
+        value === "" || c.name.toLowerCase().startsWith(value.toLowerCase())
+    );
+
+    filtered.forEach(cat => {
+        const item = document.createElement("div");
+        item.className = "autocomplete-item";
+        item.textContent = cat.name;
+
+        item.onclick = () => {
+            input.value = cat.name;
+            idField.value = cat.id;
+            list.style.display = "none";
+        };
+
+        list.appendChild(item);
+    });
+}
+
+input.addEventListener("input", () => {
+    showSuggestions(input.value);
+});
+
+input.addEventListener("focus", () => {
+    showSuggestions(input.value); // shows all on focus if empty
+});
+
+document.addEventListener("click", (e) => {
+    if (!list.contains(e.target) && e.target !== input) {
+        list.style.display = "none";
+    }
+});
 </script>
+
 
 {% endblock %}
 

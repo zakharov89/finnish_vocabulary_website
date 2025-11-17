@@ -538,7 +538,7 @@ def admin_search_category():
             FROM categories
             WHERE name LIKE ?
             ORDER BY name
-        """, (f"%{query}%",))
+        """, (f"{query}%",))
         results = cur.fetchall()
         conn.close()
 

@@ -343,3 +343,24 @@ footer {
     color: #1a237e;  /* greenish color, same as your .translation text maybe */
     font-weight: bold;
 }
+
+.autocomplete-list {
+    border: 1px solid #ccc;
+    max-height: 200px;
+    overflow-y: auto;
+    position: absolute;
+    background: white;
+    width: 250px;
+    display: none;
+    z-index: 999;
+}
+
+.autocomplete-item {
+    padding: 6px 10px;
+    cursor: pointer;
+}
+
+.autocomplete-item:hover {
+    background: #f0f0f0;
+}
+
