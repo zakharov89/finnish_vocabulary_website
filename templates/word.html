@@ -5,10 +5,10 @@
 
 {% for pos_name, meanings in meanings_by_pos.items() %}
     <h3>{{ pos_name }}</h3>
-   {% for meaning in meanings %}
+    {% for meaning in meanings %}
         <div class="meaning">
             <p>
-                <strong>{{ meaning.meaning_number }}.</strong>
+                <strong>{{ loop.index }}.</strong> <!-- loop.index gives 1,2,3... per POS -->
                 <span class="translation">{{ ", ".join(meaning.translations) }}</span>
             </p>
 
@@ -28,31 +28,17 @@
             </div>
             {% endif %}
         </div>
-{% endfor %}
-
-{% endfor %}
-
-{% if categories %}
-<div class="categories">
-    <strong>Categories:</strong>
-    {% for cat in categories %}
-        <a href="{{ url_for('show_category', category_name=cat['name']) }}">{{ cat['name'] }}</a>
     {% endfor %}
-</div>
-{% endif %}
+{% endfor %}
 
 <script>
 document.querySelectorAll('.expand-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
         const content = btn.nextElementSibling;
         content.style.display = content.style.display === 'none' ? 'block' : 'none';
-        btn.textContent = content.style.display === 'none' ? 
-            btn.textContent.replace('Hide', 'Show') : 
-            btn.textContent.replace('Show', 'Hide');
+        btn.textContent = content.style.display === 'none' ? 'Show Examples' : 'Hide Examples';
     });
 });
 </script>
 
-
 {% endblock %}
-

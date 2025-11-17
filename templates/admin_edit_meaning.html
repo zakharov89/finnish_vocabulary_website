@@ -56,6 +56,15 @@
         <button type="submit" class="admin-btn">Save Meaning</button>
     </form>
 
+    <!-- Delete Meaning -->
+    {% if meanings_count > 1 %}
+    <form method="POST" action="{{ url_for('admin_delete_meaning', meaning_id=meaning.id) }}" 
+          onsubmit="return confirm('Are you sure you want to delete this meaning?');" class="mb-3">
+        <button type="submit" class="admin-btn delete-btn">Delete Meaning</button>
+    </form>
+
+    {% endif %}
+
     <a href="{{ url_for('admin_edit_word', word_id=meaning.word_id) }}" class="admin-btn-small">Back to Word</a>
 </div>
 
