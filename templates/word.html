@@ -2,66 +2,131 @@
 {% block content %}
 
 {% if meanings_by_pos is none %}
-    <p>Word "{{ request.view_args.word_name }}" not found.</p>
+    <p>Word not found.</p>
 {% else %}
     <h1>{{ word_name }}</h1>
-    {% set counter = namespace(n=0) %}
+
+   
+
+    <br>
 
     {% for pos_name, meanings in meanings_by_pos.items() %}
         <br>
-        <i>{{ pos_name }}</i> 
+        <i>{{ pos_name }}</i>
 
         {% for meaning in meanings %}
-            {% set counter.n = counter.n + 1 %}
+        <div class="meaning">
 
-            <div class="meaning">
-                <p>
-                    <strong>{{ counter.n }}.</strong>
-                    <span class="translation">{{ ", ".join(meaning.translations) }}</span>
-                </p>
+            <p>
+                <strong>{{ meaning.display_number }}.</strong>
+                <span class="translation">
+                    {{ meaning.translations | join(", ") }}
+                </span>
+            </p>
 
-                {% if meaning.examples %}
-                <div class="examples">
-                    <button class="expand-btn">Show Examples</button>
-                    <div class="example-content" style="display: none;">
-                        {% for ex in meaning.examples %}
-                            <p>
-                                {{ ex.text }}
-                                {% if ex.translation %}
-                                    <br><em>{{ ex.translation }}</em>
-                                {% endif %}
-                            </p>
-                        {% endfor %}
-                    </div>
+            {% if meaning.examples %}
+            <div class="examples">
+                <button class="expand-btn"
+                        data-label-show="Show Examples"
+                        data-label-hide="Hide Examples">
+                    Show Examples
+                </button>
+
+                <div class="example-content" style="display:none;">
+                    {% for ex in meaning.examples %}
+                        <p>
+                            {{ ex.text }}
+                            {% if ex.translation %}
+                                <br><em>{{ ex.translation }}</em>
+                            {% endif %}
+                        </p>
+                    {% endfor %}
                 </div>
-                {% endif %}
             </div>
+            {% endif %}
 
+            <!-- MEANING RELATIONS -->
+            {% if meaning_relations.get(meaning.id) %}
+            <div class="meaning-relations">
+                <button class="expand-btn"
+                        data-label-show="Show Relations"
+                        data-label-hide="Hide Relations">
+                    Show Relations
+                </button>
+
+                <div class="rel-content" style="display:none;">
+                    {% for rt, targets in meaning_relations[meaning.id].items() %}
+                        <p><strong>{{ rt }}:</strong>
+                            {% for t in targets %}
+                                <a href="{{ url_for('show_word', word_name=t.target_word) }}">
+                                    {{ t.target_word}} 
+                                </a>{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        </p>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
         {% endfor %}
     {% endfor %}
 
+    <!-- WORD RELATIONS -->
+    {% if word_relations %}
+    <div class="word-relations">
+        <button class="expand-btn"
+                data-label-show="Show Word Relations"
+                data-label-hide="Hide Word Relations">
+            Show Word Relations
+        </button>
+
+        <div class="rel-content" style="display:none;">
+            {% for rt, targets in word_relations.items() %}
+                <p><strong>{{ rt }}:</strong>
+                    {% for t in targets %}
+                        <a href="{{ url_for('show_word', word_name=t.target_word) }}">{{ t.target_word }}</a>{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </p>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+
+
+
+   <!-- CATEGORIES -->
     {% if categories %}
-    <div class="word-categories"> <p>
-        Categories:
-        
-        {% for cat in categories %}
-        <a href="{{ url_for('show_category', category_name=cat) }}">{{ cat }}</a>
-        {% endfor %}
-        
-    </p>
+    <div class="word-categories">
+        <button class="expand-btn"
+                data-label-show="Show Categories"
+                data-label-hide="Hide Categories">
+            Show Categories
+        </button>
+
+        <div class="cat-content" style="display:none;">
+            <p> Categories: 
+                {% for cat in categories %}
+                    <a href="{{ url_for('show_category', category_name=cat) }}">{{ cat }}</a>{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </p>
+        </div>
     </div>
     {% endif %}
 
 {% endif %}
 
 <script>
-document.querySelectorAll('.expand-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+document.querySelectorAll('.expand-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
         const content = btn.nextElementSibling;
-        content.style.display = content.style.display === 'none' ? 'block' : 'none';
-        btn.textContent = content.style.display === 'none'
-            ? 'Show Examples'
-            : 'Hide Examples';
+        const hidden = content.style.display === 'none' || content.style.display === '';
+
+        content.style.display = hidden ? 'block' : 'none';
+        btn.textContent = hidden 
+            ? btn.dataset.labelHide 
+            : btn.dataset.labelShow;
     });
 });
 </script>

@@ -71,11 +71,20 @@
 <hr>
 
 
-<p>
-    <a href="{{ url_for('admin_relations') }}" class="admin-btn">
-        Edit Relations
-    </a>
-</p>
+<h3>Relations Management</h3>
+<ul>
+    <li>
+        <a href="{{ url_for('admin_relation_types') }}" class="admin-btn-small">
+            Edit Relation Types
+        </a>
+    </li>
+    <li>
+        <a href="{{ url_for('admin_relations_search') }}" class="admin-btn-small">
+            Edit Relations
+        </a>
+
+    </li>
+</ul>
 
 <hr>
 <!-- Logout -->

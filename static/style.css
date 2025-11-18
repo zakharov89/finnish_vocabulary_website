@@ -364,3 +364,18 @@ footer {
     background: #f0f0f0;
 }
 
+.admin-table th:nth-child(1), .admin-table td:nth-child(1) {
+    width: 200px; /* Name column */
+}
+
+.admin-table th:nth-child(2), .admin-table td:nth-child(2) {
+    width: 120px; /* Applies To column */
+}
+
+.admin-table th:nth-child(3), .admin-table td:nth-child(3) {
+    width: 120px; /* Bidirectional column */
+}
+
+.admin-table th:nth-child(4), .admin-table td:nth-child(4) {
+    width: 150px; /* Actions column */
+}

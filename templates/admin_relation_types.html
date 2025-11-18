@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<h2>Relation Types</h2>
+
+
+
+<table class="admin-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Applies To</th>
+            <th>Bidirectional</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody id="relation-types-tbody">
+        {% for rt in relation_types %}
+        <tr id="rt-{{ rt.id }}">
+            <td>{{ rt.name }}</td>
+            <td>{{ rt.applies_to }}</td>
+            <td>{{ 'yes' if rt.bidirectional else 'no' }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('admin_delete_relation_type', type_id=rt.id) }}"
+                      onsubmit="return confirm('Delete relation type {{ rt.name }}?');">
+                    <button type="submit" class="admin-btn-small delete-btn">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Add Relation Type Modal -->
+<div id="add-rt-modal" class="modal">
+  <div class="modal-content">
+    
+    <h3>Add Relation Type</h3>
+    <form method="POST" action="{{ url_for('admin_add_relation_type') }}">
+        <p><label>Name:</label><input type="text" name="name" required></p>
+        <p>
+            <label>Applies To:</label>
+            <select name="applies_to">
+                <option value="word">Word</option>
+                <option value="meaning">Meaning</option>
+            </select>
+        </p>
+        <p>
+            <label>Bidirectional:</label>
+            <input type="checkbox" name="bidirectional" checked>
+        </p>
+        <button type="submit" class="admin-btn">Add</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function showAddRelationTypeModal() {
+    document.getElementById('add-rt-modal').style.display = 'block';
+}
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+}
+</script>
+
+<a href="{{ url_for('admin_relations_search') }}" class="admin-btn-small">
+            Edit Relations
+ </a>
+
+
+<p>
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+</p>
+
+
+{% endblock %}

@@ -972,23 +972,27 @@ def show_word(word_name):
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Fetch word (by name)
+    # ---- Fetch the word ----
     cur.execute("SELECT id, word FROM words WHERE word = ?", (word_name,))
-    word_row = cur.fetchone()
-    if not word_row:
+    row_word = cur.fetchone()
+    if not row_word:
         conn.close()
         return render_template("word.html", meanings_by_pos=None, word_name=None)
 
-    word_id = word_row['id']
-    word_name = word_row['word']
+    word_id = row_word['id']
+    word_name = row_word['word']
 
-    # Fetch meanings + POS + translations + examples
+    # ---- Fetch meanings + POS + translations + examples ----
     cur.execute("""
         SELECT 
-            m.id, m.meaning_number, m.definition, m.notes,
-            m.pos_id, p.name AS pos_name,
+            m.id AS meaning_id,
+            m.meaning_number,
+            m.definition,
+            m.notes,
+            p.name AS pos_name,
             t.translation_text,
-            e.example_text, e.example_translation_text
+            e.example_text,
+            e.example_translation_text
         FROM meanings m
         LEFT JOIN parts_of_speech p ON m.pos_id = p.id
         LEFT JOIN translations t ON t.meaning_id = m.id
@@ -1004,63 +1008,140 @@ def show_word(word_name):
             END,
             m.meaning_number
     """, (word_id,))
-
     rows = cur.fetchall()
 
- # Fetch categories the word belongs to
+    # ---- Fetch categories ----
     cur.execute("""
         SELECT c.name
         FROM categories c
-        JOIN word_categories wc ON c.id = wc.category_id
+        JOIN word_categories wc ON wc.category_id = c.id
         WHERE wc.word_id = ?
         ORDER BY c.name
     """, (word_id,))
-    categories = [row['name'] for row in cur.fetchall()]
+    categories = [r["name"] for r in cur.fetchall()]
+
+    # If no meanings at all
+    if not rows:
+        conn.close()
+        return render_template(
+            "word.html", 
+            meanings_by_pos=None, 
+            word_name=word_name, 
+            categories=categories
+        )
+
+    # ---- Organize meanings ----
+    meanings_by_pos = {}
+    for r in rows:
+        pos = r["pos_name"] or "other"
+        meanings_by_pos.setdefault(pos, [])
+
+        meaning = next((m for m in meanings_by_pos[pos] if m["id"] == r["meaning_id"]), None)
+        if meaning is None:
+            meaning = {
+                "id": r["meaning_id"],
+                "meaning_number": r["meaning_number"],
+                "definition": r["definition"],
+                "notes": r["notes"],
+                "translations": [],
+                "examples": []
+            }
+            meanings_by_pos[pos].append(meaning)
+
+        if r["translation_text"] and r["translation_text"] not in meaning["translations"]:
+            meaning["translations"].append(r["translation_text"])
+
+        if r["example_text"]:
+            meaning["examples"].append({
+                "text": r["example_text"],
+                "translation": r["example_translation_text"]
+            })
+
+    # ---- Through-numbering ----
+    counter = 1
+    for pos_block in meanings_by_pos.values():
+        for m in pos_block:
+            m["display_number"] = counter
+            counter += 1
+
+    # ============================================================
+    # WORD RELATIONS (only outgoing)
+    # ============================================================
+
+    cur.execute("""
+        SELECT 
+            wr.id,
+            rt.name AS relation_type,
+            w2.word AS target_word
+        FROM word_relations wr
+        JOIN relation_types rt ON wr.relation_type_id = rt.id
+        JOIN words w2 ON wr.word2_id = w2.id
+        WHERE wr.word1_id = ?
+        ORDER BY rt.name, w2.word
+    """, (word_id,))
+    word_rel_rows = cur.fetchall()
+
+    word_relations = {}
+    for r in word_rel_rows:
+        rt = r["relation_type"]
+        word_relations.setdefault(rt, []).append({
+            "target_word": r["target_word"]
+        })
+
+
+
+    # ============================================================
+    # MEANING RELATIONS (only outgoing)
+    # ============================================================
+    # Get all meaning IDs for this word
+    meaning_ids = [m["id"] for plist in meanings_by_pos.values() for m in plist]
+
+   # ============================================================
+    # MEANING RELATIONS (only outgoing)
+    # ============================================================
+    cur.execute("""
+        SELECT 
+            mr.id,
+            mr.meaning1_id,
+            mr.meaning2_id,
+            rt.name AS relation_type,
+            w2.word AS target_word,
+            m2.meaning_number AS target_meaning_number
+        FROM meaning_relations mr
+        JOIN relation_types rt ON mr.relation_type_id = rt.id
+        JOIN meanings m2 ON mr.meaning2_id = m2.id
+        JOIN words w2 ON m2.word_id = w2.id
+        WHERE mr.meaning1_id IN ({})
+        ORDER BY rt.name, w2.word, m2.meaning_number
+    """.format(",".join("?" * len(meaning_ids))), meaning_ids)
+
+    meaning_rel_rows = cur.fetchall()
+
+    meaning_relations = {}
+
+    for r in meaning_rel_rows:
+        m1 = r["meaning1_id"]
+        rt = r["relation_type"]
+
+        meaning_relations.setdefault(m1, {})
+        meaning_relations[m1].setdefault(rt, [])
+
+        meaning_relations[m1][rt].append({
+            "target_word": r["target_word"],
+            "target_number": r["target_meaning_number"]
+        })
+
 
     conn.close()
 
-    if not rows:
-        return render_template("word.html", meanings_by_pos=None, word_name=word_name, categories=None)
-
-    # Organize meanings by POS
-    meanings_by_pos = {}
-    for row in rows:
-        pos_name = row['pos_name'] or 'other'
-        if pos_name not in meanings_by_pos:
-            meanings_by_pos[pos_name] = []
-
-        meaning = next((m for m in meanings_by_pos[pos_name] if m['id'] == row['id']), None)
-        if not meaning:
-            meaning = {
-                'id': row['id'],
-                'meaning_number': row['meaning_number'],
-                'definition': row['definition'],
-                'notes': row['notes'],
-                'translations': [],
-                'examples': []
-            }
-            meanings_by_pos[pos_name].append(meaning)
-
-        if row['translation_text'] and row['translation_text'] not in meaning['translations']:
-            meaning['translations'].append(row['translation_text'])
-
-        if row['example_text']:
-            meaning['examples'].append({
-                'text': row['example_text'],
-                'translation': row['example_translation_text']
-            })
-
-    # ---- THROUGH-NUMBERING ----
-    counter = 1
-    for pos in meanings_by_pos.values():
-        for meaning in pos:
-            meaning['display_number'] = counter
-            counter += 1
-   
-
-    return render_template("word.html", word_name=word_name, meanings_by_pos=meanings_by_pos, categories=categories)
-
-
+    return render_template(
+        "word.html",
+        word_name=word_name,
+        meanings_by_pos=meanings_by_pos,
+        categories=categories,
+        word_relations=word_relations,
+        meaning_relations=meaning_relations
+    )
 
 
 @app.route('/categories')
@@ -1182,79 +1263,122 @@ def show_category(category_name):
 
 
 
-@app.route("/admin/relations")
+
+
+
+
+
+@app.route("/admin/relation-types")
 @admin_required
-def admin_relations():
+def admin_relation_types():
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM relation_types ORDER BY name")
+    relation_types = cur.fetchall()
+    conn.close()
+    return render_template("admin_relation_types.html", relation_types=relation_types)
+
+
+@app.post("/admin/relation-types/add")
+@admin_required
+def admin_add_relation_type():
+    name = request.form["name"].strip()
+    applies_to = request.form["applies_to"]
+    bidirectional = 1 if "bidirectional" in request.form else 0
+    conn = sqlite3.connect("finnish.db")
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "INSERT INTO relation_types (name, applies_to, bidirectional) VALUES (?, ?, ?)",
+            (name, applies_to, bidirectional)
+        )
+        conn.commit()
+        flash("Relation type added.", "success")
+    except sqlite3.IntegrityError:
+        flash("Relation type already exists.", "danger")
+    conn.close()
+    return redirect(url_for("admin_relation_types"))
+
+
+@app.post("/admin/relation-types/<int:type_id>/delete")
+@admin_required
+def admin_delete_relation_type(type_id):
+    conn = sqlite3.connect("finnish.db")
+    cur = conn.cursor()
+    # Check if type is used
+    cur.execute("SELECT COUNT(*) FROM word_relations WHERE relation_type_id = ?", (type_id,))
+    if cur.fetchone()[0] > 0:
+        flash("Cannot delete: used in word relations.", "danger")
+        return redirect(url_for("admin_relation_types"))
+    cur.execute("SELECT COUNT(*) FROM meaning_relations WHERE relation_type_id = ?", (type_id,))
+    if cur.fetchone()[0] > 0:
+        flash("Cannot delete: used in meaning relations.", "danger")
+        return redirect(url_for("admin_relation_types"))
+    cur.execute("DELETE FROM relation_types WHERE id = ?", (type_id,))
+    conn.commit()
+    conn.close()
+    flash("Relation type deleted.", "success")
+    return redirect(url_for("admin_relation_types"))
+
+
+@app.route("/admin/words/<word_name>/relations")
+@admin_required
+def admin_word_relations(word_name):
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Fetch relation types
-    cur.execute("SELECT * FROM relation_types ORDER BY name")
-    relation_types = cur.fetchall()
+    # Fetch word info
+    cur.execute("SELECT * FROM words WHERE word = ?", (word_name,))
+    word = cur.fetchone()
+    if not word:
+        conn.close()
+        flash(f"Word '{word_name}' not found.", "danger")
+        return redirect(url_for("admin_dashboard"))
 
-    # Fetch word relations
+    word_id = word["id"]
+
+    # Fetch word relations for this word
     cur.execute("""
-        SELECT wr.id, w1.word AS word1, w2.word AS word2, rt.name AS relation_name
+        SELECT wr.id, w1.word AS word1, w2.word AS word2, rt.name AS type
         FROM word_relations wr
         JOIN words w1 ON wr.word1_id = w1.id
         JOIN words w2 ON wr.word2_id = w2.id
         JOIN relation_types rt ON wr.relation_type_id = rt.id
+        WHERE w1.id = ? OR w2.id = ?
         ORDER BY rt.name, w1.word, w2.word
-    """)
+    """, (word_id, word_id))
     word_relations = cur.fetchall()
 
-    # Fetch meaning relations
+    # Fetch meaning relations for this word
     cur.execute("""
         SELECT mr.id,
-               w1.word AS word1, m1.meaning_number AS mnum1,
-               w2.word AS word2, m2.meaning_number AS mnum2,
-               rt.name AS relation_name
+               m1.meaning_number AS mnum1,
+               m2.meaning_number AS mnum2,
+               w2.word AS other_word,
+               rt.name AS type
         FROM meaning_relations mr
         JOIN meanings m1 ON mr.meaning1_id = m1.id
         JOIN meanings m2 ON mr.meaning2_id = m2.id
-        JOIN words w1 ON m1.word_id = w1.id
-        JOIN words w2 ON m2.word_id = w2.id
+        JOIN words w2 ON (m2.word_id = w2.id)
         JOIN relation_types rt ON mr.relation_type_id = rt.id
-        ORDER BY rt.name, word1, mnum1
-    """)
+        WHERE m1.word_id = ? OR m2.word_id = ?
+        ORDER BY rt.name, mnum1
+    """, (word_id, word_id))
     meaning_relations = cur.fetchall()
 
     conn.close()
-
     return render_template(
-        "admin_relations.html",
-        relation_types=relation_types,
+        "admin_word_relations.html",
+        word=word,
         word_relations=word_relations,
         meaning_relations=meaning_relations
     )
 
 
 
-@app.post("/admin/add_relation_type")
-@admin_required
-def admin_add_relation_type():
-    name = request.form["name"].strip()
-    applies_to = request.form["applies_to"]
-    bidirectional = 1 if "bidirectional" in request.form else 0
-
-    conn = sqlite3.connect("finnish.db")
-    cur = conn.cursor()
-    try:
-        cur.execute("""
-            INSERT INTO relation_types (name, applies_to, bidirectional)
-            VALUES (?, ?, ?)
-        """, (name, applies_to, bidirectional))
-        conn.commit()
-        flash("Relation type added.", "success")
-    except:
-        flash("Error: relation type already exists.", "danger")
-
-    conn.close()
-    return redirect(url_for("admin_relations"))
-
-
-@app.post("/admin/add_word_relation")
+@app.post("/admin/word-relations/add")
 @admin_required
 def admin_add_word_relation():
     word1 = request.form["word1"].strip()
@@ -1265,7 +1389,7 @@ def admin_add_word_relation():
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Resolve words
+    # Resolve word IDs
     cur.execute("SELECT id FROM words WHERE word = ?", (word1,))
     w1 = cur.fetchone()
     cur.execute("SELECT id FROM words WHERE word = ?", (word2,))
@@ -1273,209 +1397,233 @@ def admin_add_word_relation():
 
     if not w1 or not w2:
         flash("One of the words does not exist.", "danger")
-        return redirect(url_for("admin_relations"))
+        return redirect(url_for("admin_relations_search"))
 
-    # Check if relation type is bidirectional
-    cur.execute("SELECT bidirectional FROM relation_types WHERE id = ?", (reltype,))
-    bidir = cur.fetchone()["bidirectional"]
-
-    # Insert the relation
+    # Check if relation already exists
     cur.execute("""
-        INSERT OR IGNORE INTO word_relations (word1_id, word2_id, relation_type_id)
+        SELECT id FROM word_relations
+        WHERE word1_id = ? AND word2_id = ? AND relation_type_id = ?
+    """, (w1["id"], w2["id"], reltype))
+    if cur.fetchone():
+        flash("This word relation already exists.", "warning")
+        conn.close()
+        return redirect(url_for("admin_relations_search"))
+
+    # Insert relation
+    cur.execute("""
+        INSERT INTO word_relations (word1_id, word2_id, relation_type_id)
         VALUES (?, ?, ?)
     """, (w1["id"], w2["id"], reltype))
 
-    # If bidirectional, insert the opposite direction as well
-    if bidir:
+    # If bidirectional, also insert the opposite
+    cur.execute("SELECT bidirectional FROM relation_types WHERE id = ?", (reltype,))
+    if cur.fetchone()["bidirectional"]:
+        # Check reverse relation exists first
         cur.execute("""
-            INSERT OR IGNORE INTO word_relations (word1_id, word2_id, relation_type_id)
-            VALUES (?, ?, ?)
+            SELECT id FROM word_relations
+            WHERE word1_id = ? AND word2_id = ? AND relation_type_id = ?
         """, (w2["id"], w1["id"], reltype))
+        if not cur.fetchone():
+            cur.execute("""
+                INSERT INTO word_relations (word1_id, word2_id, relation_type_id)
+                VALUES (?, ?, ?)
+            """, (w2["id"], w1["id"], reltype))
 
     conn.commit()
     conn.close()
     flash("Word relation added.", "success")
-    return redirect(url_for("admin_relations"))
+    return redirect(url_for("admin_relations_search"))
 
 
 
-@app.post("/admin/delete_word_relation/<int:rel_id>")
+@app.post("/admin/word-relations/<int:rel_id>/delete")
 @admin_required
 def admin_delete_word_relation(rel_id):
-    # Get search query from form
-    q = request.form.get("q", "")
-
     conn = sqlite3.connect("finnish.db")
     cur = conn.cursor()
     cur.execute("DELETE FROM word_relations WHERE id = ?", (rel_id,))
     conn.commit()
     conn.close()
-
-    flash("Relation deleted.", "success")
-    
-    # Redirect back to search if query exists
-    if q:
-        # Ensure query is preserved in GET
-        return redirect(url_for("admin_search_relations") + f"?q={q}")
-    return redirect(url_for("admin_relations"))
-
+    flash("Word relation deleted.", "success")
+    return redirect(url_for("admin_relations_search"))
 
 
 @app.post("/admin/add_meaning_relation")
 @admin_required
 def admin_add_meaning_relation():
-    word1 = request.form["word1"].strip()
-    word2 = request.form["word2"].strip()
-    mnum1 = request.form["meaning1"]
-    mnum2 = request.form["meaning2"]
-    reltype = int(request.form["relation_type_id"])
+    m1_id = request.form.get("meaning1")
+    m2_id = request.form.get("meaning2")
+    reltype = request.form.get("relation_type_id")
+
+    if not m1_id or not m2_id:
+        flash("Please select both meanings.", "danger")
+        return redirect(url_for("admin_relations_search"))
 
     conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Resolve words
-    cur.execute("SELECT id FROM words WHERE word = ?", (word1,))
-    w1 = cur.fetchone()
-    cur.execute("SELECT id FROM words WHERE word = ?", (word2,))
-    w2 = cur.fetchone()
+    # Verify these meaning IDs exist
+    cur.execute("SELECT id FROM meanings WHERE id = ?", (m1_id,))
+    if not cur.fetchone():
+        flash("Invalid meaning 1.", "danger")
+        conn.close()
+        return redirect(url_for("admin_relations_search"))
 
-    if not w1 or not w2:
-        flash("One of the words does not exist.", "danger")
-        return redirect(url_for("admin_relations"))
+    cur.execute("SELECT id FROM meanings WHERE id = ?", (m2_id,))
+    if not cur.fetchone():
+        flash("Invalid meaning 2.", "danger")
+        conn.close()
+        return redirect(url_for("admin_relations_search"))
 
-    # Resolve meanings
-    cur.execute("SELECT id FROM meanings WHERE word_id = ? AND meaning_number = ?", (w1["id"], mnum1))
-    m1 = cur.fetchone()
-    cur.execute("SELECT id FROM meanings WHERE word_id = ? AND meaning_number = ?", (w2["id"], mnum2))
-    m2 = cur.fetchone()
-
-    if not m1 or not m2:
-        flash("Invalid meaning number.", "danger")
-        return redirect(url_for("admin_relations"))
-
-    # Check if relation type is bidirectional
-    cur.execute("SELECT bidirectional FROM relation_types WHERE id = ?", (reltype,))
-    bidir = cur.fetchone()["bidirectional"]
-
-    # Insert the relation
+    # Check if the relation already exists
     cur.execute("""
-        INSERT OR IGNORE INTO meaning_relations (meaning1_id, meaning2_id, relation_type_id)
-        VALUES (?, ?, ?)
-    """, (m1["id"], m2["id"], reltype))
+        SELECT id FROM meaning_relations
+        WHERE meaning1_id = ? AND meaning2_id = ? AND relation_type_id = ?
+    """, (m1_id, m2_id, reltype))
+    if cur.fetchone():
+        flash("This meaning relation already exists.", "warning")
+        conn.close()
+        return redirect(url_for("admin_relations_search"))
 
-    # If bidirectional, insert the opposite direction
-    if bidir:
-        cur.execute("""
-            INSERT OR IGNORE INTO meaning_relations (meaning1_id, meaning2_id, relation_type_id)
-            VALUES (?, ?, ?)
-        """, (m2["id"], m1["id"], reltype))
+    # Insert the meaning relation
+    cur.execute("""
+        INSERT INTO meaning_relations (meaning1_id, meaning2_id, relation_type_id)
+        VALUES (?, ?, ?)
+    """, (m1_id, m2_id, reltype))
 
     conn.commit()
     conn.close()
     flash("Meaning relation added.", "success")
-    return redirect(url_for("admin_relations"))
+    return redirect(url_for("admin_relations_search"))
 
 
-@app.post("/admin/delete_meaning_relation/<int:rel_id>")
+
+
+@app.post("/admin/meaning-relations/<int:rel_id>/delete")
 @admin_required
 def admin_delete_meaning_relation(rel_id):
-    q = request.form.get("q", "")
-
     conn = sqlite3.connect("finnish.db")
     cur = conn.cursor()
     cur.execute("DELETE FROM meaning_relations WHERE id = ?", (rel_id,))
     conn.commit()
     conn.close()
+    flash("Meaning relation deleted.", "success")
+    return redirect(url_for("admin_relations_search"))
 
-    flash("Relation deleted.", "success")
 
-      # Redirect back to search if query exists
-    if q:
-        # Ensure query is preserved in GET
-        return redirect(url_for("admin_search_relations") + f"?q={q}")
-    return redirect(url_for("admin_relations"))
 
-@app.route("/admin/relations/search")
+
+@app.route("/admin/relations/search", methods=["GET", "POST"])
 @admin_required
-def admin_search_relations():
-    q = request.args.get("q", "").strip()
+def admin_relations_search():
+    query = ""
+    word_relations = []
+    meaning_relations = []
+
+    # Fetch relation types for the selects
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM relation_types ORDER BY name")
+    relation_types = cur.fetchall()
+
+    if request.method == "POST":
+        query = request.form.get("query", "").strip()
+    else:
+        query = request.args.get("q", "").strip()
+
+    if query:
+        # Word relations
+        cur.execute("""
+            SELECT wr.id, w1.word AS word1, w2.word AS word2, rt.name AS relation_type
+            FROM word_relations wr
+            JOIN words w1 ON wr.word1_id = w1.id
+            JOIN words w2 ON wr.word2_id = w2.id
+            JOIN relation_types rt ON wr.relation_type_id = rt.id
+            WHERE w1.word LIKE ? OR w2.word LIKE ?
+            ORDER BY w1.word, w2.word
+            LIMIT 200
+        """, (f"{query}%", f"{query}%"))
+        word_relations = cur.fetchall()
+
+        # Meaning relations
+        cur.execute("""
+            SELECT mr.id, m1.id AS meaning1_id, m2.id AS meaning2_id,
+                   w1.word AS word1, m1.meaning_number AS mnum1,
+                   w2.word AS word2, m2.meaning_number AS mnum2,
+                   rt.name AS relation_type
+            FROM meaning_relations mr
+            JOIN meanings m1 ON mr.meaning1_id = m1.id
+            JOIN meanings m2 ON mr.meaning2_id = m2.id
+            JOIN words w1 ON m1.word_id = w1.id
+            JOIN words w2 ON m2.word_id = w2.id
+            JOIN relation_types rt ON mr.relation_type_id = rt.id
+            WHERE w1.word LIKE ? OR w2.word LIKE ?
+            ORDER BY w1.word, m1.meaning_number
+            LIMIT 200
+        """, (f"{query}%", f"{query}%"))
+        meaning_relations = cur.fetchall()
+
+    conn.close()
+
+    return render_template(
+        "admin_relations_search.html",
+        query=query,
+        word_relations=word_relations,
+        meaning_relations=meaning_relations,
+        relation_types=relation_types  # pass them to the template
+    )
+
+
+@app.route("/word_meanings")
+def word_meanings():
+    word = request.args.get("word", "").strip()
+
+    if not word:
+        return jsonify([])
 
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # --- Word relations ---
-    cur.execute("""
-        SELECT wr.id, w1.word AS word1, w2.word AS word2, rt.name AS type
-        FROM word_relations wr
-        JOIN words w1 ON wr.word1_id = w1.id
-        JOIN words w2 ON wr.word2_id = w2.id
-        JOIN relation_types rt ON wr.relation_type_id = rt.id
-        WHERE w1.word LIKE ? OR w2.word LIKE ?
-        ORDER BY w1.word
-        LIMIT 200
-    """, (f"%{q}%", f"%{q}%"))
-    word_rel = cur.fetchall()
+    # Get the word ID
+    cur.execute("SELECT id FROM words WHERE word = ?", (word,))
+    w = cur.fetchone()
 
-    # --- Meaning relations ---
+    if not w:
+        conn.close()
+        return jsonify([])
+
+    # Get meanings for this word
     cur.execute("""
-        SELECT mr.id, m1.id AS m1_id, m2.id AS m2_id, rt.name AS type
-        FROM meaning_relations mr
-        JOIN meanings m1 ON mr.meaning1_id = m1.id
-        JOIN meanings m2 ON mr.meaning2_id = m2.id
-        JOIN relation_types rt ON mr.relation_type_id = rt.id
-        WHERE m1.id LIKE ? OR m2.id LIKE ?
-        LIMIT 200
-    """, (f"%{q}%", f"%{q}%"))
-    meaning_rel = cur.fetchall()
+        SELECT id, meaning_number, notes
+        FROM meanings
+        WHERE word_id = ?
+        ORDER BY meaning_number
+    """, (w["id"],))
+    meanings = cur.fetchall()
+
+    results = []
+
+    for m in meanings:
+        # Fetch translations for each meaning
+        cur.execute("""
+            SELECT translation_text
+            FROM translations
+            WHERE meaning_id = ?
+            ORDER BY translation_number
+        """, (m["id"],))
+        translations = [row["translation_text"] for row in cur.fetchall()]
+
+        results.append({
+            "id": m["id"],
+            "meaning_number": m["meaning_number"],
+            "notes": m["notes"],
+            "translations": translations
+        })
 
     conn.close()
-
-    return render_template("admin_relations_results.html",
-                           word_relations=word_rel,
-                           meaning_relations=meaning_rel)
-
-
-@app.route("/admin/relation-types/<int:type_id>/delete", methods=["POST"])
-@admin_required
-def admin_delete_relation_type(type_id):
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-
-    # Check if the type exists
-    cur.execute("SELECT * FROM relation_types WHERE id = ?", (type_id,))
-    rel_type = cur.fetchone()
-
-    if not rel_type:
-        conn.close()
-        flash("Relation type not found.", "danger")
-        return redirect(url_for("admin_relations"))
-
-    # Check if it is used in any existing relations
-    cur.execute("SELECT COUNT(*) AS c FROM word_relations WHERE relation_type_id = ?", (type_id,))
-    word_count = cur.fetchone()["c"]
-
-    cur.execute("SELECT COUNT(*) AS c FROM meaning_relations WHERE relation_type_id = ?", (type_id,))
-    meaning_count = cur.fetchone()["c"]
-
-    if word_count > 0 or meaning_count > 0:
-        conn.close()
-        flash(
-            f"Cannot delete relation type '{rel_type['name']}' — "
-            f"it is used in {word_count + meaning_count} relations.",
-            "danger"
-        )
-        return redirect(url_for("admin_relations"))
-
-    # Safe to delete
-    cur.execute("DELETE FROM relation_types WHERE id = ?", (type_id,))
-    conn.commit()
-    conn.close()
-
-    flash(f"Relation type '{rel_type['name']}' deleted.", "success")
-    return redirect(url_for("admin_relations"))
+    return jsonify(results)
 
 
 

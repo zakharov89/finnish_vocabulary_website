@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block content %}
+
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+
+<h3>Search Existing Relations</h3>
+<form method="get" action="{{ url_for('admin_relations_search') }}">
+    <input type="text" name="q" class="autocomplete" data-mode="finnish" placeholder="Search words..." required
+           value="{{ query }}">
+    <button type="submit" class="admin-btn-small">Search</button>
+</form>
+
+{% if query %}
+    <h4>Results for "{{ query }}"</h4>
+
+    {% if word_relations %}
+        <h5>Word Relations</h5>
+        <ul>
+            {% for wr in word_relations %}
+                <li>
+                    <a href="{{ url_for('show_word', word_name=wr['word1']) }}" target="_blank">{{ wr['word1'] }}</a>
+                    — {{ wr['relation_type'] }} —
+                    <a href="{{ url_for('show_word', word_name=wr['word2']) }}" target="_blank">{{ wr['word2'] }}</a>
+                    <form method="post" action="{{ url_for('admin_delete_word_relation', rel_id=wr['id']) }}"
+                          style="display:inline" onsubmit="return confirm('Delete this relation?');">
+                        <button type="submit" class="admin-btn-small delete-btn">Delete</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p><em>No word relations found.</em></p>
+    {% endif %}
+
+    {% if meaning_relations %}
+        <h5>Meaning Relations</h5>
+        <ul>
+            {% for mr in meaning_relations %}
+                <li>
+                    <a href="{{ url_for('show_word', word_name=mr['word1']) }}" target="_blank">
+                        {{ mr['word1'] }} (meaning {{ mr['mnum1'] }})
+                    </a>
+                    — {{ mr['relation_type'] }} —
+                    <a href="{{ url_for('show_word', word_name=mr['word2']) }}" target="_blank">
+                        {{ mr['word2'] }} (meaning {{ mr['mnum2'] }})
+                    </a>
+                    <form method="post" action="{{ url_for('admin_delete_meaning_relation', rel_id=mr['id']) }}"
+                          style="display:inline" onsubmit="return confirm('Delete this relation?');">
+                        <button type="submit" class="admin-btn-small delete-btn">Delete</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p><em>No meaning relations found.</em></p>
+    {% endif %}
+{% endif %}
+
+<hr>
+
+<h2>Add Relations</h2>
+
+<h3>Word Relation</h3>
+<form method="POST" action="{{ url_for('admin_add_word_relation') }}" class="relation-form">
+    <div class="relation-block">
+        <label>Word 1:</label>
+        <input type="text" name="word1" class="autocomplete word-input" data-mode="finnish" placeholder="Type word..." required>
+        <a href="#" class="word-link" target="_blank" style="display:none;">View</a>
+    </div>
+
+    <div class="relation-block">
+        <label>Word 2:</label>
+        <input type="text" name="word2" class="autocomplete word-input" data-mode="finnish" placeholder="Type word..." required>
+        <a href="#" class="word-link" target="_blank" style="display:none;">View</a>
+    </div>
+
+    <div class="relation-block">
+        <label>Relation Type:</label>
+        <select name="relation_type_id" required>
+            {% for rt in relation_types if rt.applies_to == 'word' %}
+            <option value="{{ rt.id }}">{{ rt.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+  
+
+    <div class="relation-block">
+        <button type="submit" class="admin-btn">Add Word Relation</button>
+    </div>
+</form>
+
+<hr>
+
+<h3>Meaning Relation</h3>
+<form method="POST" action="{{ url_for('admin_add_meaning_relation') }}" class="relation-form">
+    <div class="relation-block">
+        <label>Word 1:</label>
+        <input type="text" name="word1" class="autocomplete word-input" data-mode="finnish" placeholder="Type word..." required>
+        <a href="#" class="word-link" target="_blank" style="display:none;">View</a>
+    </div>
+
+    <div class="relation-block">
+        <label>Meaning:</label>
+        <select name="meaning1" class="meaning-select" required>
+            <option value="">-- select meaning --</option>
+        </select>
+    </div>
+
+    <div class="relation-block">
+        <label>Word 2:</label>
+        <input type="text" name="word2" class="autocomplete word-input" data-mode="finnish" placeholder="Type word..." required>
+        <a href="#" class="word-link" target="_blank" style="display:none;">View</a>
+    </div>
+
+    <div class="relation-block">
+        <label>Meaning:</label>
+        <select name="meaning2" class="meaning-select" required>
+            <option value="">-- select meaning --</option>
+        </select>
+    </div>
+
+    <div class="relation-block">
+        <label>Relation Type:</label>
+        <select name="relation_type_id" required>
+            {% for rt in relation_types if rt.applies_to == 'meaning' %}
+            <option value="{{ rt.id }}">{{ rt.name }} </option>
+            {% endfor %}
+        </select>
+    </div>
+
+
+    <div class="relation-block">
+        <button type="submit" class="admin-btn">Add Meaning Relation</button>
+    </div>
+</form>
+
+<hr>
+
+<a href="{{ url_for('admin_relation_types') }}" class="admin-btn-small">
+            Edit Relation Types
+    </a>
+
+ <p>
+        <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+    </p>
+
+<style>
+.relation-form { max-width: 500px; margin-bottom: 30px; }
+.relation-block { margin-bottom: 15px; }
+.relation-block label { display:block; font-weight:bold; margin-bottom:5px; }
+.word-link { margin-left:10px; }
+</style>
+
+<script>
+// Autocomplete & word link
+document.querySelectorAll('.autocomplete').forEach(input => {
+    let datalistId = 'datalist_' + Math.random().toString(36).substring(2,10);
+    let datalist = document.createElement('datalist');
+    datalist.id = datalistId;
+    document.body.appendChild(datalist);
+    input.setAttribute('list', datalistId);
+
+    let link = input.nextElementSibling;
+
+    input.addEventListener('input', function() {
+        let mode = input.dataset.mode || 'finnish';
+
+        // Autocomplete
+        fetch(`/autocomplete?query=${encodeURIComponent(input.value)}&mode=${mode}`)
+        .then(resp => resp.json())
+        .then(data => {
+            datalist.innerHTML = '';
+            data.forEach(item => {
+                let option = document.createElement('option');
+                option.value = item;
+                datalist.appendChild(option);
+            });
+        });
+
+        // Word link
+        if(input.value.trim()){
+            link.href = '/word/' + encodeURIComponent(input.value.trim());
+            link.style.display = 'inline';
+        } else {
+            link.style.display = 'none';
+        }
+
+        // Update the meaning dropdown closest to this input
+        let relationBlock = input.closest('.relation-block');
+        if(!relationBlock) return;
+        let select = relationBlock.nextElementSibling?.querySelector('.meaning-select');
+        if(!select) return;
+
+        select.innerHTML = '<option value="">Loading...</option>';
+
+        fetch(`/word_meanings?word=${encodeURIComponent(input.value.trim())}`)
+        .then(resp => resp.json())
+        .then(meanings => {
+            select.innerHTML = '<option value="">-- select meaning --</option>';
+            meanings.forEach(m => {
+                let opt = document.createElement('option');
+                opt.value = m.id;
+                opt.textContent = `${m.meaning_number}. ${m.translations.join(', ')}`;
+                select.appendChild(opt);
+            });
+        });
+    });
+});
+
+</script>
+
+{% endblock %}
