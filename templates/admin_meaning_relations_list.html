@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+/* Specific styles for the all word relations table */
+#all-meaning-relations-table {
+    width: 70%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+#all-meaning-relations-table th,
+#all-meaning-relations-table td {
+    padding: 4px 6px;  /* smaller vertical and horizontal spacing */
+    text-align: left;
+}
+
+#all-meaning-relations-table th:nth-child(1) { width: 25%; }
+#all-meaning-relations-table th:nth-child(2) { width: 25%; }
+#all-meaning-relations-table th:nth-child(3) { width: 25%; }
+#all-meaning-relations-table th:nth-child(4) { width: 25%; }
+
+
+</style>
+
+<h2>All Meaning Relations</h2>
+
+<table id="all-meaning-relations-table">
+    <thead>
+        <tr>
+            <th>Word 1 (Meaning #)</th>
+            <th>Word 2 (Meaning #)</th>
+            <th>Relation Type</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for mr in meaning_relations %}
+        <tr>
+            <td><a href="{{ url_for('show_word', word_name=mr.word1) }}" target="_blank">
+                    {{ mr.word1 }} (#{{ mr.mnum1 }})
+                </a>
+            </td>
+            <td><a href="{{ url_for('show_word', word_name=mr.word2) }}" target="_blank">
+                    {{ mr.word2 }} (#{{ mr.mnum2 }})
+                </a>
+            </td>
+            <td>{{ mr.relation_type }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('admin_delete_meaning_relation', rel_id=mr.id) }}"
+                      onsubmit="return confirm('Delete this relation?');">
+                    <button type="submit" class="admin-btn-small delete-btn">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<p><a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a></p>
+{% endblock %}

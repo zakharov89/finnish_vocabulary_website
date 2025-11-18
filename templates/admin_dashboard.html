@@ -42,6 +42,10 @@
     {% endfor %}
 </ul>
 
+
+
+<a href="{{ url_for('admin_list_words') }}" class="admin-btn-small">View All Words</a></li>
+
 <hr>
 
 <!-- Add New Category -->
@@ -68,10 +72,12 @@
     {% endfor %}
 </ul>
 
+<a href="{{ url_for('admin_list_categories') }}" class="admin-btn-small">View All Categories</a>
+
 <hr>
 
 
-<h3>Relations Management</h3>
+<h3>Relations</h3>
 <ul>
     <li>
         <a href="{{ url_for('admin_relation_types') }}" class="admin-btn-small">
@@ -82,7 +88,16 @@
         <a href="{{ url_for('admin_relations_search') }}" class="admin-btn-small">
             Edit Relations
         </a>
-
+    </li>
+    <li>
+        <a href="{{ url_for('admin_word_relations_list') }}" class="admin-btn-small">
+            View All Word Relations
+        </a>
+    </li>
+    <li>
+        <a href="{{ url_for('admin_meaning_relations_list') }}" class="admin-btn-small">
+            View All Meaning Relations
+        </a>
     </li>
 </ul>
 

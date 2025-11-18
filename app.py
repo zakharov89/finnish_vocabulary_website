@@ -234,7 +234,7 @@ def admin_edit_word(word_id):
         conn.commit()
         flash(f"Word '{new_word}' updated successfully!", "success")
         conn.close()
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('admin_edit_word', word_id=word_id))
 
     conn.close()
     return render_template('admin_edit_word.html', word=word, meanings_by_pos=meanings_by_pos, pos_list=pos_list)
@@ -875,6 +875,70 @@ def admin_set_main_meaning():
     conn.close()
     return jsonify({"status": "ok"})
 
+
+# ----- List all words -----
+@app.route("/admin/words")
+@admin_required
+def admin_list_words():
+    page = int(request.args.get("page", 1))
+    per_page = 50  # number of words per page
+    offset = (page - 1) * per_page
+
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    cur.execute("SELECT COUNT(*) FROM words")
+    total = cur.fetchone()[0]
+
+    cur.execute(
+        "SELECT id, word FROM words ORDER BY word COLLATE NOCASE ASC  LIMIT ? OFFSET ?",
+        (per_page, offset)
+    )
+    words = cur.fetchall()
+    conn.close()
+
+    total_pages = (total + per_page - 1) // per_page
+
+    return render_template(
+        "admin_list_words.html",
+        words=words,
+        page=page,
+        total_pages=total_pages
+    )
+
+
+
+# ----- List all categories -----
+@app.route("/admin/categories")
+@admin_required
+def admin_list_categories():
+    page = int(request.args.get("page", 1))
+    per_page = 50
+    offset = (page - 1) * per_page
+
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    cur.execute("SELECT COUNT(*) FROM categories")
+    total = cur.fetchone()[0]
+
+    cur.execute(
+        "SELECT id, name FROM categories ORDER BY name COLLATE NOCASE ASC LIMIT ? OFFSET ?",
+        (per_page, offset)
+    )
+    categories = cur.fetchall()
+    conn.close()
+
+    total_pages = (total + per_page - 1) // per_page
+
+    return render_template(
+        "admin_list_categories.html",
+        categories=categories,
+        page=page,
+        total_pages=total_pages
+    )
 
 
 
@@ -1624,6 +1688,53 @@ def word_meanings():
 
     conn.close()
     return jsonify(results)
+
+
+@app.route("/admin/relations/words")
+@admin_required
+def admin_word_relations_list():
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT wr.id, w1.word AS word1, w2.word AS word2, rt.name AS relation_type
+        FROM word_relations wr
+        JOIN words w1 ON wr.word1_id = w1.id
+        JOIN words w2 ON wr.word2_id = w2.id
+        JOIN relation_types rt ON wr.relation_type_id = rt.id
+        ORDER BY rt.name, w1.word, w2.word
+    """)
+    word_relations = cur.fetchall()
+    conn.close()
+
+    return render_template("admin_word_relations_list.html", word_relations=word_relations)
+
+
+@app.route("/admin/relations/meanings")
+@admin_required
+def admin_meaning_relations_list():
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT mr.id, m1.id AS meaning1_id, m2.id AS meaning2_id,
+               w1.word AS word1, m1.meaning_number AS mnum1,
+               w2.word AS word2, m2.meaning_number AS mnum2,
+               rt.name AS relation_type
+        FROM meaning_relations mr
+        JOIN meanings m1 ON mr.meaning1_id = m1.id
+        JOIN meanings m2 ON mr.meaning2_id = m2.id
+        JOIN words w1 ON m1.word_id = w1.id
+        JOIN words w2 ON m2.word_id = w2.id
+        JOIN relation_types rt ON mr.relation_type_id = rt.id
+        ORDER BY rt.name, w1.word, mnum1
+    """)
+    meaning_relations = cur.fetchall()
+    conn.close()
+
+    return render_template("admin_meaning_relations_list.html", meaning_relations=meaning_relations)
 
 
 
