@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Search Results</h2>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+{% if word_relations %}
+<h3>Word Relations</h3>
+<table class="admin-table">
+    <thead>
+        <tr>
+            <th>Word 1</th>
+            <th>Word 2</th>
+            <th>Type</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for wr in word_relations %}
+        <tr>
+            <td>{{ wr['word1'] }}</td>
+            <td>{{ wr['word2'] }}</td>
+            <td>{{ wr['type'] }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('admin_delete_word_relation', rel_id=rel.id) }}">
+                    <input type="hidden" name="q" value="{{ request.args.get('q', '') }}">
+                    <button type="submit" onclick="return confirm('Are you sure?');">Delete</button>
+                </form>
+
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if meaning_relations %}
+<h3>Meaning Relations</h3>
+<table class="admin-table">
+    <thead>
+        <tr>
+            <th>Meaning 1 ID</th>
+            <th>Meaning 2 ID</th>
+            <th>Type</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for mr in meaning_relations %}
+        <tr>
+            <td>{{ mr['m1_id'] }}</td>
+            <td>{{ mr['m2_id'] }}</td>
+            <td>{{ mr['type'] }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('admin_delete_meaning_relation', rel_id=rel.id) }}">
+                    <input type="hidden" name="q" value="{{ request.args.get('q', '') }}">
+                    <button type="submit" onclick="return confirm('Are you sure?');">Delete</button>
+                </form>
+
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if not word_relations and not meaning_relations %}
+<p><em>No relations found for your query.</em></p>
+{% endif %}
+
+<p><a href="{{ url_for('admin_relations') }}" class="admin-btn-small">Back to Relations Admin</a></p>
+
+{% endblock %}

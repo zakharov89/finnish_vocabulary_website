@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Admin: Relations</h2>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<h3>Relation Types</h3>
+<form method="POST" action="{{ url_for('admin_add_relation_type') }}">
+    <input type="text" name="name" placeholder="Relation Type Name" required class="admin-input">
+    <select name="applies_to" class="admin-select">
+        <option value="word">Word</option>
+        <option value="meaning">Meaning</option>
+    </select>
+    <label><input type="checkbox" name="bidirectional" checked> Bidirectional</label>
+    <button type="submit" class="admin-btn">Add Relation Type</button>
+</form>
+
+<ul>
+{% for rt in relation_types %}
+    <li>
+        {{ rt['name'] }} (applies to: {{ rt['applies_to'] }}, bidirectional: {{ 'Yes' if rt['bidirectional'] else 'No' }})
+        <form method="POST" action="{{ url_for('admin_delete_relation_type', type_id=rt['id']) }}" style="display:inline;" 
+              onsubmit="return confirm('Delete this relation type?');">
+            <button type="submit" class="admin-btn-small delete-btn">Delete</button>
+        </form>
+    </li>
+{% endfor %}
+</ul>
+
+<hr>
+
+<h3>Add Word Relation</h3>
+<form method="POST" action="{{ url_for('admin_add_word_relation') }}">
+    <input type="text" name="word1" placeholder="Word 1" class="admin-input autocomplete" data-mode="finnish" required>
+    <input type="text" name="word2" placeholder="Word 2" class="admin-input autocomplete" data-mode="finnish" required>
+    <select name="relation_type_id" class="admin-select" required>
+        {% for rt in relation_types %}
+            {% if rt['applies_to'] == 'word' %}
+                <option value="{{ rt['id'] }}">{{ rt['name'] }}</option>
+            {% endif %}
+        {% endfor %}
+    </select>
+    <button type="submit" class="admin-btn">Add Relation</button>
+</form>
+
+<h3>Add Meaning Relation</h3>
+<form method="POST" action="{{ url_for('admin_add_meaning_relation') }}">
+    <input type="text" name="word1" placeholder="Word 1" class="admin-input autocomplete" data-mode="finnish" required>
+    <input type="number" name="meaning1" placeholder="Meaning #" class="admin-input" min="1" required>
+    <input type="text" name="word2" placeholder="Word 2" class="admin-input autocomplete" data-mode="finnish" required>
+    <input type="number" name="meaning2" placeholder="Meaning #" class="admin-input" min="1" required>
+    <select name="relation_type_id" class="admin-select" required>
+        {% for rt in relation_types %}
+            {% if rt['applies_to'] == 'meaning' %}
+                <option value="{{ rt['id'] }}">{{ rt['name'] }}</option>
+            {% endif %}
+        {% endfor %}
+    </select>
+    <button type="submit" class="admin-btn">Add Meaning Relation</button>
+</form>
+
+<hr>
+
+<h3>Search Relations</h3>
+<form method="GET" action="{{ url_for('admin_search_relations') }}">
+    <input type="text" name="q" placeholder="Search word or meaning ID" class="admin-input autocomplete" data-mode="finnish" required>
+    <button type="submit" class="admin-btn">Search</button>
+</form>
+
+<script>
+// Simple autocomplete for all fields with .autocomplete
+document.querySelectorAll('.autocomplete').forEach(input => {
+    let timer;
+    input.addEventListener('input', async () => {
+        clearTimeout(timer);
+        const query = input.value.trim();
+        const mode = input.dataset.mode || 'finnish';
+        if (!query) return;
+
+        timer = setTimeout(async () => {
+            const res = await fetch(`/autocomplete?query=${encodeURIComponent(query)}&mode=${mode}`);
+            const suggestions = await res.json();
+            // Use datalist if available, else fallback
+            let datalistId = input.name + '_list';
+            let list = document.getElementById(datalistId);
+            if (!list) {
+                list = document.createElement('datalist');
+                list.id = datalistId;
+                document.body.appendChild(list);
+                input.setAttribute('list', datalistId);
+            }
+            list.innerHTML = '';
+            suggestions.forEach(s => {
+                const option = document.createElement('option');
+                option.value = s;
+                list.appendChild(option);
+            });
+        }, 200); // debounce
+    });
+});
+</script>
+
+{% endblock %}
