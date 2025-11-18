@@ -43,12 +43,6 @@ header {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-nav a {
-    margin-right: 15px;
-    font-weight: bold;
-    color: #333;
-}
-nav a:hover { color: #1a73e8; }
 
 /* ==========================
    Forms / Inputs / Search
@@ -364,16 +358,27 @@ footer {
     background: #f0f0f0;
 }
 
-.admin-table th:nth-child(1), .admin-table td:nth-child(1) {
-    width: 200px; 
 
-.admin-table th:nth-child(2), .admin-table td:nth-child(2) {
-    width: 200px; 
+nav {
+    display: flex;
+    gap: 20px; /* space between links */
 }
 
-.admin-table th:nth-child(3), .admin-table td:nth-child(3) {
-    width: 200px; 
+nav a {
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    padding: 5px 0;
+    border-bottom: 3px solid transparent; /* reserve space for underline */
+    transition: color 0.2s, border-bottom-color 0.2s;
+}
 
-.admin-table th:nth-child(4), .admin-table td:nth-child(4) {
-    width: 200px;
+nav a:hover {
+    color: #0077cc;
+    text-decoration: none; 
+}
+
+nav a.active {
+    border-bottom-color: #0077cc; /* visible underline for active link */
+    color: #0077cc;
 }

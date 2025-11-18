@@ -8,10 +8,11 @@
 <body>
     <header>
         <nav>
-            <a href="{{ url_for('home') }}">Search</a>
-            <a href="{{ url_for('categories') }}">Categories</a>
-            <a href="{{ url_for('about') }}">About</a>
+            <a href="{{ url_for('home') }}" class="{% if request.endpoint == 'home' %}active{% endif %}">Search</a>
+            <a href="{{ url_for('categories') }}" class="{% if request.endpoint == 'categories' %}active{% endif %}">Categories</a>
+            <a href="{{ url_for('about') }}" class="{% if request.endpoint == 'about' %}active{% endif %}">About</a>
         </nav>
+
     </header>
 
     <main>
@@ -19,7 +20,7 @@
     </main>
 
     <footer>
-        <p>&copy; 2025 Finnish Vocabulary Project</p>
+        <p>&copy; 2025 Finnish Vocabulary Project, Alexander Zakharov </p>
     </footer>
 </body>
 </html>

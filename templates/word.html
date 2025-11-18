@@ -8,7 +8,7 @@
 
    
 
-    <br>
+
 
     {% for pos_name, meanings in meanings_by_pos.items() %}
         <br>
@@ -20,11 +20,11 @@
             <p>
                 <strong>{{ meaning.display_number }}.</strong>
                 <span class="translation">
-                    {{ meaning.translations | join(",") }}
+                    {{ meaning.translations | join(", ") }}
                 </span>
             </p>
 
-            
+            {% if meaning.definition or meaning.notes %}
             <button class="expand-btn"
                     data-label-show="Show Details"
                     data-label-hide="Hide Details">
@@ -38,7 +38,7 @@
                     <p><strong>Notes:</strong> {{ meaning.notes }}</p>
                 {% endif %}
             </div>
-
+            {% endif %}    
 
 
             {% if meaning.examples %}

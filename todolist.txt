@@ -1,6 +1,3 @@
-- What if a word can be different parts of speech? Rare in Finnish but happens. Modify database etc?
-- Add order to the category word lists
-- Add choice of translations in the category word lists
-- Add word and meaning relationships
+
 - Add user identification, progress, some quizes etc
 - Add levels of words. How many? What about meanings and categories?
