@@ -1555,10 +1555,26 @@ def admin_add_meaning_relation():
         VALUES (?, ?, ?)
     """, (m1_id, m2_id, reltype))
 
+    # --- Insert reverse if bidirectional ---
+    cur.execute("SELECT bidirectional FROM relation_types WHERE id = ?", (reltype,))
+    bidirectional = cur.fetchone()[0]  # 1 = True, 0 = False
+    if bidirectional:
+        # Avoid inserting duplicate
+        cur.execute("""
+            SELECT id FROM meaning_relations
+            WHERE meaning1_id = ? AND meaning2_id = ? AND relation_type_id = ?
+        """, (m2_id, m1_id, reltype))
+        if not cur.fetchone():
+            cur.execute("""
+                INSERT INTO meaning_relations (meaning1_id, meaning2_id, relation_type_id)
+                VALUES (?, ?, ?)
+            """, (m2_id, m1_id, reltype))
+
     conn.commit()
     conn.close()
     flash("Meaning relation added.", "success")
     return redirect(url_for("admin_relations_search"))
+
 
 
 

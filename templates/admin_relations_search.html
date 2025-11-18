@@ -64,6 +64,11 @@
     {% endif %}
 {% endif %}
 
+
+<p>
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+</p>
+
 <hr>
 
 <h2>Add Relations</h2>
@@ -145,13 +150,27 @@
 
 <hr>
 
+<p>
 <a href="{{ url_for('admin_relation_types') }}" class="admin-btn-small">
             Edit Relation Types
-    </a>
+</a>
+</p>
 
- <p>
-        <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
-    </p>
+<p>
+<a href="{{ url_for('admin_word_relations_list') }}" class="admin-btn-small">
+            View All Word Relations
+</a>
+</p>
+
+<p>
+<a href="{{ url_for('admin_meaning_relations_list') }}" class="admin-btn-small">
+        View All Meaning Relations
+</a>
+</p>
+
+<p>
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+</p>
 
 <style>
 .relation-form { max-width: 500px; margin-bottom: 30px; }
