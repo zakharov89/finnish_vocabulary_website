@@ -111,7 +111,11 @@ def admin_add_word():
                 return render_template('admin_add_word.html', pos_list=pos_list)
 
             # Insert the word
-            cur.execute("INSERT INTO words (word) VALUES (?)", (word_text,))
+            cur.execute(
+            "INSERT INTO words (word, created_at, updated_at) VALUES (?, datetime('now'), datetime('now'))",
+            (word_text,)
+        )
+
             conn.commit()
             word_id = cur.lastrowid
 
@@ -281,6 +285,7 @@ def admin_edit_meaning(meaning_id):
         definition = request.form.get('definition', '').strip() or None
         notes = request.form.get('notes', '').strip() or None
         cur.execute("UPDATE meanings SET pos_id=?, definition=?, notes=? WHERE id=?", (pos_id, definition, notes, meaning_id))
+        
 
         # Update translations
         cur.execute("DELETE FROM translations WHERE meaning_id=?", (meaning_id,))
@@ -300,6 +305,7 @@ def admin_edit_meaning(meaning_id):
             if ex:
                 cur.execute("INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)", (meaning_id, ex, ex_trans))
 
+        cur.execute("UPDATE words SET updated_at = datetime('now') WHERE id=?", (word_id,))
         conn.commit()
         conn.close()
         flash("Meaning updated successfully!", "success")
@@ -375,7 +381,7 @@ def admin_add_meaning(word_id):
                     "INSERT INTO examples (meaning_id, example_text, example_translation_text) VALUES (?, ?, ?)",
                     (meaning_id, ex, ex_trans)
                 )
-
+        cur.execute("UPDATE words SET updated_at = datetime('now') WHERE id=?", (word_id,))
         conn.commit()
         conn.close()
         flash("Meaning added successfully!", "success")
@@ -463,6 +469,7 @@ def admin_delete_meaning(meaning_id):
     cur.execute("DELETE FROM examples WHERE meaning_id=?", (meaning_id,))
     cur.execute("DELETE FROM translations WHERE meaning_id=?", (meaning_id,))
     cur.execute("DELETE FROM meanings WHERE id=?", (meaning_id,))
+    cur.execute("UPDATE words SET updated_at = datetime('now') WHERE id=?", (word_id,))
     conn.commit()
     conn.close()
     flash("Meaning deleted successfully.", "success")
@@ -496,10 +503,12 @@ def admin_add_category():
             return redirect(url_for("admin_add_category"))
 
         # Insert if not exists
-        cur.execute("INSERT INTO categories (name, parent_id) VALUES (?, ?)", (name, parent_id))
+        cur.execute("INSERT INTO categories (name, parent_id, created_at, updated_at) VALUES (?, ?, datetime('now'), datetime('now'))", (name, parent_id))
+
+        
+        category_id = cur.lastrowid
 
         conn.commit()
-        category_id = cur.lastrowid
         conn.close()
 
         # Now redirect to edit page (which also handles adding words)
@@ -586,7 +595,7 @@ def admin_edit_category(category_id):
 
             # Proceed with update
             cur.execute("UPDATE categories SET name = ?, parent_id = ? WHERE id = ?", (name, parent_id, category_id))
-
+            cur.execute("UPDATE categories SET updated_at = datetime('now') WHERE id = ?", (category_id,))
             conn.commit()
             conn.close()
             flash("Category updated successfully.", "success")
@@ -651,6 +660,7 @@ def admin_edit_category(category_id):
 
             # Assign to category
             cur.execute("INSERT INTO word_categories (word_id, category_id) VALUES (?, ?)", (word_id, category_id))
+            cur.execute("UPDATE categories SET updated_at = datetime('now') WHERE id = ?", (category_id,))
             conn.commit()
             conn.close()
             flash(f"New word '{word_text}' added and assigned to category.", "success")
@@ -672,6 +682,7 @@ def admin_edit_category(category_id):
                 return redirect(url_for("admin_edit_category", category_id=category_id))
 
             cur.execute("INSERT INTO word_categories (word_id, category_id) VALUES (?, ?)", (existing_word_id, category_id))
+            cur.execute("UPDATE categories SET updated_at = datetime('now') WHERE id = ?", (category_id,))
             conn.commit()
             conn.close()
             flash("Existing word added to category.", "success")
@@ -715,6 +726,7 @@ def admin_remove_word_from_category(category_id, word_id):
     
     # Remove word from category
     cur.execute("DELETE FROM word_categories WHERE word_id=? AND category_id=?", (word_id, category_id))
+    cur.execute("UPDATE categories SET updated_at = datetime('now') WHERE id = ?", (category_id,))
     conn.commit()
     conn.close()
     
