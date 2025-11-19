@@ -379,6 +379,25 @@ nav a:hover {
 }
 
 nav a.active {
-    border-bottom-color: #0077cc; /* visible underline for active link */
+    border-bottom-color: #0077cc;
     color: #0077cc;
 }
+
+.level-badge {
+    position: absolute;       /* absolute positioning */
+    top: 0;                   /* top edge of h1 */
+    right: 0;                 /* right edge of h1 */
+    display: inline-block;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-left: 0;           /* remove left margin for top-right */
+}
+
+.level-1 { background-color: #4CAF50; }  
+.level-2 { background-color: #2b60c9; } 
+.level-3 { background-color: #FF9800; }    
+.level-4 { background-color: #e93d82; } 
+.level-5 { background-color: #F44336; }   
+

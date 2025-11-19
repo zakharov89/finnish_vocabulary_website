@@ -1071,14 +1071,22 @@ def show_word(word_name):
     cur = conn.cursor()
 
     # ---- Fetch the word ----
-    cur.execute("SELECT id, word FROM words WHERE word = ?", (word_name,))
+    cur.execute("""
+        SELECT w.id, w.word, w.level, l.name AS level_name
+        FROM words w
+        LEFT JOIN levels l ON w.level = l.id
+        WHERE w.word = ?
+    """, (word_name,))
     row_word = cur.fetchone()
+
     if not row_word:
         conn.close()
         return render_template("word.html", meanings_by_pos=None, word_name=None)
 
     word_id = row_word['id']
     word_name = row_word['word']
+    word_level_id = row_word['level']
+    word_level_name = row_word["level_name"]
 
     # ---- Fetch meanings + POS + translations + examples ----
     cur.execute("""
@@ -1230,7 +1238,9 @@ def show_word(word_name):
         meanings_by_pos=meanings_by_pos,
         categories=categories,
         word_relations=word_relations,
-        meaning_relations=meaning_relations
+        meaning_relations=meaning_relations,
+        word_level_id=word_level_id,
+        word_level_name=word_level_name
     )
 
 
