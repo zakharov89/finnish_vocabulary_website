@@ -36,11 +36,84 @@ button {
 /* ==========================
    Header / Navigation
 ========================== */
+
+/* ==========================
+   Header & Navigation
+========================== */
 header {
-    background-color: #f0f0f0;
-    padding: 10px 20px;
+    background-color: #f8f9fa;       /* light gray */
+    padding: 12px 24px;
     margin-bottom: 30px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    color: #333;
+}
+
+header .logo {
+    font-size: 1.35rem;
+    font-family: "Inter", sans-serif;
+    font-weight: 600;
+    color:  #2a6ae9
+}
+
+
+header nav {
+    display: flex;
+    gap: 18px;
+}
+
+header nav a {
+    text-decoration: none;
+    color: #555;                     /* soft dark gray */
+    font-weight: 500;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+header nav a:hover {
+    background-color: #e3f2fd;       /* light blue highlight */
+    color: #1565c0;                  /* slightly darker blue */
+}
+
+header nav a.active {
+    background-color: #cce4ff;       /* soft active highlight */
+    color: #1565c0;
+    font-weight: 600;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 12px 16px;
+    }
+    header nav {
+        gap: 12px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+    }
+}
+
+
+/* Optional: smaller padding on mobile */
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 12px 16px;
+    }
+    header nav {
+        gap: 12px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+    }
 }
 
 
