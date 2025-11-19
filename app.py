@@ -94,6 +94,9 @@ def admin_add_word():
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
+    cur.execute("SELECT id, name FROM levels ORDER BY id")
+    levels = cur.fetchall()
+
     # Fetch parts of speech for the form
     cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
     pos_list = [dict(pos) for pos in cur.fetchall()]
@@ -108,12 +111,12 @@ def admin_add_word():
             if cur.fetchone():
                 flash(f"Word '{word_text}' already exists.", "warning")
                 conn.close()
-                return render_template('admin_add_word.html', pos_list=pos_list)
-
+                return render_template('admin_add_word.html', pos_list=pos_list, levels=levels)
+            level = int(request.form.get("level", 1))
             # Insert the word
             cur.execute(
-            "INSERT INTO words (word, created_at, updated_at) VALUES (?, datetime('now'), datetime('now'))",
-            (word_text,)
+            "INSERT INTO words (word, level, created_at, updated_at) VALUES (?, ?, datetime('now'), datetime('now'))",
+            (word_text, level)
         )
 
             conn.commit()
@@ -125,7 +128,9 @@ def admin_add_word():
                 m_num_int = int(m_num)
 
                 # POS per meaning
-                pos_id = request.form.get(f"pos_id_{m_num}")  # NEW
+                pos_id = request.form.get(f"pos_id_{m_num}")
+                pos_id = int(pos_id) if pos_id else None
+
 
                 notes = request.form.get(f"meaning_notes_{m_num}", "").strip() or None
                 definition = request.form.get(f"definition_{m_num}", "").strip() or None
@@ -169,7 +174,7 @@ def admin_add_word():
             return redirect(url_for('admin_dashboard'))
 
     conn.close()
-    return render_template('admin_add_word.html', pos_list=pos_list)
+    return render_template('admin_add_word.html', pos_list=pos_list, levels=levels)
 
 
 
@@ -188,6 +193,10 @@ def admin_edit_word(word_id):
         conn.close()
         return redirect(url_for('admin_dashboard'))
     word = dict(word)
+
+    # Fetch levels
+    cur.execute("SELECT id, name FROM levels ORDER BY id")
+    levels = cur.fetchall()
 
     # Fetch POS list
     cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
@@ -227,6 +236,8 @@ def admin_edit_word(word_id):
     # Handle POST (update word only)
     if request.method == 'POST':
         new_word = request.form.get('word', '').strip()
+        level = int(request.form.get('level', 1))
+        
         # Check for duplicates
         cur.execute("SELECT id FROM words WHERE word=? AND id != ?", (new_word, word_id))
         if cur.fetchone():
@@ -234,14 +245,14 @@ def admin_edit_word(word_id):
             conn.close()
             return redirect(url_for('admin_edit_word', word_id=word_id))
 
-        cur.execute("UPDATE words SET word=? WHERE id=?", (new_word, word_id))
+        cur.execute("UPDATE words SET word = ?, level = ?, updated_at = datetime('now') WHERE id = ?", (new_word, level, word_id))
         conn.commit()
         flash(f"Word '{new_word}' updated successfully!", "success")
         conn.close()
         return redirect(url_for('admin_edit_word', word_id=word_id))
 
     conn.close()
-    return render_template('admin_edit_word.html', word=word, meanings_by_pos=meanings_by_pos, pos_list=pos_list)
+    return render_template('admin_edit_word.html', word=word, levels=levels, meanings_by_pos=meanings_by_pos, pos_list=pos_list)
 
 
 
@@ -582,6 +593,10 @@ def admin_edit_category(category_id):
     pos_list = cur.fetchall()
 
     action = request.form.get("action")
+
+    cur.execute("SELECT id, name FROM levels ORDER BY id")
+    levels = cur.fetchall()
+
     if action:
         if action == "update_category":
             name = request.form.get("name", "").strip()
@@ -618,8 +633,14 @@ def admin_edit_category(category_id):
                 conn.close()
                 return redirect(url_for("admin_edit_category", category_id=category_id))
 
-            # Insert the new word with a dummy pos_id (can be NULL)
-            cur.execute("INSERT INTO words (word) VALUES (?)", (word_text,))
+           
+            
+            level_id = int(request.form.get("level", 1))
+            cur.execute(
+                "INSERT INTO words (word, level, created_at, updated_at) VALUES (?, ?, datetime('now'), datetime('now'))",
+                (word_text, level_id)
+            )
+
             conn.commit()
             word_id = cur.lastrowid
 
@@ -714,7 +735,8 @@ def admin_edit_category(category_id):
         category_words=category_words,
         pos_list=pos_list,
         search_query=search_query,
-        search_results=search_results
+        search_results=search_results,
+        levels=levels
     )
 
 

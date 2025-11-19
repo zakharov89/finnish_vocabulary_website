@@ -131,6 +131,16 @@
             <input type="text" name="new_word" required class="admin-input">
         </p>
 
+            <!-- Level -->
+        <p>
+        
+            <select name="level" class="admin-select" required>
+                {% for level in levels %}
+                    <option value="{{ level.id }}">{{ level.name }}</option>
+                {% endfor %}
+            </select>
+        </p>
+
         <hr>
         <p>Meanings</p>
 

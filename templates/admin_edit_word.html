@@ -10,19 +10,33 @@
 {% endwith %}
 
 <div class="container mt-5">
-    <h2>Edit Word: {{ word.word }}</h2>
+    <h2>Edit Word: <a href="{{ url_for('show_word', word_name=word.word) }}" target="_blank">
+        {{ word.word }}
+    </a></h2>
     
 
     <!-- Update Word Form -->
     <form method="POST" class="mb-3">
         <div class="mb-3">
-            <label for="word" class="form-label">Word</label>
-            <input type="text" class="admin-input" name="word" id="word" value="{{ word.word }}" required>
+            <input type="text" class="admin-input" name="word" id="word" value="{{ word.word }}" required placeholder="Enter word"> 
         </div>
-        <div style="height: 20px;"></div>
-        <button type="submit" class="admin-btn">Update Word</button>
-    </form>
+       
+        
+   
 
+    <!-- Level -->
+    <p>
+        <select name="level" class="admin-select" required>
+            {% for level in levels %}
+                <option value="{{ level.id }}" {% if word['level'] == level.id %}selected{% endif %}>
+                    {{ level.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </p>
+    
+    <button type="submit" class="admin-btn">Update Word</button>
+    </form>
     <p>
     <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
     </p>

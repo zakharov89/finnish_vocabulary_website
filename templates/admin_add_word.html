@@ -2,6 +2,7 @@
 
 {% block content %}
 
+
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     {% for category, message in messages %}
@@ -17,8 +18,18 @@
 
     <!-- Word -->
     <p>
-        <label>Word:</label><br>
+        
         <input type="text" name="word" required class="admin-input" placeholder="Enter new word">
+    </p>
+
+    <!-- Level -->
+    <p>
+       
+        <select name="level" class="admin-select" required>
+            {% for level in levels %}
+                <option value="{{ level.id }}">{{ level.name }}</option>
+            {% endfor %}
+        </select>
     </p>
 
     <!-- Meanings -->
