@@ -280,7 +280,13 @@ def levels():
 
     return render_template("levels.html", levels=levels, selected_levels=selected_levels)
 
-
+@app.route('/set_levels', methods=['POST'])
+def set_levels():
+    data = request.get_json()
+    # convert to ints, default empty list if none
+    selected = [int(lvl) for lvl in data.get("levels", [])]
+    session["selected_levels"] = selected
+    return jsonify(success=True)
 
 
 

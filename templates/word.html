@@ -109,7 +109,7 @@
         Show Categories
     </button>
     <div class="expand-content" style="display:none;">
-        <p>
+        <p><strong>Categories:</strong>
             {% for cat in categories %}
                 <a href="{{ url_for('show_category', category_name=cat) }}">{{ cat }}</a>{% if not loop.last %}, {% endif %}
             {% endfor %}

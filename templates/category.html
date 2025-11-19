@@ -60,8 +60,76 @@
     </table>
 </div>
 {% else %}
-<p>No words in this category yet.</p>
+<p>No words in this category for the selected levels.</p>
 {% endif %}
+
+
+<div class="levels-footer" style="margin-top: 2em; padding: 10px; border-top: 1px solid #ccc;">
+    <p>
+        Currently showing: 
+        {% if selected_levels %}
+            {% for lvl_id in selected_levels %}
+                {{ levels_dict[lvl_id] }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+        {% else %}
+            All words
+        {% endif %}.
+        <a href="#" id="change-levels-link">Change?</a>
+    </p>
+
+    <form id="category-level-form" style="display: none;">
+        {% for lvl in levels %}
+        <label style="margin-right:10px;">
+            <input type="checkbox" name="level" value="{{ lvl.id }}"
+                {% if lvl.id in selected_levels %}checked{% endif %}>
+            {{ lvl.name }}
+        </label>
+        {% endfor %}
+        <label style="margin-right:10px;">
+            <input type="checkbox" name="level" value="0"
+                {% if 0 in selected_levels %}checked{% endif %}>
+            No level
+        </label>
+        <button type="submit" style="margin-left: 10px;">Apply</button>
+    </form>
+</div>
+
+<script>
+    const changeLink = document.getElementById('change-levels-link');
+    const levelForm = document.getElementById('category-level-form');
+
+    changeLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        levelForm.style.display = levelForm.style.display === 'none' ? 'block' : 'none';
+    });
+
+    levelForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        // collect selected levels
+        const levels = Array.from(levelForm.querySelectorAll('input[name="level"]:checked'))
+            .map(input => input.value);
+
+        // send AJAX POST to set_levels route
+        fetch('{{ url_for("set_levels") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() if csrf_token is defined }}'
+            },
+            body: JSON.stringify({ levels: levels })
+        })
+        .then(res => res.json())
+        .then(data => {
+            // optionally refresh the page or update words list dynamically
+            location.reload();  // simplest: reload the category page
+        })
+        .catch(err => console.error(err));
+    });
+</script>
+
+
+
 
 {% if parent %}
 <p class="breadcrumb">
