@@ -6,7 +6,7 @@
 {% else %}
     <h1 style="position: relative;"> 
     {{ word_name }} 
-    {% if word_level_name %} 
+    {% if word_level_id and word_level_id != 0 %}
         <span class="level-badge level-{{ word_level_id }}"> {{ word_level_name }} </span>
     {% endif %} 
     </h1>

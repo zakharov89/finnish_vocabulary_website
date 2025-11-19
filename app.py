@@ -112,7 +112,8 @@ def admin_add_word():
                 flash(f"Word '{word_text}' already exists.", "warning")
                 conn.close()
                 return render_template('admin_add_word.html', pos_list=pos_list, levels=levels)
-            level = int(request.form.get("level", 1))
+            level = int(request.form.get("level", 0))
+
             # Insert the word
             cur.execute(
             "INSERT INTO words (word, level, created_at, updated_at) VALUES (?, ?, datetime('now'), datetime('now'))",
@@ -236,7 +237,7 @@ def admin_edit_word(word_id):
     # Handle POST (update word only)
     if request.method == 'POST':
         new_word = request.form.get('word', '').strip()
-        level = int(request.form.get('level', 1))
+        level_id = int(request.form.get("level", 0))
         
         # Check for duplicates
         cur.execute("SELECT id FROM words WHERE word=? AND id != ?", (new_word, word_id))
@@ -245,7 +246,7 @@ def admin_edit_word(word_id):
             conn.close()
             return redirect(url_for('admin_edit_word', word_id=word_id))
 
-        cur.execute("UPDATE words SET word = ?, level = ?, updated_at = datetime('now') WHERE id = ?", (new_word, level, word_id))
+        cur.execute("UPDATE words SET word = ?, level = ?, updated_at = datetime('now') WHERE id = ?", (new_word, level_id, word_id))
         conn.commit()
         flash(f"Word '{new_word}' updated successfully!", "success")
         conn.close()
@@ -329,7 +330,7 @@ def admin_edit_meaning(meaning_id):
         translations=translations,
         examples=examples,
         pos_list=pos_list,
-        meanings_count=meanings_count  # <--- pass this to template
+        meanings_count=meanings_count  
     )
 
 
@@ -635,7 +636,7 @@ def admin_edit_category(category_id):
 
            
             
-            level_id = int(request.form.get("level", 1))
+            level_id = int(request.form.get("level", 0))
             cur.execute(
                 "INSERT INTO words (word, level, created_at, updated_at) VALUES (?, ?, datetime('now'), datetime('now'))",
                 (word_text, level_id)
