@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+
+<h2>Select Difficulty Levels</h2>
+<p>Choose the levels you want to see across the site.</p>
+
+<form method="POST">
+
+    <div class="level-selector">
+
+        
+        <!-- Real levels -->
+        {% for level in levels %}
+            {% if level.id != 0 %}
+            <label class="level-option">
+                <input type="checkbox" name="levels" value="{{ level.id }}"
+                       {% if level.id in selected_levels %}checked{% endif %}>
+                    {{ level.name }}
+            </label>
+            {% endif %}
+        {% endfor %}
+
+        <!-- NO LEVEL option -->
+        <label class="level-option">
+            <input type="checkbox" name="levels" value="0"
+                   {% if 0 in selected_levels %}checked{% endif %}>
+            No Level 
+        </label>
+
+    </div>
+
+    <button type="submit" class="admin-btn" style="margin-top: 15px;">
+        Save Level Preferences
+    </button>
+
+</form>
+
+{% endblock %}

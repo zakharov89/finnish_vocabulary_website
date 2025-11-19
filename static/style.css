@@ -401,3 +401,18 @@ nav a.active {
 .level-4 { background-color: #e93d82; } 
 .level-5 { background-color: #F44336; }   
 
+.level-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.level-option {
+    background: #f4f4f4;
+    padding: 8px 10px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}

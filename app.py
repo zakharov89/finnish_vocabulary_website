@@ -38,6 +38,356 @@ def logout():
 
 
 
+@app.route('/about')
+def about():
+    return render_template('about.html', title="About")
+
+
+@app.route('/word/<word_name>')
+def show_word(word_name):
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # ---- Fetch the word ----
+    cur.execute("""
+        SELECT w.id, w.word, w.level, l.name AS level_name
+        FROM words w
+        LEFT JOIN levels l ON w.level = l.id
+        WHERE w.word = ?
+    """, (word_name,))
+    row_word = cur.fetchone()
+
+    if not row_word:
+        conn.close()
+        return render_template("word.html", meanings_by_pos=None, word_name=None)
+
+    word_id = row_word['id']
+    word_name = row_word['word']
+    word_level_id = row_word['level']
+    word_level_name = row_word["level_name"]
+
+    # ---- Fetch meanings + POS + translations + examples ----
+    cur.execute("""
+        SELECT 
+            m.id AS meaning_id,
+            m.meaning_number,
+            m.definition,
+            m.notes,
+            p.name AS pos_name,
+            t.translation_text,
+            e.example_text,
+            e.example_translation_text
+        FROM meanings m
+        LEFT JOIN parts_of_speech p ON m.pos_id = p.id
+        LEFT JOIN translations t ON t.meaning_id = m.id
+        LEFT JOIN examples e ON e.meaning_id = m.id
+        WHERE m.word_id = ?
+        ORDER BY p.name ASC, m.meaning_number ASC
+    """, (word_id,))
+    rows = cur.fetchall()
+
+    # ---- Fetch categories ----
+    cur.execute("""
+        SELECT c.name
+        FROM categories c
+        JOIN word_categories wc ON wc.category_id = c.id
+        WHERE wc.word_id = ?
+        ORDER BY c.name
+    """, (word_id,))
+    categories = [r["name"] for r in cur.fetchall()]
+
+    # If no meanings at all
+    if not rows:
+        conn.close()
+        return render_template(
+            "word.html", 
+            meanings_by_pos=None, 
+            word_name=word_name, 
+            categories=categories
+        )
+
+    # ---- Organize meanings ----
+    meanings_by_pos = {}
+    for r in rows:
+        pos = r["pos_name"] or "other"
+        meanings_by_pos.setdefault(pos, [])
+
+        meaning = next((m for m in meanings_by_pos[pos] if m["id"] == r["meaning_id"]), None)
+        if meaning is None:
+            meaning = {
+                "id": r["meaning_id"],
+                "meaning_number": r["meaning_number"],
+                "definition": r["definition"],
+                "notes": r["notes"],
+                "translations": [],
+                "examples": []
+            }
+            meanings_by_pos[pos].append(meaning)
+
+        if r["translation_text"] and r["translation_text"] not in meaning["translations"]:
+            meaning["translations"].append(r["translation_text"])
+
+        if r["example_text"]:
+            meaning["examples"].append({
+                "text": r["example_text"],
+                "translation": r["example_translation_text"]
+            })
+
+    # ---- Through-numbering ----
+    counter = 1
+    for pos_block in meanings_by_pos.values():
+        for m in pos_block:
+            m["display_number"] = counter
+            counter += 1
+
+    # ============================================================
+    # WORD RELATIONS (only outgoing)
+    # ============================================================
+
+    cur.execute("""
+        SELECT 
+            wr.id,
+            rt.name AS relation_type,
+            w2.word AS target_word
+        FROM word_relations wr
+        JOIN relation_types rt ON wr.relation_type_id = rt.id
+        JOIN words w2 ON wr.word2_id = w2.id
+        WHERE wr.word1_id = ?
+        ORDER BY rt.name, w2.word
+    """, (word_id,))
+    word_rel_rows = cur.fetchall()
+
+    word_relations = {}
+    for r in word_rel_rows:
+        rt = r["relation_type"]
+        word_relations.setdefault(rt, []).append({
+            "target_word": r["target_word"]
+        })
+
+
+
+    # ============================================================
+    # MEANING RELATIONS (only outgoing)
+    # ============================================================
+    # Get all meaning IDs for this word
+    meaning_ids = [m["id"] for plist in meanings_by_pos.values() for m in plist]
+
+   # ============================================================
+    # MEANING RELATIONS (only outgoing)
+    # ============================================================
+    cur.execute("""
+        SELECT 
+            mr.id,
+            mr.meaning1_id,
+            mr.meaning2_id,
+            rt.name AS relation_type,
+            w2.word AS target_word,
+            m2.meaning_number AS target_meaning_number
+        FROM meaning_relations mr
+        JOIN relation_types rt ON mr.relation_type_id = rt.id
+        JOIN meanings m2 ON mr.meaning2_id = m2.id
+        JOIN words w2 ON m2.word_id = w2.id
+        WHERE mr.meaning1_id IN ({})
+        ORDER BY rt.name, w2.word, m2.meaning_number
+    """.format(",".join("?" * len(meaning_ids))), meaning_ids)
+
+    meaning_rel_rows = cur.fetchall()
+
+    meaning_relations = {}
+
+    for r in meaning_rel_rows:
+        m1 = r["meaning1_id"]
+        rt = r["relation_type"]
+
+        meaning_relations.setdefault(m1, {})
+        meaning_relations[m1].setdefault(rt, [])
+
+        meaning_relations[m1][rt].append({
+            "target_word": r["target_word"],
+            "target_number": r["target_meaning_number"]
+        })
+
+
+    conn.close()
+
+    return render_template(
+        "word.html",
+        word_name=word_name,
+        meanings_by_pos=meanings_by_pos,
+        categories=categories,
+        word_relations=word_relations,
+        meaning_relations=meaning_relations,
+        word_level_id=word_level_id,
+        word_level_name=word_level_name
+    )
+
+
+@app.route('/categories')
+def categories():
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Fetch all categories
+    cur.execute("SELECT id, name, parent_id FROM categories ORDER BY name")
+    rows = cur.fetchall()
+
+    # Organize into parent-child dict
+    categories_dict = {}
+    for row in rows:
+        if row['parent_id']:
+            categories_dict.setdefault(row['parent_id'], []).append(row)
+        else:
+            categories_dict.setdefault(None, []).append(row)
+
+    conn.close()
+    return render_template('categories.html', categories=categories_dict)
+
+
+
+@app.route('/home')
+def home():
+    return render_template('home.html', title="Home")
+
+@app.route('/levels', methods=['GET', 'POST'])
+def levels():
+    # Choosing levels
+
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Load levels dynamically
+    cur.execute("SELECT id, name FROM levels ORDER BY id")
+    levels = cur.fetchall()
+
+    # If user submitted form
+    if request.method == "POST":
+        selected = request.form.getlist("levels")  # list of strings
+        selected = [int(x) for x in selected]      # convert to ints
+
+        # save to session
+        session["selected_levels"] = selected
+
+        flash("Level preferences updated!", "success")
+        return redirect(url_for("levels"))
+
+    # Pre-fill form with selected levels
+    selected_levels = session.get("selected_levels", [])
+
+    conn.close()
+
+    return render_template("levels.html", levels=levels, selected_levels=selected_levels)
+
+
+
+
+
+@app.route('/categories/<category_name>')
+def show_category(category_name):
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Load all categories into memory
+    cur.execute("SELECT id, name, parent_id FROM categories ORDER BY name")
+    all_rows = cur.fetchall()
+    categories_dict = {}
+    for row in all_rows:
+        parent = row['parent_id']
+        categories_dict.setdefault(parent, []).append(row)
+
+    # Load current category
+    cur.execute("SELECT id, name, parent_id FROM categories WHERE name = ?", (category_name,))
+    category = cur.fetchone()
+    if not category:
+        return f"Category '{category_name}' not found."
+    category_id = category["id"]
+
+    # Subcategories
+    subcategories = categories_dict.get(category_id, [])
+
+    # --- Fetch all levels (0 included) ---
+    cur.execute("SELECT id, name FROM levels ORDER BY id")
+    levels = cur.fetchall()
+    levels_dict = {lvl["id"]: lvl["name"] for lvl in levels}
+
+    # --- Get selected levels from session (not query params) ---
+    selected_levels = session.get("selected_levels", [])
+
+    # --- Build SQL for filtering ---
+    sql = """
+        SELECT w.id AS word_id, w.word, w.level, wc.meaning_id
+        FROM words w
+        JOIN word_categories wc ON w.id = wc.word_id
+        WHERE wc.category_id = ?
+    """
+    params = [category_id]
+
+    if selected_levels:
+        placeholders = ",".join("?" for _ in selected_levels)
+        sql += f" AND w.level IN ({placeholders})"
+        params.extend(selected_levels)
+
+    sql += " ORDER BY wc.sort_order, w.word"
+    cur.execute(sql, params)
+    words = cur.fetchall()
+
+    # --- Fetch translations ---
+    words_with_translations = []
+    for w in words:
+        meaning_id = w["meaning_id"]
+
+        if meaning_id:
+            cur.execute("""
+                SELECT translation_text
+                FROM translations
+                WHERE meaning_id = ?
+                ORDER BY translation_number
+                LIMIT 3
+            """, (meaning_id,))
+        else:
+            cur.execute("""
+                SELECT t.translation_text
+                FROM meanings m
+                JOIN translations t ON t.meaning_id = m.id
+                WHERE m.word_id = ?
+                ORDER BY m.meaning_number, t.translation_number
+                LIMIT 3
+            """, (w["word_id"],))
+
+        translations = [row["translation_text"] for row in cur.fetchall()]
+
+        words_with_translations.append({
+            "word": w["word"],
+            "level": w["level"],
+            "translations": translations
+        })
+
+    # Parent breadcrumb
+    parent = None
+    if category["parent_id"]:
+        for r in all_rows:
+            if r["id"] == category["parent_id"]:
+                parent = r
+                break
+
+    conn.close()
+
+    return render_template(
+        "category.html",
+        category=category,
+        subcategories=subcategories,
+        words=words_with_translations,
+        parent=parent,
+        categories=categories_dict,
+        levels=levels,
+        levels_dict=levels_dict,
+        selected_levels=selected_levels
+    )
+
+
 # ----- Admin-only decorator -----
 from functools import wraps
 
@@ -983,8 +1333,8 @@ def admin_list_categories():
 
 
 
-@app.route('/', methods=['GET'])
-def home():
+@app.route('/search', methods=['GET'])
+def search():
     query = request.args.get('query', '').strip()
     mode = request.args.get('mode', 'finnish')
     results = []
@@ -1017,7 +1367,8 @@ def home():
 
         conn.close()
 
-    return render_template('home.html', query=query, results=results, mode=mode)
+    return render_template('search.html', query=query, results=results, mode=mode)
+
 
 @app.route('/autocomplete', methods=['GET'])
 def autocomplete():
@@ -1056,309 +1407,6 @@ def autocomplete():
 
     conn.close()
     return jsonify(suggestions)
-
-
-
-
-@app.route('/about')
-def about():
-    return render_template('about.html', title="About")
-
-
-@app.route('/word/<word_name>')
-def show_word(word_name):
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-
-    # ---- Fetch the word ----
-    cur.execute("""
-        SELECT w.id, w.word, w.level, l.name AS level_name
-        FROM words w
-        LEFT JOIN levels l ON w.level = l.id
-        WHERE w.word = ?
-    """, (word_name,))
-    row_word = cur.fetchone()
-
-    if not row_word:
-        conn.close()
-        return render_template("word.html", meanings_by_pos=None, word_name=None)
-
-    word_id = row_word['id']
-    word_name = row_word['word']
-    word_level_id = row_word['level']
-    word_level_name = row_word["level_name"]
-
-    # ---- Fetch meanings + POS + translations + examples ----
-    cur.execute("""
-        SELECT 
-            m.id AS meaning_id,
-            m.meaning_number,
-            m.definition,
-            m.notes,
-            p.name AS pos_name,
-            t.translation_text,
-            e.example_text,
-            e.example_translation_text
-        FROM meanings m
-        LEFT JOIN parts_of_speech p ON m.pos_id = p.id
-        LEFT JOIN translations t ON t.meaning_id = m.id
-        LEFT JOIN examples e ON e.meaning_id = m.id
-        WHERE m.word_id = ?
-        ORDER BY p.name ASC, m.meaning_number ASC
-    """, (word_id,))
-    rows = cur.fetchall()
-
-    # ---- Fetch categories ----
-    cur.execute("""
-        SELECT c.name
-        FROM categories c
-        JOIN word_categories wc ON wc.category_id = c.id
-        WHERE wc.word_id = ?
-        ORDER BY c.name
-    """, (word_id,))
-    categories = [r["name"] for r in cur.fetchall()]
-
-    # If no meanings at all
-    if not rows:
-        conn.close()
-        return render_template(
-            "word.html", 
-            meanings_by_pos=None, 
-            word_name=word_name, 
-            categories=categories
-        )
-
-    # ---- Organize meanings ----
-    meanings_by_pos = {}
-    for r in rows:
-        pos = r["pos_name"] or "other"
-        meanings_by_pos.setdefault(pos, [])
-
-        meaning = next((m for m in meanings_by_pos[pos] if m["id"] == r["meaning_id"]), None)
-        if meaning is None:
-            meaning = {
-                "id": r["meaning_id"],
-                "meaning_number": r["meaning_number"],
-                "definition": r["definition"],
-                "notes": r["notes"],
-                "translations": [],
-                "examples": []
-            }
-            meanings_by_pos[pos].append(meaning)
-
-        if r["translation_text"] and r["translation_text"] not in meaning["translations"]:
-            meaning["translations"].append(r["translation_text"])
-
-        if r["example_text"]:
-            meaning["examples"].append({
-                "text": r["example_text"],
-                "translation": r["example_translation_text"]
-            })
-
-    # ---- Through-numbering ----
-    counter = 1
-    for pos_block in meanings_by_pos.values():
-        for m in pos_block:
-            m["display_number"] = counter
-            counter += 1
-
-    # ============================================================
-    # WORD RELATIONS (only outgoing)
-    # ============================================================
-
-    cur.execute("""
-        SELECT 
-            wr.id,
-            rt.name AS relation_type,
-            w2.word AS target_word
-        FROM word_relations wr
-        JOIN relation_types rt ON wr.relation_type_id = rt.id
-        JOIN words w2 ON wr.word2_id = w2.id
-        WHERE wr.word1_id = ?
-        ORDER BY rt.name, w2.word
-    """, (word_id,))
-    word_rel_rows = cur.fetchall()
-
-    word_relations = {}
-    for r in word_rel_rows:
-        rt = r["relation_type"]
-        word_relations.setdefault(rt, []).append({
-            "target_word": r["target_word"]
-        })
-
-
-
-    # ============================================================
-    # MEANING RELATIONS (only outgoing)
-    # ============================================================
-    # Get all meaning IDs for this word
-    meaning_ids = [m["id"] for plist in meanings_by_pos.values() for m in plist]
-
-   # ============================================================
-    # MEANING RELATIONS (only outgoing)
-    # ============================================================
-    cur.execute("""
-        SELECT 
-            mr.id,
-            mr.meaning1_id,
-            mr.meaning2_id,
-            rt.name AS relation_type,
-            w2.word AS target_word,
-            m2.meaning_number AS target_meaning_number
-        FROM meaning_relations mr
-        JOIN relation_types rt ON mr.relation_type_id = rt.id
-        JOIN meanings m2 ON mr.meaning2_id = m2.id
-        JOIN words w2 ON m2.word_id = w2.id
-        WHERE mr.meaning1_id IN ({})
-        ORDER BY rt.name, w2.word, m2.meaning_number
-    """.format(",".join("?" * len(meaning_ids))), meaning_ids)
-
-    meaning_rel_rows = cur.fetchall()
-
-    meaning_relations = {}
-
-    for r in meaning_rel_rows:
-        m1 = r["meaning1_id"]
-        rt = r["relation_type"]
-
-        meaning_relations.setdefault(m1, {})
-        meaning_relations[m1].setdefault(rt, [])
-
-        meaning_relations[m1][rt].append({
-            "target_word": r["target_word"],
-            "target_number": r["target_meaning_number"]
-        })
-
-
-    conn.close()
-
-    return render_template(
-        "word.html",
-        word_name=word_name,
-        meanings_by_pos=meanings_by_pos,
-        categories=categories,
-        word_relations=word_relations,
-        meaning_relations=meaning_relations,
-        word_level_id=word_level_id,
-        word_level_name=word_level_name
-    )
-
-
-@app.route('/categories')
-def categories():
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-
-    # Fetch all categories
-    cur.execute("SELECT id, name, parent_id FROM categories ORDER BY name")
-    rows = cur.fetchall()
-
-    # Organize into parent-child dict
-    categories_dict = {}
-    for row in rows:
-        if row['parent_id']:
-            categories_dict.setdefault(row['parent_id'], []).append(row)
-        else:
-            categories_dict.setdefault(None, []).append(row)
-
-    conn.close()
-    return render_template('categories.html', categories=categories_dict)
-
-
-
-
-
-
-
-
-
-
-@app.route('/categories/<category_name>')
-def show_category(category_name):
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-
-    # Load all categories into memory
-    cur.execute("SELECT id, name, parent_id FROM categories ORDER BY name")
-    all_rows = cur.fetchall()
-    categories_dict = {}
-    for row in all_rows:
-        parent = row['parent_id']
-        categories_dict.setdefault(parent, []).append(row)
-
-    # Load current category
-    cur.execute("SELECT id, name, parent_id FROM categories WHERE name = ?", (category_name,))
-    category = cur.fetchone()
-    if not category:
-        return f"Category '{category_name}' not found."
-    category_id = category["id"]
-
-    # Subcategories
-    subcategories = categories_dict.get(category_id, [])
-
-    # Fetch all words in the category including selected meaning_id
-    cur.execute("""
-        SELECT w.id AS word_id, w.word, wc.meaning_id
-        FROM words w
-        JOIN word_categories wc ON w.id = wc.word_id
-        WHERE wc.category_id = ?
-        ORDER BY wc.sort_order, w.word
-    """, (category_id,))
-    words = cur.fetchall()
-
-    words_with_translations = []
-
-    for w in words:
-        meaning_id = w["meaning_id"]
-
-        if meaning_id:
-            # Use representative meaning
-            cur.execute("""
-                SELECT t.translation_text
-                FROM translations t
-                WHERE t.meaning_id = ?
-                ORDER BY t.translation_number
-                LIMIT 3
-            """, (meaning_id,))
-        else:
-            # Fallback: use first meaning of the word
-            cur.execute("""
-                SELECT t.translation_text
-                FROM meanings m
-                JOIN translations t ON t.meaning_id = m.id
-                WHERE m.word_id = ?
-                ORDER BY m.meaning_number, t.translation_number
-                LIMIT 3
-            """, (w["word_id"],))
-
-        translations = [row["translation_text"] for row in cur.fetchall()]
-
-        words_with_translations.append({
-            "word": w["word"],
-            "translations": translations
-        })
-
-    # Parent breadcrumb
-    parent = None
-    if category["parent_id"]:
-        for r in all_rows:
-            if r["id"] == category["parent_id"]:
-                parent = r
-                break
-
-    conn.close()
-
-    return render_template(
-        "category.html",
-        category=category,
-        subcategories=subcategories,
-        words=words_with_translations,
-        parent=parent,
-        categories=categories_dict
-    )
 
 
 

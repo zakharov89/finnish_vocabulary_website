@@ -1,7 +1,9 @@
 {% extends "base.html" %}
-
 {% block content %}
+
+
 <h2>{{ category['name'] }}</h2>
+
 
 {% if subcategories %}
 <div class="subcategories-section">
@@ -44,6 +46,9 @@
             <tr>
                 <td>
                     <a href="{{ url_for('show_word', word_name=w['word']) }}">{{ w['word'] }}</a>
+                    {% if w.level and w.level > 0 %}
+                        <span class="level-badge level-{{ w.level }}">{{ levels_dict[w.level] }}</span>
+                    {% endif %}
                 </td>
                 <td>
                     {{ ", ".join(w['translations']) }}
