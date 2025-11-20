@@ -1,6 +1,6 @@
 <div class="flashcard-grid">
     {# Only include words with reasonably short headwords and at least 1 translation #}
-    {% for w in words if w.word|length <= 22 and w.translations %}
+    {% for w in words if w.word|length <= 30 and w.translations %}
     <div class="flashcard">
         <div class="front">
             {{ w.word }}

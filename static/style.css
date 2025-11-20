@@ -576,13 +576,34 @@ footer {
     gap: 5px;
 }
 
-.level-pill-selected {
-    padding: 4px 10px;
-    border-radius: 20px;
-    background-color: #90caf9;
-    color: #1a237e;
-    font-size: 0.85rem;
+.level-pill {
+    display: inline-flex;
+    align-items: center;
+    margin: 5px 3px;
+    padding: 6px 14px;
+    border-radius: 25px;
+    background: linear-gradient(145deg, #e0f7fa, #b2ebf2); /* soft cyan */
+    color: #006064;
+    font-weight: 600;          /* 🔹 always bold */
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
+
+.level-pill.selected {
+    background: linear-gradient(145deg, #00acc1, #00838f); /* strong cyan */
+    color: #fff;
+    /* font-weight: 600;  🔸 no need, already bold */
+}
+
+.no-level-pill { background: #90a4ae; color: #fff; }
+
+/* Select All pill - same bold weight, different color */
+.select-all-pill {
+    background: #ffb74d;
+    color: #fff;
+    font-weight: 600;          /* stays bold */
+}
+
 
 /* ===== FLASHCARDS LAYOUT ===== */
 
