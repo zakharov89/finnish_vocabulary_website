@@ -2,36 +2,109 @@
 {% block content %}
 
 <script>
-    window.currentView = "table";
+    window.currentView = "table";  // track current view for AJAX
 </script>
 
 <div class="words-page-container">
 
+    <!-- Level dropdown (AJAX-enabled) -->
     {% include 'level_dropdown.html' %}
 
     <!-- View switcher -->
     <div style="margin: 10px 0; display: flex; gap: 15px; flex-wrap: wrap;">
-        <a href="{{ url_for('words_table') }}" 
-           class="apply-button {% if request.endpoint == 'words_table' %}active-view{% endif %}">
+        <a href="#" class="apply-button {% if request.endpoint == 'words_table' %}active-view{% endif %}" data-view="table">
             Table View
         </a>
-        
-        <a href="{{ url_for('words_cards') }}" 
-           class="apply-button {% if request.endpoint == 'words_cards' %}active-view{% endif %}">
+
+        <a href="#" class="apply-button {% if request.endpoint == 'words_cards' %}active-view{% endif %}" data-view="cards">
             Card View
         </a>
-        
-        <a href="{{ url_for('words_flashcards') }}" 
-           class="apply-button {% if request.endpoint == 'words_flashcards' %}active-view{% endif %}">
+
+        <a href="#" class="apply-button {% if request.endpoint == 'words_flashcards' %}active-view{% endif %}" data-view="flashcards">
             Flashcards
         </a>
     </div>
 
-    <!-- AJAX-reloaded content -->
+    <!-- AJAX-updated content -->
     <div id="words-container">
         {% include "partials/words_table.html" %}
     </div>
 
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Handle view switcher buttons via AJAX
+    document.querySelectorAll('.apply-button[data-view]').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.preventDefault();
+            const view = btn.dataset.view;
+            window.currentView = view;  // update current view
+
+            updateWords(); // reuse the existing function from level_dropdown.html
+
+            // Update active button styling
+            document.querySelectorAll('.apply-button').forEach(b => b.classList.remove('active-view'));
+            btn.classList.add('active-view');
+        });
+    });
+});
+
+// Existing updateWords function from level_dropdown.html
+// Sends selected levels + current view to /levels/update_view
+function updateWords() {
+    const selected = Array.from(document.querySelectorAll('.level-pill.selected[data-level-id]'))
+                          .map(p => p.dataset.levelId);
+
+    fetch("{{ url_for('update_view') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ levels: selected, view: window.currentView })
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('words-container').innerHTML = data.html;
+
+        // Re-run any necessary JS for the new content
+        if(window.currentView === "cards" || window.currentView === "flashcards") {
+            document.querySelectorAll('.flashcard').forEach(card => {
+                card.addEventListener('click', () => card.classList.toggle('flipped'));
+            });
+        }
+    })
+    .catch(err => console.error("Error updating words:", err));
+}
+</script>
+
+<style>
+.category-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.category-table th, .category-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+.category-table th {
+    background-color: #f1f8e9;
+    font-weight: 600;
+    color: #1a237e;
+}
+
+.category-table tr:nth-child(even) { background-color: #f9f9f9; }
+.category-table tr:hover { background-color: #e0f7fa; }
+
+.category-table a {
+    color: #1565c0;
+    text-decoration: none;
+}
+
+.category-table a:hover {
+    text-decoration: underline;
+}
+</style>
 
 {% endblock %}

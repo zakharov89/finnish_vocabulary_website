@@ -1,5 +1,12 @@
-<form id="levels-form" class="level-pill-form">
-    <div class="level-pill-container" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+<form id="levels-form" class="level-pill-form" style="margin-bottom: 12px;">
+    <div class="level-pill-container" style="display:flex; flex-wrap:wrap; gap:10px;">
+
+        <!-- Select/Deselect All -->
+        <label class="level-pill select-all-pill" onclick="toggleAllLevels(this)">
+            Select All
+        </label>
+
+        <!-- Individual level pills -->
         {% for level in levels %}
         <label class="level-pill {% if level.id == 0 %}no-level-pill{% endif %}"
                data-level-id="{{ level.id }}">
@@ -16,63 +23,80 @@
     margin: 5px 3px;
     padding: 6px 14px;
     border-radius: 25px;
-    background: linear-gradient(145deg, #e0f7fa, #b2ebf2);
+    background: linear-gradient(145deg, #e0f7fa, #b2ebf2); /* soft cyan */
     color: #006064;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
 }
+
 .level-pill.selected {
-    background: linear-gradient(145deg, #00acc1, #00838f);
+    background: linear-gradient(145deg, #00acc1, #00838f); /* strong cyan */
     color: #fff;
     font-weight: 600;
 }
-.no-level-pill {
-    background: linear-gradient(145deg, #b0bec5, #90a4ae);
-    color: #fff;
-}
+
+.no-level-pill { background: #90a4ae; color: #fff; }
+.select-all-pill { background: #ffb74d; color: #fff; font-weight: bold; }
 </style>
 
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    // Initialize selected pills from server
-    const selectedLevels = {{ selected_levels | tojson }};
-    document.querySelectorAll(".level-pill").forEach(pill => {
-        const id = parseInt(pill.dataset.levelId);
-        if(selectedLevels.includes(id)) pill.classList.add("selected");
-    });
-
-    // Click handler
-    document.querySelectorAll(".level-pill").forEach(pill => {
-        pill.addEventListener("click", function() {
-            pill.classList.toggle("selected");
-            sendLevelsAjax();
-        });
-    });
-});
-
-function sendLevelsAjax() {
-    const selected = Array.from(document.querySelectorAll(".level-pill.selected"))
-                          .map(p => p.dataset.levelId);
-
-    fetch("{{ url_for('update_view') }}", {
+// ----- Helper to update selected levels via AJAX -----
+function sendSelectedLevels(selectedLevels) {
+    fetch("/levels/update_view", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            levels: selected,
-            current_view: window.currentView || "table"
-        })
+        body: JSON.stringify({ levels: selectedLevels, view: window.currentView })
     })
-    .then(res => res.json())
+    .then(resp => resp.json())
     .then(data => {
-        // Update the word table/cards/flashcards
-        document.getElementById("words-container").innerHTML = data.html;
+        if(data.html){
+            document.getElementById('words-container').innerHTML = data.html;
 
-        // Reinitialize selected pills to match server state
-        document.querySelectorAll(".level-pill").forEach(pill => {
-            const id = parseInt(pill.dataset.levelId);
-            pill.classList.toggle("selected", data.selected_levels.includes(id));
-        });
-    });
+            // Rebind flashcard flip events if needed
+            if(window.currentView === "cards" || window.currentView === "flashcards"){
+                document.querySelectorAll('.flashcard').forEach(card => {
+                    card.addEventListener('click', () => card.classList.toggle('flipped'));
+                });
+            }
+
+            // Rebind level pill clicks
+            document.querySelectorAll('.level-pill[data-level-id]').forEach(pill => {
+                pill.onclick = () => {
+                    pill.classList.toggle('selected');
+                    sendSelectedLevels(getSelectedLevels());
+                };
+            });
+        }
+    })
+    .catch(err => console.error("Error updating levels:", err));
+}
+
+// ----- Get selected levels as array of IDs -----
+function getSelectedLevels() {
+    return Array.from(document.querySelectorAll('.level-pill.selected[data-level-id]'))
+                .map(p => p.dataset.levelId);
+}
+
+// ----- Toggle individual pill -----
+document.querySelectorAll('.level-pill[data-level-id]').forEach(pill => {
+    // Pre-select pills from server state
+    const selectedLevels = {{ selected_levels | tojson }};
+    if(selectedLevels.includes(parseInt(pill.dataset.levelId))) pill.classList.add('selected');
+
+    pill.onclick = () => {
+        pill.classList.toggle('selected');
+        sendSelectedLevels(getSelectedLevels());
+    };
+});
+
+// ----- Toggle All button -----
+function toggleAllLevels(btn) {
+    const allPills = document.querySelectorAll('.level-pill[data-level-id]');
+    const allSelected = Array.from(allPills).every(p => p.classList.contains('selected'));
+
+    allPills.forEach(p => p.classList.toggle('selected', !allSelected));
+
+    sendSelectedLevels(getSelectedLevels());
 }
 </script>

@@ -442,39 +442,27 @@ def handle_levels_ajax():
     return jsonify({"success": True, "selected_levels": session["selected_levels"]})
 
 
-@app.route("/levels/update_view", methods=["POST"])
+@app.route('/levels/update_view', methods=['POST'])
 def update_view():
-    # Update session from AJAX request
     data = request.get_json()
-    selected = data.get("levels", [])
-    try:
-        session["selected_levels"] = [int(x) for x in selected]
-    except ValueError:
-        session["selected_levels"] = []
+    selected_levels = [int(x) for x in data.get("levels", []) if x.isdigit()]
+    session["selected_levels"] = selected_levels
 
-    # Fetch words based on session-selected levels
-    words, levels, selected_levels = get_words_from_db()
+    view = data.get("view", "cards")
+    words, levels, _ = get_words_from_db()
 
-    # Determine which partial to render based on current view
-    current_view = data.get("current_view", "table")  # e.g., "table", "cards", "flashcards"
-    if current_view == "table":
-        html = render_template("partials/words_table.html", words=words)
-    elif current_view == "cards":
+    if view == "cards":
         html = render_template("partials/words_cards.html", words=words)
-    elif current_view == "flashcards":
-        html = render_template("partials/words_flashcards.html", words=words)
+    elif view == "table":
+        html = render_template("partials/words_table.html", words=words)
     else:
-        html = ""  # fallback
+        html = render_template("partials/words_flashcards.html", words=words)
 
-    return jsonify({"html": html})
+    return jsonify({"html": html, "current_view": view, "selected_levels": selected_levels})
 
 
 
-def get_words_filtered_by_levels(level_ids):
-    if not level_ids:
-        return []
 
-    return Word.query.filter(Word.level_id.in_(level_ids)).all()
 
 
 

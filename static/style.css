@@ -596,3 +596,51 @@ nav a.active {
     font-size: 0.85rem;
 }
 
+#words-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.word-card {
+    background-color: #f1f8e9;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.word-card:hover {
+    transform: translateY(-2px);
+}
+
+.word-title {
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: #1a237e;
+    text-decoration: none;
+}
+
+.word-title:hover {
+    text-decoration: underline;
+}
+
+.translations {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.translation-badge {
+    background-color: #64b5f6;
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+}
+
+.apply-button.active-view {
+    font-weight: bold;
+    text-decoration: underline;
+}

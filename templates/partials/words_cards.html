@@ -1,18 +1,14 @@
-<div class="words-table">
+{% if words %}
     {% for w in words %}
-    <div class="word-card">
-        <a class="word-title" href="{{ url_for('show_word', word_name=w.word) }}" target="_blank">
-            {{ w.word }}
-        </a>
-        <div class="translations">
-            {% for t in w.translations %}
-                <span class="translation-badge">{{ t }}</span>
-            {% endfor %}
+        <div class="word-card">
+            <a class="word-title" href="{{ url_for('show_word', word_name=w.word) }}" target="_blank">{{ w.word }}</a>
+            <div class="translations">
+                {% for t in w.translations %}
+                    <span class="translation-badge">{{ t }}</span>
+                {% endfor %}
+            </div>
         </div>
-    </div>
     {% endfor %}
-</div>
-
-{% if not words %}
-<p class="no-words">No words found for the selected level(s).</p>
+{% else %}
+    <p style="text-align:center; margin-top:20px;">No words found for the selected level(s).</p>
 {% endif %}
