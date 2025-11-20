@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="words-container">
+
+    {% include 'level_dropdown.html' %}
+
+    <!-- View switcher -->
+    <div style="margin: 10px 0; display: flex; gap: 15px; flex-wrap: wrap;">
+        <a href="{{ url_for('words_table') }}" 
+        class="apply-button {% if request.endpoint == 'words_table' %}active-view{% endif %}">
+        Table View
+        </a>
+        
+        <a href="{{ url_for('words_cards') }}" 
+        class="apply-button {% if request.endpoint == 'words_cards' %}active-view{% endif %}">
+        Card View
+        </a>
+        
+        <a href="{{ url_for('words_flashcards') }}" 
+        class="apply-button {% if request.endpoint == 'words_flashcards' %}active-view{% endif %}">
+        Flashcards
+        </a>
+    </div>
+
+
+ 
+    {% if words %}
+    <div class="flashcard-grid">
+        {% for w in words %}
+        <div class="flashcard-wrapper">  <!-- wrapper for spacing -->
+            <div class="flashcard">
+                <div class="front">{{ w.word }}</div>
+                <div class="back">
+                    <ul>
+                        {% for t in w.translations %}
+                        <li>{{ t }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p class="no-words">No words found for the selected level(s).</p>
+    {% endif %}
+
+</div>
+
+<style>
+.flashcard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 20px;  /* increase gap so cards don’t touch */
+    margin-top: 20px;
+}
+
+.flashcard-wrapper {
+    padding: 5px;  /* adds spacing inside grid cell */
+}
+
+.flashcard {
+    perspective: 1000px;
+    height: 110px;
+    position: relative;
+    cursor: pointer;
+}
+
+.flashcard > .front, .flashcard > .back {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border-radius: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backface-visibility: hidden;
+    transition: transform 0.5s;
+    padding: 10px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.flashcard > .front { background-color: #f1f8e9; font-weight: 600; color: #1a237e; }
+.flashcard > .back { background-color: #64b5f6; color: #fff; transform: rotateY(180deg); }
+
+.flashcard.flipped > .front { transform: rotateY(180deg); }
+.flashcard.flipped > .back { transform: rotateY(0deg); }
+
+.flashcard ul { list-style: none; padding: 0; margin: 0; text-align: center; }
+.flashcard li { font-size: 0.9rem; }
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    document.querySelectorAll('.flashcard').forEach(card => {
+        card.addEventListener('click', () => card.classList.toggle('flipped'));
+    });
+});
+</script>
+
+{% endblock %}

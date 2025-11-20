@@ -333,33 +333,53 @@ def show_word(word_name):
         word_level_name=word_level_name
     )
 
-@app.route('/words', methods=['GET', 'POST'])
-def words():
+
+def handle_level_post(default_redirect):
+    if request.method == "POST":
+        selected = request.form.getlist("levels")
+        selected_levels = [int(x) for x in selected] if selected else []
+        session["selected_levels"] = selected_levels
+        return redirect(default_redirect)
+    return None
+
+@app.route('/words/table', methods=['GET', 'POST'])
+def words_table():
+    redirect_response = handle_level_post(url_for('words_table'))
+    if redirect_response:
+        return redirect_response
+    words, levels, selected_levels = get_words_from_db()
+    return render_template("words_table.html", words=words, levels=levels, selected_levels=selected_levels)
+
+@app.route('/words/cards', methods=['GET', 'POST'])
+def words_cards():
+    redirect_response = handle_level_post(url_for('words_cards'))
+    if redirect_response:
+        return redirect_response
+    words, levels, selected_levels = get_words_from_db()
+    return render_template("words_cards.html", words=words, levels=levels, selected_levels=selected_levels)
+
+@app.route('/words/flashcards', methods=['GET', 'POST'])
+def words_flashcards():
+    redirect_response = handle_level_post(url_for('words_flashcards'))
+    if redirect_response:
+        return redirect_response
+    words, levels, selected_levels = get_words_from_db()
+    return render_template("words_flashcards.html", words=words, levels=levels, selected_levels=selected_levels)
+
+
+# Helper function to fetch words (reuse in all views)
+def get_words_from_db():
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Load all levels, including 0 = "No Level"
+    # Levels from session or all
+    selected_levels = session.get("selected_levels", [])
     cur.execute("SELECT id, name FROM levels ORDER BY id")
     levels = cur.fetchall()
-
-    # Handle form submission
-    if request.method == "POST":
-        selected = request.form.getlist("levels")  # strings
-        selected = [int(x) for x in selected]
-
-        session["selected_levels"] = selected
-        # flash("Level preferences updated!", "success")
-        return redirect(url_for("words"))  # reload page with new filter
-
-    # Read saved user preferences
-    selected_levels = session.get("selected_levels", [])
-
-    # If nothing selected → show everything by default (include 0)
     if not selected_levels:
-        selected_levels = [level["id"] for level in levels]  # includes 0
+        selected_levels = [level["id"] for level in levels]
 
-    # Query words filtered by selected levels
     placeholders = ",".join("?" for _ in selected_levels)
     cur.execute(f"""
         SELECT w.id, w.word
@@ -369,8 +389,6 @@ def words():
     """, selected_levels)
 
     words_raw = cur.fetchall()
-
-    # Fetch up to 4 translations per word so we can detect "more than 3"
     words = []
     for w in words_raw:
         cur.execute("""
@@ -381,29 +399,14 @@ def words():
             ORDER BY m.meaning_number, t.translation_number
             LIMIT 4
         """, (w["id"],))
-
         rows = [row["translation_text"] for row in cur.fetchall()]
-
         more = len(rows) == 4
-        # show at most 3
-        trans_to_show = rows[:3]
-
-        if more:
-            trans_to_show.append("…")
-
         words.append({
             "word": w["word"],
-            "translations": trans_to_show
+            "translations": rows[:3] # + (["…"] if more else [])
         })
-
     conn.close()
-
-    return render_template(
-        "words.html",
-        words=words,
-        levels=levels,
-        selected_levels=selected_levels
-    )
+    return words, levels, selected_levels
 
 
 @app.route('/categories')
