@@ -380,7 +380,7 @@ def get_words_from_db():
     except ValueError:
         selected_levels = []
     session["selected_levels"] = selected_levels  # store even if empty
-    
+
     cur.execute("SELECT id, name FROM levels ORDER BY id")
     levels = cur.fetchall()
    
@@ -416,6 +416,16 @@ def get_words_from_db():
     return words, levels, selected_levels
 
 
+@app.route('/levels/ajax', methods=['POST'])
+def handle_levels_ajax():
+    data = request.get_json()
+    selected = data.get("levels", [])
+    # Store selected levels in session as integers
+    try:
+        session["selected_levels"] = [int(x) for x in selected]
+    except ValueError:
+        session["selected_levels"] = []
+    return jsonify({"success": True, "selected_levels": session["selected_levels"]})
 
 
 

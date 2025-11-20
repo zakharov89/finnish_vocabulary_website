@@ -1,8 +1,8 @@
 <form id="levels-form" method="POST" class="level-pill-form">
     <div class="level-pill-container" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
 
-        <!-- Dynamic Select/Deselect All -->
-        <label id="select-all-pill" class="level-pill select-all-pill" onclick="toggleAllLevels(this)">
+        <!-- Dynamic Select/Deselect All button -->
+        <label class="level-pill select-all-pill" id="select-all-pill" onclick="toggleAllLevels()">
             Select All
         </label>
 
@@ -14,6 +14,7 @@
             {{ level.name }}
         </label>
         {% endfor %}
+
     </div>
 </form>
 
@@ -24,21 +25,21 @@
     margin: 5px 3px;
     padding: 6px 14px;
     border-radius: 25px;
-    background: linear-gradient(145deg, #e0f7fa, #b2ebf2); /* soft cyan */
+    background: linear-gradient(145deg, #e0f7fa, #b2ebf2); /* soft cyan gradient */
     color: #006064;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease, transform 0.15s;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
     box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
 
 .level-pill:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    /* No transform — NO MOVEMENT */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.18); /* just stronger shadow */
 }
 
 .level-pill.selected {
-    background: linear-gradient(145deg, #00acc1, #00838f); /* stronger cyan */
+    background: linear-gradient(145deg, #00acc1, #00838f); /* stronger cyan gradient */
     color: #fff;
     font-weight: 600;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
@@ -54,52 +55,54 @@
     color: #fff;
     font-weight: bold;
 }
+
 </style>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
+    // Initialize selected pills from server
     const selectedLevels = {{ selected_levels | tojson }};
-    const pills = document.querySelectorAll('.level-pill[data-level-id]');
-    const selectAllPill = document.getElementById('select-all-pill');
-
-    // Initialize selected pills
-    pills.forEach(pill => {
+    document.querySelectorAll('.level-pill[data-level-id]').forEach(pill => {
         const id = parseInt(pill.dataset.levelId);
         if(selectedLevels.includes(id)) pill.classList.add('selected');
     });
-
     updateSelectAllLabel();
+});
 
-    function updateSelectAllLabel() {
-        const allSelected = Array.from(pills).every(p => p.classList.contains('selected'));
-        selectAllPill.textContent = allSelected ? 'Deselect All' : 'Select All';
-    }
+function toggleLevel(pill) {
+    pill.classList.toggle('selected');
+    updateHiddenInputs();
+    updateSelectAllLabel();
+    document.getElementById('levels-form').submit();  // auto-submit on click
+}
 
-    window.toggleLevel = function(pill) {
-        pill.classList.toggle('selected');
-        updateSelectAllLabel();
-        updateHiddenInputs();
-        document.getElementById('levels-form').submit();
-    }
+function toggleAllLevels() {
+    const allPills = document.querySelectorAll('.level-pill[data-level-id]');
+    const allSelected = Array.from(allPills).every(p => p.classList.contains('selected'));
+    allPills.forEach(p => p.classList.toggle('selected', !allSelected));
+    updateHiddenInputs();
+    updateSelectAllLabel();
+    document.getElementById('levels-form').submit();
+}
 
-    window.toggleAllLevels = function() {
-        const allSelected = Array.from(pills).every(p => p.classList.contains('selected'));
-        pills.forEach(p => p.classList.toggle('selected', !allSelected));
-        updateSelectAllLabel();
-        updateHiddenInputs();
-        document.getElementById('levels-form').submit();
-    }
+function updateSelectAllLabel() {
+    const allPills = document.querySelectorAll('.level-pill[data-level-id]');
+    const allSelected = Array.from(allPills).every(p => p.classList.contains('selected'));
+    const label = document.getElementById('select-all-pill');
+    label.textContent = allSelected ? "Deselect All" : "Select All";
+}
 
-    function updateHiddenInputs() {
-        const form = document.getElementById('levels-form');
-        form.querySelectorAll('input[name="levels"]').forEach(el => el.remove());
-        document.querySelectorAll('.level-pill.selected[data-level-id]').forEach(p => {
+function updateHiddenInputs() {
+    const form = document.getElementById('levels-form');
+    form.querySelectorAll('input[name="levels"]').forEach(el => el.remove());
+    document.querySelectorAll('.level-pill.selected[data-level-id]').forEach(p => {
+        if (p.dataset.levelId !== undefined) {
             const input = document.createElement('input');
             input.type = 'hidden';
             input.name = 'levels';
             input.value = p.dataset.levelId;
             form.appendChild(input);
-        });
-    }
-});
+        }
+    });
+}
 </script>
