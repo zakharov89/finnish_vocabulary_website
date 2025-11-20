@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="words-container">
+<script>
+    window.currentView = "cards";
+</script>
+
+<div class="words-page-container">
 
     {% include 'level_dropdown.html' %}
 
@@ -23,30 +27,13 @@
         </a>
     </div>
 
-
- 
-    {% if words %}
-    <div class="words-table">
-        {% for w in words %}
-        <div class="word-card">
-            <a class="word-title" href="{{ url_for('show_word', word_name=w.word) }}" target="_blank">{{ w.word }}</a>
-            <div class="translations">
-                {% for t in w.translations %}
-                    <span class="translation-badge">{{ t }}</span>
-                {% endfor %}
-            </div>
-        </div>
-        {% endfor %}
+    <div id="words-container">
+        {% include "partials/words_cards.html" %}
     </div>
-    {% else %}
-        <p class="no-words">No words found for the selected level(s).</p>
-    {% endif %}
 
 </div>
 
 <style>
-/* Keep your existing cards, buttons, dropdowns, etc. */
-/* Example card styling */
 .words-table { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; margin-top: 20px; }
 .word-card { background-color: #f1f8e9; padding: 15px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); transition: 0.2s; }
 .word-title { font-weight: 600; font-size: 1.05rem; margin-bottom: 8px; color: #1a237e; text-decoration: none; }

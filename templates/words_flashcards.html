@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 
+<script>
+    window.currentView = "flashcards";
+</script>
+
 <div class="words-container">
 
     {% include 'level_dropdown.html' %}
@@ -8,96 +12,134 @@
     <!-- View switcher -->
     <div style="margin: 10px 0; display: flex; gap: 15px; flex-wrap: wrap;">
         <a href="{{ url_for('words_table') }}" 
-        class="apply-button {% if request.endpoint == 'words_table' %}active-view{% endif %}">
-        Table View
+           class="apply-button {% if request.endpoint == 'words_table' %}active-view{% endif %}">
+            Table View
         </a>
         
         <a href="{{ url_for('words_cards') }}" 
-        class="apply-button {% if request.endpoint == 'words_cards' %}active-view{% endif %}">
-        Card View
+           class="apply-button {% if request.endpoint == 'words_cards' %}active-view{% endif %}">
+            Card View
         </a>
         
         <a href="{{ url_for('words_flashcards') }}" 
-        class="apply-button {% if request.endpoint == 'words_flashcards' %}active-view{% endif %}">
-        Flashcards
+           class="apply-button {% if request.endpoint == 'words_flashcards' %}active-view{% endif %}">
+            Flashcards
         </a>
     </div>
 
-
- 
-    {% if words %}
-    <div class="flashcard-grid">
-        {% for w in words %}
-        <div class="flashcard-wrapper">  <!-- wrapper for spacing -->
-            <div class="flashcard">
-                <div class="front">{{ w.word }}</div>
-                <div class="back">
-                    <ul>
-                        {% for t in w.translations %}
-                        <li>{{ t }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
+    <!-- Flashcards grid will be replaced via AJAX -->
+    <div id="words-container">
+        {% include "partials/words_flashcards.html" %}
     </div>
-    {% else %}
-        <p class="no-words">No words found for the selected level(s).</p>
-    {% endif %}
 
 </div>
 
 <style>
+/* Flashcards grid */
 .flashcard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 20px;  /* increase gap so cards don’t touch */
+    gap: 20px;
     margin-top: 20px;
 }
-
-.flashcard-wrapper {
-    padding: 5px;  /* adds spacing inside grid cell */
-}
-
+.flashcard-wrapper { padding: 5px; }
 .flashcard {
     perspective: 1000px;
     height: 110px;
     position: relative;
     cursor: pointer;
 }
-
 .flashcard > .front, .flashcard > .back {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     border-radius: 12px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    backface-visibility: hidden;
-    transition: transform 0.5s;
-    padding: 10px;
-    text-align: center;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    display: flex; justify-content: center; align-items: center;
+    backface-visibility: hidden; transition: transform 0.5s;
+    padding: 10px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
-
 .flashcard > .front { background-color: #f1f8e9; font-weight: 600; color: #1a237e; }
 .flashcard > .back { background-color: #64b5f6; color: #fff; transform: rotateY(180deg); }
-
 .flashcard.flipped > .front { transform: rotateY(180deg); }
 .flashcard.flipped > .back { transform: rotateY(0deg); }
-
 .flashcard ul { list-style: none; padding: 0; margin: 0; text-align: center; }
 .flashcard li { font-size: 0.9rem; }
+
+/* Level pills */
+.level-pill {
+    display: inline-flex; align-items: center;
+    margin: 5px 3px; padding: 6px 14px;
+    border-radius: 25px;
+    background: linear-gradient(145deg, #e0f7fa, #b2ebf2);
+    color: #006064; font-weight: 500; cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+.level-pill.selected {
+    background: linear-gradient(145deg, #00acc1, #00838f);
+    color: #fff; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+.no-level-pill {
+    background: linear-gradient(145deg, #b0bec5, #90a4ae);
+    color: #fff;
+}
+.select-all-pill {
+    background: linear-gradient(145deg, #ffb74d, #ff8a65);
+    color: #fff; font-weight: bold;
+}
 </style>
 
 <script>
+// Initialize selected pills
 document.addEventListener("DOMContentLoaded", function() {
+    const selectedLevels = {{ selected_levels | tojson }};
+    document.querySelectorAll('.level-pill[data-level-id]').forEach(pill => {
+        const id = parseInt(pill.dataset.levelId);
+        if(selectedLevels.includes(id)) pill.classList.add('selected');
+    });
+
+    // Setup initial flashcard click handlers
+    setupFlashcards();
+});
+
+// Toggle individual level
+function toggleLevel(pill) {
+    pill.classList.toggle('selected');
+    sendSelectedLevels();
+}
+
+// Toggle select/deselect all
+function toggleAllLevels(pill) {
+    const allPills = document.querySelectorAll('.level-pill[data-level-id]');
+    const allSelected = Array.from(allPills).every(p => p.classList.contains('selected'));
+    allPills.forEach(p => p.classList.toggle('selected', !allSelected));
+    sendSelectedLevels();
+}
+
+// AJAX call to update flashcards
+function sendSelectedLevels() {
+    const selected = Array.from(document.querySelectorAll('.level-pill.selected[data-level-id]'))
+                          .map(p => p.dataset.levelId);
+
+    fetch("{{ url_for('words_flashcards_ajax') }}", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({levels: selected})
+    })
+    .then(res => res.json())
+    .then(data => {
+        // Replace the flashcards grid
+        document.getElementById('words-container').innerHTML = data.html;
+
+        // Re-attach click handlers for new flashcards
+        setupFlashcards();
+    });
+}
+
+// Setup flashcard flipping
+function setupFlashcards() {
     document.querySelectorAll('.flashcard').forEach(card => {
         card.addEventListener('click', () => card.classList.toggle('flipped'));
     });
-});
+}
 </script>
 
 {% endblock %}

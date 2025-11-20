@@ -1,52 +1,36 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="words-container">
+<script>
+    window.currentView = "table";
+</script>
+
+<div class="words-page-container">
 
     {% include 'level_dropdown.html' %}
 
     <!-- View switcher -->
     <div style="margin: 10px 0; display: flex; gap: 15px; flex-wrap: wrap;">
         <a href="{{ url_for('words_table') }}" 
-        class="apply-button {% if request.endpoint == 'words_table' %}active-view{% endif %}">
-        Table View
+           class="apply-button {% if request.endpoint == 'words_table' %}active-view{% endif %}">
+            Table View
         </a>
         
         <a href="{{ url_for('words_cards') }}" 
-        class="apply-button {% if request.endpoint == 'words_cards' %}active-view{% endif %}">
-        Card View
+           class="apply-button {% if request.endpoint == 'words_cards' %}active-view{% endif %}">
+            Card View
         </a>
         
         <a href="{{ url_for('words_flashcards') }}" 
-        class="apply-button {% if request.endpoint == 'words_flashcards' %}active-view{% endif %}">
-        Flashcards
+           class="apply-button {% if request.endpoint == 'words_flashcards' %}active-view{% endif %}">
+            Flashcards
         </a>
     </div>
 
-
-
-    
-
-    {% if words %}
-    <table class="category-table" style="margin: 20px auto 0 auto;">
-        <thead>
-            <tr>
-                <th>Finnish</th>
-                <th>Translations</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for w in words %}
-            <tr>
-                <td><a href="{{ url_for('show_word', word_name=w.word) }}" target="_blank">{{ w.word }}</a></td>
-                <td>{{ ", ".join(w.translations) }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p style="text-align:center; margin-top:20px;">No words found for the selected level(s).</p>
-    {% endif %}
+    <!-- AJAX-reloaded content -->
+    <div id="words-container">
+        {% include "partials/words_table.html" %}
+    </div>
 
 </div>
 

@@ -366,6 +366,20 @@ def words_flashcards():
     words, levels, selected_levels = get_words_from_db()
     return render_template("words_flashcards.html", words=words, levels=levels, selected_levels=selected_levels)
 
+@app.route('/words/flashcards/ajax', methods=['POST'])
+def words_flashcards_ajax():
+    selected_levels = request.json.get("levels", [])
+    # Ensure integers
+    selected_levels = [int(x) for x in selected_levels] if selected_levels else []
+
+    # Fetch words for these levels
+    words, levels, _ = get_words_from_db(selected_levels=selected_levels)
+
+    # Render only the flashcards grid partial
+    html = render_template("partials/words_flashcards.html", words=words)
+    return jsonify({"html": html, "selected_levels": selected_levels})
+
+
 
 # Helper function to fetch words (reuse in all views)
 def get_words_from_db():
@@ -426,6 +440,41 @@ def handle_levels_ajax():
     except ValueError:
         session["selected_levels"] = []
     return jsonify({"success": True, "selected_levels": session["selected_levels"]})
+
+
+@app.route("/levels/update_view", methods=["POST"])
+def update_view():
+    # Update session from AJAX request
+    data = request.get_json()
+    selected = data.get("levels", [])
+    try:
+        session["selected_levels"] = [int(x) for x in selected]
+    except ValueError:
+        session["selected_levels"] = []
+
+    # Fetch words based on session-selected levels
+    words, levels, selected_levels = get_words_from_db()
+
+    # Determine which partial to render based on current view
+    current_view = data.get("current_view", "table")  # e.g., "table", "cards", "flashcards"
+    if current_view == "table":
+        html = render_template("partials/words_table.html", words=words)
+    elif current_view == "cards":
+        html = render_template("partials/words_cards.html", words=words)
+    elif current_view == "flashcards":
+        html = render_template("partials/words_flashcards.html", words=words)
+    else:
+        html = ""  # fallback
+
+    return jsonify({"html": html})
+
+
+
+def get_words_filtered_by_levels(level_ids):
+    if not level_ids:
+        return []
+
+    return Word.query.filter(Word.level_id.in_(level_ids)).all()
 
 
 
