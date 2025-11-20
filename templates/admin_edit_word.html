@@ -28,7 +28,6 @@
     <p>
         <label>Level:</label><br>
         <select name="level" class="admin-select">
-            <option value="0">No level</option>
             {% for level in levels %}
                 <option value="{{ level.id }}" {% if word['level'] == level.id %}selected{% endif %}>
                     {{ level.name }}

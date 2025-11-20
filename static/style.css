@@ -520,3 +520,21 @@ nav a.active {
 .no-level-pill {
     opacity: 0.85;
 }
+
+.apply-button {
+    padding: 5px 12px;            /* smaller padding */
+    border-radius: 20px;           /* slightly smaller pill */
+    border: none;
+    background: linear-gradient(90deg, #64b5f6, #42a5f5);
+    color: white;
+    font-weight: 500;              /* lighter weight */
+    font-size: 0.85rem;            /* smaller font */
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    transition: all 0.2s ease;
+}
+.apply-button:hover {
+    background: linear-gradient(90deg, #42a5f5, #1e88e5);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+}

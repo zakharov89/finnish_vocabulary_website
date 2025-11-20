@@ -355,9 +355,9 @@ def words():
     # Read saved user preferences
     selected_levels = session.get("selected_levels", [])
 
-    # If nothing selected → show everything by default
+    # If nothing selected → show everything by default (include 0)
     if not selected_levels:
-        selected_levels = [level["id"] for level in levels]
+        selected_levels = [level["id"] for level in levels]  # includes 0
 
     # Query words filtered by selected levels
     placeholders = ",".join("?" for _ in selected_levels)
