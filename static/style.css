@@ -250,19 +250,23 @@ form label {
    Tables
 ========================== */
 .category-table {
-    width: 100%;
-    border-collapse: collapse; /* simple borders, aligned headers */
-    margin-top: 1em;
+    width: auto;                         /* shrink to content instead of 100% */
+    max-width: 100%;                     /* do not overflow screen */
+    margin: 1em auto;                    /* center the table */
+    border-collapse: collapse;
     background: #fff;
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    table-layout: auto;                  /* natural column width */
 }
 
-.category-table th, .category-table td {
-    padding: 12px 15px;
+.category-table th,
+.category-table td {
+    padding: 10px 14px;
     text-align: left;
     border-bottom: 1px solid #ddd;
+    white-space: nowrap;                 /* prevent super wide rows */
 }
 
 .category-table th {
@@ -271,13 +275,15 @@ form label {
     font-weight: 600;
 }
 
+/* Finnish word column stays compact */
 .category-table td:first-child {
-    white-space: nowrap; /* Finnish column doesn’t wrap */
-    width: 30%;
+    white-space: nowrap;
 }
 
-.category-table td:last-child {
-    width: 70%;
+/* Translation column can wrap */
+.category-table td.translations-cell {
+    white-space: normal;
+    max-width: 300px;                   /* limit column size for readability */
 }
 
 .category-table tr:hover {
@@ -474,18 +480,43 @@ nav a.active {
 .level-4 { background-color: #e93d82; } 
 .level-5 { background-color: #F44336; }   
 
-.level-selector {
+
+
+/* Horizontal level selector */
+.horizontal-levels {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: 8px;
-    margin-top: 15px;
+    margin-bottom: 15px;
+    align-items: center;
 }
 
-.level-option {
-    background: #f4f4f4;
-    padding: 8px 10px;
-    border-radius: 6px;
-    display: inline-flex;
+/* Individual level pill */
+.level-pill {
+    display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    background: #f3f3f3;
+    border: 1px solid #d0d0d0;
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+}
+
+.level-pill:hover {
+    background: #e7e7e7;
+}
+
+/* Checkbox inside pill */
+.level-pill input[type="checkbox"] {
+    transform: scale(1.1);
+    cursor: pointer;
+}
+
+/* Optional: No Level pill slightly dimmer */
+.no-level-pill {
+    opacity: 0.85;
 }

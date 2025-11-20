@@ -30,9 +30,13 @@
             <input type="radio" name="mode" value="category" {% if mode == 'category' %}checked{% endif %}> Category
         </label>
     </div>
+
+  
+
     <div style="height:5px"></div>
     <button type="submit">Search</button>
 </form>
+
 
 {% if query %}
     <h3>Search Results for "{{ query }}" ({{ mode|capitalize }})</h3>
@@ -51,6 +55,7 @@
         <p>No results found matching your search.</p>
     {% endif %}
 {% endif %}
+
 
 
 <script>

@@ -13,7 +13,7 @@
     <a class="logo">Finnish Vocabulary</a>
     <nav>
         <a href="{{ url_for('home') }}" class="{% if request.endpoint == 'home' %}active{% endif %}">Home</a>
-        <a href="{{ url_for('levels') }}" class="{% if request.endpoint == 'levels' %}active{% endif %}">Levels</a>
+        <a href="{{ url_for('words') }}" class="{% if request.endpoint == 'words_by_level' %}active{% endif %}">Words</a>
         <a href="{{ url_for('categories') }}" class="{% if request.endpoint == 'categories' %}active{% endif %}">Categories</a>
         <a href="{{ url_for('search') }}" class="{% if request.endpoint == 'search' %}active{% endif %}">Search</a>
         <a href="{{ url_for('about') }}" class="{% if request.endpoint == 'about' %}active{% endif %}">About</a>

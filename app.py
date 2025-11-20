@@ -46,6 +46,13 @@ def about():
 def search():
     query = request.args.get('query', '').strip()
     mode = request.args.get('mode', 'finnish')
+
+    # Apply level filter? (checkbox)
+    apply_levels = request.args.get("apply_levels") == "1"
+
+    # From session
+    selected_levels = session.get("selected_levels", [])
+
     results = []
 
     if query:
@@ -53,30 +60,57 @@ def search():
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
+        # ---------- FINNISH MODE ----------
         if mode == 'finnish':
-            cur.execute("""
+            sql = """
                 SELECT word FROM words
                 WHERE word LIKE ?
-                ORDER BY word
-                LIMIT 20
-            """, (f"{query}%",))
+            """
+            params = [f"{query}%"]
+
+            # add level filtering if requested
+            if apply_levels and selected_levels:
+                placeholders = ",".join("?" for _ in selected_levels)
+                sql += f" AND level IN ({placeholders})"
+                params.extend(selected_levels)
+
+            sql += " ORDER BY word LIMIT 20"
+
+            cur.execute(sql, params)
             results = [row['word'] for row in cur.fetchall()]
 
+        # ---------- TRANSLATION MODE ----------
         elif mode == 'translation':
-            cur.execute("""
+            sql = """
                 SELECT DISTINCT w.word
                 FROM words w
                 JOIN meanings m ON m.word_id = w.id
                 JOIN translations t ON t.meaning_id = m.id
                 WHERE t.translation_text LIKE ?
-                ORDER BY w.word
-                LIMIT 20
-            """, (f"{query}%",))
+            """
+            params = [f"{query}%"]
+
+            # add level filtering if requested
+            if apply_levels and selected_levels:
+                placeholders = ",".join("?" for _ in selected_levels)
+                sql += f" AND w.level IN ({placeholders})"
+                params.extend(selected_levels)
+
+            sql += " ORDER BY w.word LIMIT 20"
+
+            cur.execute(sql, params)
             results = [row['word'] for row in cur.fetchall()]
 
         conn.close()
 
-    return render_template('search.html', query=query, results=results, mode=mode)
+    return render_template(
+        'search.html',
+        query=query,
+        results=results,
+        mode=mode,
+        selected_levels=selected_levels,
+        apply_levels=apply_levels
+    )
 
 
 @app.route('/autocomplete', methods=['GET'])
@@ -297,6 +331,78 @@ def show_word(word_name):
         meaning_relations=meaning_relations,
         word_level_id=word_level_id,
         word_level_name=word_level_name
+    )
+
+@app.route('/words', methods=['GET', 'POST'])
+def words():
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Load all levels, including 0 = "No Level"
+    cur.execute("SELECT id, name FROM levels ORDER BY id")
+    levels = cur.fetchall()
+
+    # Handle form submission
+    if request.method == "POST":
+        selected = request.form.getlist("levels")  # strings
+        selected = [int(x) for x in selected]
+
+        session["selected_levels"] = selected
+        # flash("Level preferences updated!", "success")
+        return redirect(url_for("words"))  # reload page with new filter
+
+    # Read saved user preferences
+    selected_levels = session.get("selected_levels", [])
+
+    # If nothing selected → show everything by default
+    if not selected_levels:
+        selected_levels = [level["id"] for level in levels]
+
+    # Query words filtered by selected levels
+    placeholders = ",".join("?" for _ in selected_levels)
+    cur.execute(f"""
+        SELECT w.id, w.word
+        FROM words w
+        WHERE w.level IN ({placeholders})
+        ORDER BY LOWER(w.word)
+    """, selected_levels)
+
+    words_raw = cur.fetchall()
+
+    # Fetch up to 4 translations per word so we can detect "more than 3"
+    words = []
+    for w in words_raw:
+        cur.execute("""
+            SELECT DISTINCT t.translation_text
+            FROM translations t
+            JOIN meanings m ON m.id = t.meaning_id
+            WHERE m.word_id = ?
+            ORDER BY m.meaning_number, t.translation_number
+            LIMIT 4
+        """, (w["id"],))
+
+        rows = [row["translation_text"] for row in cur.fetchall()]
+
+        more = len(rows) == 4
+        # show at most 3
+        trans_to_show = rows[:3]
+
+        if more:
+            trans_to_show.append("…")
+
+        words.append({
+            "word": w["word"],
+            "translations": trans_to_show
+        })
+
+    conn.close()
+
+    return render_template(
+        "words.html",
+        words=words,
+        levels=levels,
+        selected_levels=selected_levels
     )
 
 
