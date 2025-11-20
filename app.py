@@ -375,10 +375,17 @@ def get_words_from_db():
 
     # Levels from session or all
     selected_levels = session.get("selected_levels", [])
+    try:
+        selected_levels = [int(x) for x in selected_levels]
+    except ValueError:
+        selected_levels = []
+    session["selected_levels"] = selected_levels  # store even if empty
+    
     cur.execute("SELECT id, name FROM levels ORDER BY id")
     levels = cur.fetchall()
-    if not selected_levels:
-        selected_levels = [level["id"] for level in levels]
+   
+   
+
 
     placeholders = ",".join("?" for _ in selected_levels)
     cur.execute(f"""
@@ -407,6 +414,9 @@ def get_words_from_db():
         })
     conn.close()
     return words, levels, selected_levels
+
+
+
 
 
 @app.route('/categories')
