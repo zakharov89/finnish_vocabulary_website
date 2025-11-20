@@ -10,7 +10,26 @@
         {% for w in words %}
         <tr>
             <td><a href="{{ url_for('show_word', word_name=w.word) }}" target="_blank">{{ w.word }}</a></td>
-            <td>{{ ", ".join(w.translations) }}</td>
+            <td>
+                {% if w.translations %}
+                    {{ w.translations[0] }}
+
+                    {# N = total - 1, because we show only the first one here #}
+                    {% set extra = w.total_translations - 1 %}
+
+                    {% if extra > 0 %}
+                        <a href="{{ url_for('show_word', word_name=w.word) }}"
+                        class="more-translations"
+                        target="_blank">
+                            (+{{ extra }} more)
+                        </a>
+                    {% endif %}
+                {% else %}
+                    –
+                {% endif %}
+            </td>
+
+
         </tr>
         {% endfor %}
     </tbody>

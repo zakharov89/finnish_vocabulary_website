@@ -2,7 +2,14 @@
 <div class="cards-grid">
     {% for w in words %}
       <div class="word-card">
-          <div class="word-title">{{ w.word }}</div>
+          <div class="word-title">
+              <a href="{{ url_for('show_word', word_name=w.word) }}"
+                 target="_blank"
+                 class="card-word-link">
+                  {{ w.word }}
+              </a>
+          </div>
+
           <div class="translations">
               {% for t in w.translations %}
                   <span class="translation-badge">{{ t }}</span>

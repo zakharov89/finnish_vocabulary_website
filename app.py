@@ -387,21 +387,17 @@ def get_words_from_db():
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Levels from session or all
     selected_levels = session.get("selected_levels", [])
     try:
         selected_levels = [int(x) for x in selected_levels]
     except ValueError:
         selected_levels = []
-    session["selected_levels"] = selected_levels  # store even if empty
+    session["selected_levels"] = selected_levels
 
     cur.execute("SELECT id, name FROM levels ORDER BY id")
     levels = cur.fetchall()
-   
-   
 
-
-    placeholders = ",".join("?" for _ in selected_levels)
+    placeholders = ",".join("?" for _ in selected_levels) or "NULL"  # handle empty
     cur.execute(f"""
         SELECT w.id, w.word
         FROM words w
@@ -411,23 +407,56 @@ def get_words_from_db():
 
     words_raw = cur.fetchall()
     words = []
+
     for w in words_raw:
+        # 1) Fetch ALL translations for proper +N count
         cur.execute("""
             SELECT DISTINCT t.translation_text
             FROM translations t
             JOIN meanings m ON m.id = t.meaning_id
             WHERE m.word_id = ?
             ORDER BY m.meaning_number, t.translation_number
-            LIMIT 4
         """, (w["id"],))
-        rows = [row["translation_text"] for row in cur.fetchall()]
-        more = len(rows) == 4
+
+        all_translations = [row["translation_text"] for row in cur.fetchall()]
+        total_count = len(all_translations)
+
+        # 2) Choose how many to display based on length
+        max_display = 3          # never show more than 3 in cards
+        max_total_len = 40       # total character limit for card view (tune this!)
+
+        display_translations = []
+        current_len = 0
+
+        for t in all_translations:
+            if not display_translations:
+                # always include the first one
+                display_translations.append(t)
+                current_len += len(t)
+            else:
+                if len(display_translations) >= max_display:
+                    break
+
+                # +2 for comma/space or visual separation
+                projected_len = current_len + 2 + len(t)
+
+                # if adding this makes it too long, stop
+                if projected_len > max_total_len:
+                    break
+
+                display_translations.append(t)
+                current_len = projected_len
+
         words.append({
+            "id": w["id"],
             "word": w["word"],
-            "translations": rows[:3] # + (["…"] if more else [])
+            "translations": display_translations,   # used in cards, table, etc.
+            "total_translations": total_count       # used for +N more
         })
+
     conn.close()
     return words, levels, selected_levels
+
 
 
 @app.route('/levels/ajax', methods=['POST'])

@@ -584,21 +584,17 @@ footer {
     font-size: 0.85rem;
 }
 
-/* ==========================
-   Flashcards
-========================== */
-/* Container for all cards */
+/* ===== FLASHCARDS LAYOUT ===== */
+
+/* Grid of flashcards */
 .flashcard-grid {
-    display: grid;                          /* make it a grid */
-    grid-template-columns: repeat(
-        auto-fill,
-        minmax(160px, 1fr)
-    );                                      /* responsive columns */
-    gap: 20px;                              /* space between cards */
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 20px;
     margin-top: 20px;
 }
 
-/* Each card */
+/* Single flashcard */
 .flashcard {
     position: relative;
     height: 140px;
@@ -606,11 +602,11 @@ footer {
     perspective: 1000px;
 }
 
-/* Both sides of the card */
+/* Both sides (shared base styles) */
 .flashcard > .front,
 .flashcard > .back {
     position: absolute;
-    inset: 0;               /* shorthand for top:0; right:0; bottom:0; left:0 */
+    inset: 0;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -625,25 +621,76 @@ footer {
     transition: transform 0.6s;
 }
 
+/* FRONT SIDE */
 .flashcard > .front {
     background-color: #f1f8e9;
     transform: rotateY(0deg);
+
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #1a237e;
 }
 
+/* BACK SIDE */
 .flashcard > .back {
     background-color: #64b5f6;
-    color: #fff;
     transform: rotateY(180deg);
+
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #ffffff;
 }
 
-/* Flipped state */
+/* Flip state */
 .flashcard.flipped > .front {
     transform: rotateY(180deg);
 }
 
 .flashcard.flipped > .back {
-    transform: rotateY(360deg); /* or 0deg; since it starts at 180deg */
+    transform: rotateY(360deg);
 }
+
+/* BACK TRANSLATION — plain text, no pill */
+.flashcard > .back .translation-badge {
+    background: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+
+    display: block;
+    width: 100%;
+    max-width: 90%;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #fff;
+    text-align: center;
+}
+
+.flashcard > .front,
+.flashcard > .back {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+.flashcard .front,
+.flashcard .back .translation-badge {
+    font-size: clamp(1rem, 4vw, 1.5rem);
+}
+
+.flashcard > .front,
+.flashcard > .back {
+    max-width: 90%;
+    margin: 0 auto;
+}
+
 
 /* ==========================
    Words Cards / Grid Layout
@@ -687,6 +734,77 @@ footer {
 
 .word-title:hover {
     text-decoration: underline;
+}
+
+
+/* Cards grid layout (already similar to this) */
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+/* Card container */
+.word-card {
+    background-color: #f1f8e9;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+    box-sizing: border-box;
+    min-height: 90px; /* optional, keeps cards from shrinking too much */
+}
+
+.word-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Word at the top of the card */
+.word-title {
+    margin-bottom: 8px;
+}
+
+/* Make the word wrap nicely and scale on smaller screens */
+.word-title a,
+.card-word-link {          /* depending on which class you used */
+    display: block;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+
+    font-size: clamp(1rem, 2.4vw, 1.3rem);
+    font-weight: 600;
+    color: #1a237e;
+    text-decoration: none;
+}
+
+.word-title a:hover,
+.card-word-link:hover {
+    text-decoration: underline;
+}
+
+/* Container for translations */
+.translations {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+/* Translation badges inside cards */
+.translation-badge {
+    display: inline-block;
+    max-width: 100%;
+    white-space: normal;          /* allow wrapping */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+
+    font-size: clamp(0.85rem, 1.8vw, 1rem);  /* scales a bit */
+    background-color: #64b5f6;
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 12px;
+    box-sizing: border-box;
 }
 
 
@@ -770,4 +888,14 @@ footer {
     flex: 1 1 220px !important;   /* wants to be ~220px */
     max-width: 260px;             /* optional: cap width */
     box-sizing: border-box;
+}
+
+.card-word-link {
+    color: #1a237e;        /* same as word-title color */
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.card-word-link:hover {
+    text-decoration: underline;
 }
