@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script>
+    window.currentView = "flashcards";
+</script>
+
+<div class="words-page-container">
+
+    <!-- Level dropdown -->
+    {% include 'level_dropdown.html' %}
+
+    <!-- View switcher -->
+    <div class="view-switcher" style="margin: 10px 0; display: flex; gap: 15px; flex-wrap: wrap;">
+        <a href="#" class="apply-button {% if request.endpoint == 'words_table' %}active-view{% endif %}" data-view="table">
+            Table View
+        </a>
+        <a href="#" class="apply-button {% if request.endpoint == 'words_cards' %}active-view{% endif %}" data-view="cards">
+            Card View
+        </a>
+        <a href="#" class="apply-button {% if request.endpoint == 'words_flashcards' %}active-view{% endif %}" data-view="flashcards">
+            Flashcards
+        </a>
+    </div>
+
+    <!-- AJAX-updated flashcards -->
+    <div id="words-container">
+        <div class="flashcard-grid">
+        {% for w in words %}
+            <div class="flashcard">
+                <div class="front">{{ w.word }}</div>
+                <div class="back">
+                    {% for t in w.translations %}
+                        <div>{{ t }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+
+        {% if not words %}
+            <p class="no-words">No words found for the selected level(s).</p>
+        {% endif %}
+    </div>
+
+</div>
+
+<script>
+function setupFlashcards() {
+    document.querySelectorAll('.flashcard').forEach(card => {
+        card.addEventListener('click', () => card.classList.toggle('flipped'));
+    });
+}
+
+function updateWords() {
+    const selectedLevels = Array.from(document.querySelectorAll('.level-pill.selected[data-level-id]'))
+                                .map(p => p.dataset.levelId);
+
+    fetch("/levels/update_view", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ levels: selectedLevels, view: window.currentView })
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        document.getElementById('words-container').innerHTML = data.html;
+        setupFlashcards(); // re-add click handlers after AJAX update
+
+        // Re-add level pill clicks
+        document.querySelectorAll('.level-pill[data-level-id]').forEach(pill => {
+            pill.onclick = () => {
+                pill.classList.toggle('selected');
+                updateWords();
+            };
+        });
+    })
+    .catch(err => console.error("Error updating words:", err));
+}
+
+// View switcher buttons
+document.querySelectorAll('.apply-button[data-view]').forEach(btn => {
+    btn.addEventListener('click', e => {
+        e.preventDefault();
+        window.currentView = btn.dataset.view;
+
+        document.querySelectorAll('.apply-button').forEach(b => b.classList.remove('active-view'));
+        btn.classList.add('active-view');
+
+        updateWords();
+    });
+});
+
+setupFlashcards();
+</script>
+
+
+{% endblock %}

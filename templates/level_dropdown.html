@@ -1,10 +1,7 @@
 <form id="levels-form" class="level-pill-form" style="margin-bottom: 12px;">
     <div class="level-pill-container" style="display:flex; flex-wrap:wrap; gap:10px;">
 
-        <!-- Select/Deselect All -->
-        <label class="level-pill select-all-pill" onclick="toggleAllLevels(this)">
-            Select All
-        </label>
+       
 
         <!-- Individual level pills -->
         {% for level in levels %}
@@ -13,6 +10,11 @@
             {{ level.name }}
         </label>
         {% endfor %}
+
+         <!-- Select/Deselect All -->
+        <label class="level-pill select-all-pill" onclick="toggleAllLevels(this)">
+            Select All
+        </label>
     </div>
 </form>
 
