@@ -42,16 +42,12 @@ def logout():
 def about():
     return render_template('about.html', title="About")
 
+
+
 @app.route('/search', methods=['GET'])
 def search():
     query = request.args.get('query', '').strip()
     mode = request.args.get('mode', 'finnish')
-
-    # Apply level filter? (checkbox)
-    apply_levels = request.args.get("apply_levels") == "1"
-
-    # From session
-    selected_levels = session.get("selected_levels", [])
 
     results = []
 
@@ -62,44 +58,38 @@ def search():
 
         # ---------- FINNISH MODE ----------
         if mode == 'finnish':
-            sql = """
-                SELECT word FROM words
+            cur.execute("""
+                SELECT word
+                FROM words
                 WHERE word LIKE ?
-            """
-            params = [f"{query}%"]
-
-            # add level filtering if requested
-            if apply_levels and selected_levels:
-                placeholders = ",".join("?" for _ in selected_levels)
-                sql += f" AND level IN ({placeholders})"
-                params.extend(selected_levels)
-
-            sql += " ORDER BY word LIMIT 20"
-
-            cur.execute(sql, params)
-            results = [row['word'] for row in cur.fetchall()]
+                ORDER BY word
+                LIMIT 20
+            """, (f"{query}%",))
+            results = cur.fetchall()
 
         # ---------- TRANSLATION MODE ----------
         elif mode == 'translation':
-            sql = """
-                SELECT DISTINCT w.word
+            cur.execute("""
+                SELECT DISTINCT w.word, t.translation_text
                 FROM words w
                 JOIN meanings m ON m.word_id = w.id
                 JOIN translations t ON t.meaning_id = m.id
                 WHERE t.translation_text LIKE ?
-            """
-            params = [f"{query}%"]
+                ORDER BY t.translation_text   -- order by translation
+                LIMIT 20
+            """, (f"{query}%",))
+            results = cur.fetchall()
 
-            # add level filtering if requested
-            if apply_levels and selected_levels:
-                placeholders = ",".join("?" for _ in selected_levels)
-                sql += f" AND w.level IN ({placeholders})"
-                params.extend(selected_levels)
-
-            sql += " ORDER BY w.word LIMIT 20"
-
-            cur.execute(sql, params)
-            results = [row['word'] for row in cur.fetchall()]
+        # ---------- CATEGORY MODE ----------
+        elif mode == 'category':
+            cur.execute("""
+                SELECT name
+                FROM categories
+                WHERE name LIKE ?
+                ORDER BY name
+                LIMIT 20
+            """, (f"{query}%",))
+            results = cur.fetchall()
 
         conn.close()
 
@@ -107,10 +97,10 @@ def search():
         'search.html',
         query=query,
         results=results,
-        mode=mode,
-        selected_levels=selected_levels,
-        apply_levels=apply_levels
+        mode=mode
     )
+
+
 
 
 @app.route('/autocomplete', methods=['GET'])
@@ -126,30 +116,50 @@ def autocomplete():
     cur = conn.cursor()
 
     if mode == 'finnish':
-        cur.execute("SELECT word FROM words WHERE word LIKE ? ORDER BY word LIMIT 10", (f"{query}%",))
+        cur.execute("""
+            SELECT word
+            FROM words
+            WHERE word LIKE ?
+            ORDER BY word
+            LIMIT 10
+        """, (f"{query}%",))
+        # plain strings
         suggestions = [row['word'] for row in cur.fetchall()]
+
     elif mode == 'translation':
         cur.execute("""
-            SELECT DISTINCT w.word
+            SELECT DISTINCT w.word, t.translation_text
             FROM words w
             JOIN meanings m ON m.word_id = w.id
             JOIN translations t ON t.meaning_id = m.id
             WHERE t.translation_text LIKE ?
-            ORDER BY w.word
+            ORDER BY t.translation_text     -- order by translation here too
             LIMIT 10
         """, (f"{query}%",))
-        suggestions = [row['word'] for row in cur.fetchall()]
+        # objects with both word + translation
+        suggestions = [
+            {
+                "word": row["word"],
+                "translation": row["translation_text"]
+            }
+            for row in cur.fetchall()
+        ]
+
     elif mode == 'category':
         cur.execute("""
-            SELECT name FROM categories
+            SELECT name
+            FROM categories
             WHERE name LIKE ?
             ORDER BY name
             LIMIT 10
         """, (f"{query}%",))
+        # plain strings
         suggestions = [row['name'] for row in cur.fetchall()]
 
     conn.close()
     return jsonify(suggestions)
+
+
 
 
 

@@ -39,22 +39,39 @@
 
 
 {% if query %}
-    <h3>Search Results for "{{ query }}" ({{ mode|capitalize }})</h3>
+  <h3>Search Results for "{{ query }}" ({{ mode|capitalize }})</h3>
 
-    {% if results %}
-        <ul>
-        {% for item in results %}
-            {% if mode == 'category' %}
-                <li><a href="{{ url_for('show_category', category_name=item) }}">{{ item }}</a></li>
-            {% else %}
-                <li><a href="{{ url_for('show_word', word_name=item) }}">{{ item }}</a></li>
-            {% endif %}
-        {% endfor %}
-        </ul>
-    {% else %}
-        <p>No results found matching your search.</p>
-    {% endif %}
+  {% if results %}
+    <ul>
+      {% for item in results %}
+        {% if mode == 'category' %}
+          <li>
+            <a href="{{ url_for('show_category', category_name=item['name']) }}">
+              {{ item['name'] }}
+            </a>
+          </li>
+
+        {% elif mode == 'translation' %}
+          <li>
+            <a href="{{ url_for('show_word', word_name=item['word']) }}">
+              {{ item['translation_text'] }} – {{ item['word'] }}
+            </a>
+          </li>
+
+        {% else %} {# finnish #}
+          <li>
+            <a href="{{ url_for('show_word', word_name=item['word']) }}">
+              {{ item['word'] }}
+            </a>
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No results found matching your search.</p>
+  {% endif %}
 {% endif %}
+
 
 
 
@@ -77,16 +94,32 @@ input.addEventListener('input', async function() {
     suggestionsList.innerHTML = '';
     suggestions.forEach(item => {
         const li = document.createElement('li');
-        li.textContent = item;
         li.classList.add('suggestion-item');
-        li.addEventListener('click', () => {
-            suggestionsList.innerHTML = '';
-            if (mode === 'category') {
+
+        if (mode === 'translation') {
+            // item = { word, translation }
+            li.textContent = `${item.translation} – ${item.word}`;
+            li.addEventListener('click', () => {
+                suggestionsList.innerHTML = '';
+                window.location.href = `/word/${encodeURIComponent(item.word)}`;
+            });
+
+        } else if (mode === 'category') {
+            // item = "CategoryName"
+            li.textContent = item;
+            li.addEventListener('click', () => {
+                suggestionsList.innerHTML = '';
                 window.location.href = `/categories/${encodeURIComponent(item)}`;
-            } else {
+            });
+
+        } else {
+            // finnish mode, item = "koira"
+            li.textContent = item;
+            li.addEventListener('click', () => {
+                suggestionsList.innerHTML = '';
                 window.location.href = `/word/${encodeURIComponent(item)}`;
-            }
-        });
+            });
+        }
 
         suggestionsList.appendChild(li);
     });
@@ -99,5 +132,4 @@ document.addEventListener('click', function(e) {
     }
 });
 </script>
-
 {% endblock %}

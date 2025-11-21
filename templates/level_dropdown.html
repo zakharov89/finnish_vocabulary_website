@@ -3,7 +3,7 @@
 
         <!-- Individual level pills -->
         {% for level in levels %}
-        <label class="level-pill {% if level.id == 0 %}no-level-pill{% endif %}"
+        <label class="level-pill"
                data-level-id="{{ level.id }}">
             {{ level.name }}
         </label>
