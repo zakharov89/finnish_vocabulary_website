@@ -1,0 +1,39 @@
+{# templates/partials/category_subtopics.html #}
+
+<div class="category-grid">
+    {% for sub in subcategories %}
+    <div class="category-card {% if sub['count'] == 0 %}category-card--empty{% endif %}">
+        <div class="category-header">
+            <a href="{{ url_for('show_category', category_name=sub['name']) }}" class="category-link">
+                <span class="title">
+                    {{ sub['name'] }}
+                    {% if sub['count'] is defined %}
+                        <span style="font-size:0.8em; color:#666;">({{ sub['count'] }})</span>
+                    {% endif %}
+                </span>
+            </a>
+            {% if categories.get(sub['id']) %}
+            <button type="button"
+                    class="subcat-toggle"
+                    data-cat-id="{{ sub['id'] }}">
+                ▼
+            </button>
+            {% endif %}
+        </div>
+
+        {% if categories.get(sub['id']) %}
+        <div class="subcats" data-subcats-for="{{ sub['id'] }}" style="display: none;">
+            {% for child in categories.get(sub['id']) %}
+                <a class="subcat {% if child['count'] == 0 %}subcat--empty{% endif %}"
+                   href="{{ url_for('show_category', category_name=child['name']) }}">
+                    {{ child['name'] }}
+                    {% if child['count'] is defined %}
+                        <span class="category-count">({{ child['count'] }})</span>
+                    {% endif %}
+                </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>

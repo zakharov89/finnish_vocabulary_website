@@ -10,7 +10,6 @@
             {{ level.name }}
         </label>
         {% endfor %}
-
         <label class="level-pill select-all-pill">
             Select All
         </label>
@@ -22,7 +21,7 @@
 
 {# ---- Subtopics panel (button just under the title) ---- #}
 {% if subcategories %}
-<div class="subtopics-wrapper" style="margin-bottom: 1.5em;">
+<div class="subtopics-wrapper" style="margin-bottom: 1.2em;">
     <button type="button"
             id="toggle-subtopics"
             class="apply-button"
@@ -33,78 +32,43 @@
     <div id="subtopics-section"
          class="subcategories-section"
          style="margin-top: 4px; display:none;">
-        <div class="category-grid">
-            {% for sub in subcategories %}
-            <div class="category-card">
-                <div class="category-header">
-                    <a href="{{ url_for('show_category', category_name=sub['name']) }}" class="category-link">
-                        <span class="title">
-                            {{ sub['name'] }}
-                            {% if sub['count'] is defined %}
-                                <span style="font-size:0.8em; color:#666;">({{ sub['count'] }})</span>
-                            {% endif %}
-                        </span>
-                    </a>
-                    {% if categories.get(sub['id']) %}
-                      <button type="button"
-                              class="subcat-toggle"
-                              data-cat-id="{{ sub['id'] }}">
-                          ▼
-                      </button>
-                    {% endif %}
-                </div>
+        {# initial render of subtopics from partial #}
+        {% include "partials/category_subtopics.html" %}
+    </div>
 
-                {% if categories.get(sub['id']) %}
-                <div class="subcats" data-subcats-for="{{ sub['id'] }}" style="display: none;">
-                    {% for child in categories.get(sub['id']) %}
-                        <a class="subcat" href="{{ url_for('show_category', category_name=child['name']) }}">
-                            {{ child['name'] }}
-                        </a>
-                    {% endfor %}
-                </div>
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
+    {# ---- Include-subtopics: highlighted box ---- #}
+    <div class="include-subs-wrapper"
+         style="margin: 4px 0 0 0;">
+        <label for="include-subs-checkbox"
+               class="include-subs-box"
+               style="
+                    display:flex;
+                    flex-direction:column;
+                    gap:4px;
+                    padding:10px 14px;
+                    border-radius:10px;
+                    background: #f3f8ff;
+                    border: 1px solid #d5e4ff;
+                    box-shadow: 0 1px 4px rgba(0, 60, 150, 0.04);
+                    max-width:250px;
+               ">
+            <span style="display:flex; align-items:center; gap:10px;">
+                <input type="checkbox"
+                       id="include-subs-checkbox"
+                       style="transform: scale(1.15);"
+                       {% if include_subs %}checked{% endif %}>
+                <span class="include-subs-title"
+                      style="font-weight:600; font-size:0.9em;">
+                    Include words from subtopics
+                </span>
+            </span>
+        </label>
     </div>
 </div>
-
-
-{# ---- Include-subtopics: highlighted box ---- #}
-<div class="include-subs-wrapper"
-     style="margin: 4px 0 18px 0;">
-    <label for="include-subs-checkbox"
-           class="include-subs-box"
-           style="
-                display:flex;
-                flex-direction:column;
-                gap:4px;
-                padding:10px 14px;
-                border-radius:10px;
-                background: #f3f8ff;
-                border: 1px solid #d5e4ff;
-                box-shadow: 0 1px 4px rgba(0, 60, 150, 0.04);
-                max-width:460px;
-            ">
-            <span style="display:flex; align-items:center; gap:10px;">
-            <input type="checkbox"
-                   id="include-subs-checkbox"
-                   style="transform: scale(1.15);"
-                   {% if include_subs %}checked{% endif %}>
-            <span class="include-subs-title"
-                  style="font-weight:600; font-size:0.98em;">
-                Include words from subtopics
-            </span>
-        </span>
-    
-    </label>
-</div>
-
 {% endif %}
 
 {# ---- View switcher (same style as words page) ---- #}
 <div class="view-switcher" style="margin: 10px 0; display: flex; gap: 15px; flex-wrap: wrap;">
-
     <a href="#"
        class="apply-button {% if view == 'cards' %}active-view{% endif %}"
        data-view="cards">
@@ -122,7 +86,6 @@
        data-view="flashcards">
         Flashcards
     </a>
-
 </div>
 
 {# ---- Words section container (AJAX target) ---- #}
@@ -170,11 +133,11 @@ function updateSelectAllLabel() {
     btn.textContent = allSelected ? 'Deselect All' : 'Select All';
 }
 
+// 🔹 Save levels + update words + update subtopics (no full reload)
 function sendSelectedLevels(selectedLevels) {
     const wordsContainer = document.getElementById('category-words-container');
     if (!wordsContainer) return;
 
-    // 1) Save levels globally
     fetch('{{ url_for("set_levels") }}', {
         method: "POST",
         headers: {
@@ -185,21 +148,30 @@ function sendSelectedLevels(selectedLevels) {
     })
     .then(resp => resp.json())
     .then(() => {
-        // 2) Update just the words section for the current view & include_subs
         return fetch('{{ url_for("category_update_view", category_name=category["name"]) }}', {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 'X-CSRFToken': '{{ csrf_token() if csrf_token is defined }}'
             },
-            body: JSON.stringify({ view: currentView, include_subs: currentIncludeSubs })
+            body: JSON.stringify({
+                view: currentView,
+                include_subs: currentIncludeSubs
+            })
         });
     })
     .then(resp => resp.json())
     .then(data => {
-        if (data.html) {
-            wordsContainer.innerHTML = data.html;
-            bindFlashcards();  // re-bind after DOM update
+        if (data.words_html) {
+            wordsContainer.innerHTML = data.words_html;
+            bindFlashcards();
+        }
+        if (data.subtopics_html) {
+            const subsSection = document.getElementById('subtopics-section');
+            if (subsSection) {
+                subsSection.innerHTML = data.subtopics_html;
+                bindSubcategoryToggles();
+            }
         }
     })
     .catch(err => console.error("Error updating levels:", err));
@@ -210,7 +182,6 @@ function toggleAllLevels() {
     if (allPills.length === 0) return;
 
     const allSelected = Array.from(allPills).every(p => p.classList.contains('selected'));
-
     allPills.forEach(p => p.classList.toggle('selected', !allSelected));
 
     updateSelectAllLabel();
@@ -242,7 +213,7 @@ function initLevelPills() {
     updateSelectAllLabel();
 }
 
-// ---- Subtopic arrow toggles (inside cards) ----
+// ---- Subcategory arrow toggles (inside each card) ----
 function bindSubcategoryToggles() {
     document.querySelectorAll('.subcat-toggle').forEach(toggle => {
         toggle.addEventListener('click', () => {
@@ -260,7 +231,7 @@ function bindSubcategoryToggles() {
     });
 }
 
-// ---- Whole subtopics panel toggle ----
+// ---- Whole subtopics panel toggle (Show/Hide subtopics) ----
 function bindSubtopicsPanelToggle() {
     const btn = document.getElementById('toggle-subtopics');
     const panel = document.getElementById('subtopics-section');
@@ -273,7 +244,7 @@ function bindSubtopicsPanelToggle() {
     });
 }
 
-// ---- Include subtopics checkbox (words) ----
+// ---- Include subtopics checkbox (affects which words are included) ----
 function bindIncludeSubsCheckbox() {
     const cb = document.getElementById('include-subs-checkbox');
     const wordsContainer = document.getElementById('category-words-container');
@@ -288,12 +259,15 @@ function bindIncludeSubsCheckbox() {
                 "Content-Type": "application/json",
                 'X-CSRFToken': '{{ csrf_token() if csrf_token is defined }}'
             },
-            body: JSON.stringify({ view: currentView, include_subs: currentIncludeSubs })
+            body: JSON.stringify({
+                view: currentView,
+                include_subs: currentIncludeSubs
+            })
         })
         .then(resp => resp.json())
         .then(data => {
-            if (data.html) {
-                wordsContainer.innerHTML = data.html;
+            if (data.words_html) {
+                wordsContainer.innerHTML = data.words_html;
                 bindFlashcards();
             }
         })
@@ -322,7 +296,6 @@ function bindCategoryViewSwitcher() {
             const view = this.dataset.view;
             if (!view) return;
 
-            // update active button
             buttons.forEach(b => b.classList.remove('active-view'));
             this.classList.add('active-view');
             currentView = view;
@@ -333,12 +306,15 @@ function bindCategoryViewSwitcher() {
                     "Content-Type": "application/json",
                     'X-CSRFToken': '{{ csrf_token() if csrf_token is defined }}'
                 },
-                body: JSON.stringify({ view: view, include_subs: currentIncludeSubs })
+                body: JSON.stringify({
+                    view: view,
+                    include_subs: currentIncludeSubs
+                })
             })
             .then(resp => resp.json())
             .then(data => {
-                if (data.html) {
-                    container.innerHTML = data.html;
+                if (data.words_html) {
+                    container.innerHTML = data.words_html;
                     bindFlashcards();
                 }
             })

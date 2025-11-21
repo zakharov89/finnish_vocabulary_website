@@ -1025,79 +1025,79 @@ def show_category(category_name):
 def category_update_view(category_name):
     data = request.get_json() or {}
     view = data.get("view", "table")
-    include_subs = bool(int(data.get("include_subs", 1)))
+    include_subs = data.get("include_subs", 0)
+    try:
+        include_subs = bool(int(include_subs))
+    except (TypeError, ValueError):
+        include_subs = bool(include_subs)
 
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Find category
+    # 1) Find the current category
     cur.execute("SELECT id, name, parent_id FROM categories WHERE name = ?", (category_name,))
     category = cur.fetchone()
     if not category:
         conn.close()
-        return jsonify({"html": "<p>Category not found.</p>"}), 404
+        return jsonify({"words_html": "", "subtopics_html": ""})
 
     category_id = category["id"]
 
-    # Load all categories (for descendants)
-    cur.execute("SELECT id, name, parent_id FROM categories ORDER BY name")
-    all_rows = cur.fetchall()
+    # 2) Resolve levels from session (reuse your helper)
+    levels, selected_levels = resolve_selected_levels(cur)
 
-    # Levels + selection
-    cur.execute("SELECT id, name FROM levels ORDER BY id")
-    levels = cur.fetchall()
-    all_level_ids = [lvl["id"] for lvl in levels]
-    levels_dict = {lvl["id"]: lvl["name"] for lvl in levels}
+    # 3) Get categories with counts for these levels
+    categories_dict = get_categories_with_counts(cur, selected_levels)
 
-    stored = session.get("selected_levels")
-    selected_levels = []
-    if stored is None:
-        selected_levels = all_level_ids.copy()
-    else:
-        for x in stored:
-            try:
-                val = int(x)
-            except (TypeError, ValueError):
-                continue
-            if val in all_level_ids:
-                selected_levels.append(val)
-    session["selected_levels"] = selected_levels
+    # Subtopics for this category (with up-to-date counts)
+    subcategories = categories_dict.get(category_id, [])
 
+    # 4) Build list of category_ids used for word fetching
+    category_ids = [category_id]
+
+    if include_subs:
+        # collect descendant category ids as well
+        # build children map from categories_dict
+        children_map = {}
+        for parent_id, childs in categories_dict.items():
+            for c in childs:
+                children_map.setdefault(parent_id, []).append(c["id"])
+
+        from collections import deque
+        queue = deque([category_id])
+        seen = set([category_id])
+
+        while queue:
+            cid = queue.popleft()
+            for child_id in children_map.get(cid, []):
+                if child_id not in seen:
+                    seen.add(child_id)
+                    queue.append(child_id)
+
+        category_ids = list(seen)
+
+    # 5) Fetch words for these category_ids and levels
     words_with_translations = []
 
-    # Categories to include
-    if include_subs:
-        descendants = get_descendant_category_ids(all_rows, category_id)
-        category_ids_for_words = [category_id] + descendants
-    else:
-        category_ids_for_words = [category_id]
-
-    if selected_levels and category_ids_for_words:
-        placeholders_levels = ",".join("?" for _ in selected_levels)
-        placeholders_cats = ",".join("?" for _ in category_ids_for_words)
+    if selected_levels and category_ids:
+        level_placeholders = ",".join("?" for _ in selected_levels)
+        cat_placeholders = ",".join("?" for _ in category_ids)
 
         sql = f"""
-            SELECT
-                w.id              AS word_id,
-                w.word            AS word,
-                w.level           AS level,
-                MIN(wc.meaning_id) AS meaning_id,
-                MIN(wc.sort_order) AS sort_order
+            SELECT w.id AS word_id, w.word, w.level, wc.meaning_id
             FROM words w
             JOIN word_categories wc ON w.id = wc.word_id
-            WHERE wc.category_id IN ({placeholders_cats})
-              AND w.level IN ({placeholders_levels})
-            GROUP BY w.id, w.word, w.level
-            ORDER BY sort_order, w.word COLLATE NOCASE
+            WHERE wc.category_id IN ({cat_placeholders})
+              AND w.level IN ({level_placeholders})
+            ORDER BY wc.sort_order, w.word COLLATE NOCASE
         """
-        params = category_ids_for_words + selected_levels
+        params = category_ids + selected_levels
         cur.execute(sql, params)
         words = cur.fetchall()
 
         for w in words:
             meaning_id = w["meaning_id"]
-
             if meaning_id:
                 cur.execute("""
                     SELECT translation_text
@@ -1115,33 +1115,36 @@ def category_update_view(category_name):
                     ORDER BY m.meaning_number, t.translation_number
                     LIMIT 5
                 """, (w["word_id"],))
-
             translations = [row["translation_text"] for row in cur.fetchall()]
 
             words_with_translations.append({
                 "id": w["word_id"],
                 "word": w["word"],
                 "level": w["level"],
-                "translations": translations
+                "translations": translations,
             })
 
     conn.close()
 
-    # Render appropriate partial
+    # 6) Render partials
     if view == "table":
-        html = render_template("partials/words_table.html",
-                               words=words_with_translations,
-                               levels_dict=levels_dict)
+        words_html = render_template("partials/words_table.html", words=words_with_translations)
     elif view == "cards":
-        html = render_template("partials/words_cards.html",
-                               words=words_with_translations,
-                               levels_dict=levels_dict)
-    else:  # flashcards
-        html = render_template("partials/words_flashcards.html",
-                               words=words_with_translations,
-                               levels_dict=levels_dict)
+        words_html = render_template("partials/words_cards.html", words=words_with_translations)
+    else:
+        words_html = render_template("partials/words_flashcards.html", words=words_with_translations)
 
-    return jsonify({"html": html, "view": view, "include_subs": int(include_subs)})
+    subtopics_html = render_template(
+        "partials/category_subtopics.html",
+        subcategories=subcategories,
+        categories=categories_dict,
+    )
+
+    return jsonify({
+        "words_html": words_html,
+        "subtopics_html": subtopics_html,
+    })
+
 
 
 
