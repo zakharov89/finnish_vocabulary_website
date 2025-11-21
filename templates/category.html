@@ -17,44 +17,69 @@
     </div>
 </form>
 
-
 <h2>{{ category['name'] }}</h2>
 
-{# ---- Subcategories with small arrow toggle ---- #}
+{# ---- Collapsible subcategories section ---- #}
 {% if subcategories %}
-<div class="subcategories-section" style="margin-bottom: 1.5em;">
-    <div class="category-grid">
-        {% for sub in subcategories %}
-        <div class="category-card">
-            <div class="category-header">
-                <a href="{{ url_for('show_category', category_name=sub['name']) }}" class="category-link">
-                    <span class="title">{{ sub['name'] }}</span>
-                </a>
+<div class="subcategories-wrapper" style="margin-bottom: 1.5em;">
+
+    <button type="button"
+            id="toggle-subcategories"
+            class="apply-button"
+            style="margin-bottom: 8px;">
+        Show subcategories
+    </button>
+
+    <div id="subcategories-section"
+         class="subcategories-section"
+         style="margin-top: 4px; display:none;">
+        <div class="category-grid">
+            {% for sub in subcategories %}
+            <div class="category-card">
+                <div class="category-header">
+                    <a href="{{ url_for('show_category', category_name=sub['name']) }}" class="category-link">
+                        <span class="title">{{ sub['name'] }}</span>
+                    </a>
+                    {% if categories.get(sub['id']) %}
+                      <button type="button"
+                              class="subcat-toggle"
+                              data-cat-id="{{ sub['id'] }}">
+                          ▼
+                      </button>
+                    {% endif %}
+                </div>
+
                 {% if categories.get(sub['id']) %}
-                  <button type="button"
-                          class="subcat-toggle"
-                          data-cat-id="{{ sub['id'] }}">
-                      ▼
-                  </button>
+                <div class="subcats" data-subcats-for="{{ sub['id'] }}" style="display: none;">
+                    {% for child in categories.get(sub['id']) %}
+                        <a class="subcat" href="{{ url_for('show_category', category_name=child['name']) }}">
+                            {{ child['name'] }}
+                        </a>
+                    {% endfor %}
+                </div>
                 {% endif %}
             </div>
-
-            {% if categories.get(sub['id']) %}
-            <div class="subcats" data-subcats-for="{{ sub['id'] }}" style="display: none;">
-                {% for child in categories.get(sub['id']) %}
-                    <a class="subcat" href="{{ url_for('show_category', category_name=child['name']) }}">
-                        {{ child['name'] }}
-                    </a>
-                {% endfor %}
-            </div>
-            {% endif %}
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
 </div>
 {% endif %}
 
-{# ---- View switcher (AJAX, same style as words page) ---- #}
+{# ---- Single toggle: include / exclude subcategory words ---- #}
+<div style="margin: 10px 0;">
+    <button type="button"
+            id="toggle-include-subs"
+            class="apply-button"
+            data-include-subs="{{ 1 if include_subs else 0 }}">
+        {% if include_subs %}
+            Only this category
+        {% else %}
+            Include words from subcategories
+        {% endif %}
+    </button>
+</div>
+
+{# ---- View switcher (AJAX) ---- #}
 <div class="view-switcher" style="margin: 10px 0; display: flex; gap: 15px; flex-wrap: wrap;">
 
     <a href="#"
@@ -88,7 +113,7 @@
             {% include "partials/words_flashcards.html" %}
         {% endif %}
     {% else %}
-        <p>No words in this category for the selected levels.</p>
+        <p>No words in this view for the selected levels.</p>
     {% endif %}
 </div>
 
@@ -104,9 +129,10 @@
 {% endif %}
 
 <script>
-let currentView = "{{ view }}";  // keep track of current view for AJAX updates
+let currentView = "{{ view }}";
+let currentIncludeSubs = {{ 1 if include_subs else 0 }};
 
-// ---- Level helpers (uses global /set_levels and then refreshes words via AJAX) ----
+// ---- Level helpers ----
 function getSelectedLevels() {
     return Array.from(document.querySelectorAll('.level-pill.selected[data-level-id]'))
                 .map(p => p.dataset.levelId);
@@ -135,15 +161,15 @@ function sendSelectedLevels(selectedLevels) {
         body: JSON.stringify({ levels: selectedLevels })
     })
     .then(resp => resp.json())
-    .then(data => {
-        // 2) Update just the words section for the current view
+    .then(() => {
+        // 2) Update just the words section for the current view & include_subs
         return fetch('{{ url_for("category_update_view", category_name=category["name"]) }}', {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 'X-CSRFToken': '{{ csrf_token() if csrf_token is defined }}'
             },
-            body: JSON.stringify({ view: currentView })
+            body: JSON.stringify({ view: currentView, include_subs: currentIncludeSubs })
         });
     })
     .then(resp => resp.json())
@@ -164,13 +190,6 @@ function toggleAllLevels() {
 
     allPills.forEach(p => p.classList.toggle('selected', !allSelected));
 
-    updateSelectAllLabel();
-    sendSelectedLevels(getSelectedLevels());
-}
-
-function resetLevels() {
-    const allPills = document.querySelectorAll('.level-pill[data-level-id]');
-    allPills.forEach(p => p.classList.add('selected'));
     updateSelectAllLabel();
     sendSelectedLevels(getSelectedLevels());
 }
@@ -197,11 +216,10 @@ function initLevelPills() {
         selectAll.addEventListener('click', toggleAllLevels);
     }
 
-
     updateSelectAllLabel();
 }
 
-// ---- Subcategory arrow toggles ----
+// ---- Subcategory arrow toggles (inside cards) ----
 function bindSubcategoryToggles() {
     document.querySelectorAll('.subcat-toggle').forEach(toggle => {
         toggle.addEventListener('click', () => {
@@ -219,6 +237,58 @@ function bindSubcategoryToggles() {
     });
 }
 
+// ---- Whole subcategories panel toggle ----
+function bindSubcategoriesPanelToggle() {
+    const btn = document.getElementById('toggle-subcategories');
+    const panel = document.getElementById('subcategories-section');
+    if (!btn || !panel) return;
+
+    btn.addEventListener('click', () => {
+        const isHidden = panel.style.display === 'none' || panel.style.display === '';
+        panel.style.display = isHidden ? 'block' : 'none';
+        btn.textContent = isHidden ? 'Hide subcategories' : 'Show subcategories';
+    });
+}
+
+// ---- Include subcategories toggle (words) ----
+function bindIncludeSubsToggle() {
+    const btn = document.getElementById('toggle-include-subs');
+    const wordsContainer = document.getElementById('category-words-container');
+    if (!btn || !wordsContainer) return;
+
+    btn.addEventListener('click', () => {
+        const current = parseInt(btn.dataset.includeSubs || "0", 10);
+        const next = current ? 0 : 1;
+        btn.dataset.includeSubs = String(next);
+        currentIncludeSubs = next;
+
+        // Update button label
+        if (next) {
+            btn.textContent = 'Only this category';
+        } else {
+            btn.textContent = 'Include words from subcategories';
+        }
+
+        // Reload words via AJAX
+        fetch('{{ url_for("category_update_view", category_name=category["name"]) }}', {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                'X-CSRFToken': '{{ csrf_token() if csrf_token is defined }}'
+            },
+            body: JSON.stringify({ view: currentView, include_subs: next })
+        })
+        .then(resp => resp.json())
+        .then(data => {
+            if (data.html) {
+                wordsContainer.innerHTML = data.html;
+                bindFlashcards();
+            }
+        })
+        .catch(err => console.error("Error toggling include_subs:", err));
+    });
+}
+
 // ---- Flashcard flip ----
 function bindFlashcards() {
     document.querySelectorAll('.flashcard').forEach(card => {
@@ -228,7 +298,7 @@ function bindFlashcards() {
     });
 }
 
-// ---- View switcher for category (AJAX) ----
+// ---- View switcher (AJAX) ----
 function bindCategoryViewSwitcher() {
     const buttons = document.querySelectorAll('.view-switcher .apply-button');
     const container = document.getElementById('category-words-container');
@@ -251,7 +321,7 @@ function bindCategoryViewSwitcher() {
                     "Content-Type": "application/json",
                     'X-CSRFToken': '{{ csrf_token() if csrf_token is defined }}'
                 },
-                body: JSON.stringify({ view: view })
+                body: JSON.stringify({ view: view, include_subs: currentIncludeSubs })
             })
             .then(resp => resp.json())
             .then(data => {
@@ -268,6 +338,8 @@ function bindCategoryViewSwitcher() {
 document.addEventListener('DOMContentLoaded', function() {
     initLevelPills();
     bindSubcategoryToggles();
+    bindSubcategoriesPanelToggle();
+    bindIncludeSubsToggle();
     bindFlashcards();
     bindCategoryViewSwitcher();
 });

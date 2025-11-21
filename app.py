@@ -39,6 +39,54 @@ def logout():
     return redirect(url_for('login'))
 
 
+@app.route('/home')
+def home():
+    return render_template('home.html', title="Home")
+
+@app.route('/')
+def root():
+    return redirect(url_for('home'))
+
+
+@app.route('/levels', methods=['GET', 'POST'])
+def levels():
+    # Choosing levels
+
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Load levels dynamically
+    cur.execute("SELECT id, name FROM levels ORDER BY id")
+    levels = cur.fetchall()
+
+    # If user submitted form
+    if request.method == "POST":
+        selected = request.form.getlist("levels")  # list of strings
+        selected = [int(x) for x in selected]      # convert to ints
+
+        # save to session
+        session["selected_levels"] = selected
+
+        flash("Level preferences updated!", "success")
+        return redirect(url_for("levels"))
+
+    # Pre-fill form with selected levels
+    selected_levels = session.get("selected_levels", [])
+
+    conn.close()
+
+    return render_template("levels.html", levels=levels, selected_levels=selected_levels)
+
+@app.route('/set_levels', methods=['POST'])
+def set_levels():
+    data = request.get_json()
+    # convert to ints, default empty list if none
+    selected = [int(lvl) for lvl in data.get("levels", [])]
+    session["selected_levels"] = selected
+    return jsonify(success=True)
+
+
 
 @app.route('/about')
 def about():
@@ -652,6 +700,30 @@ def resolve_selected_levels(cur):
 
 
 
+def get_descendant_category_ids(all_rows, root_id):
+    """
+    Given all category rows and a root category_id,
+    return a list of all descendant category ids (children, grandchildren, ...).
+    """
+    children_by_parent = {}
+    for row in all_rows:
+        parent = row["parent_id"]
+        cid = row["id"]
+        children_by_parent.setdefault(parent, []).append(cid)
+
+    descendants = []
+
+    def dfs(cat_id):
+        for child_id in children_by_parent.get(cat_id, []):
+            descendants.append(child_id)
+            dfs(child_id)
+
+    dfs(root_id)
+    return descendants
+
+
+
+
 def get_categories_with_counts(cur, level_ids):
     """
     Returns parent_id -> [category dicts], each dict has:
@@ -772,58 +844,15 @@ def filter_categories():
 
 
 
-@app.route('/home')
-def home():
-    return render_template('home.html', title="Home")
-
-@app.route('/')
-def root():
-    return redirect(url_for('home'))
-
-
-@app.route('/levels', methods=['GET', 'POST'])
-def levels():
-    # Choosing levels
-
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-
-    # Load levels dynamically
-    cur.execute("SELECT id, name FROM levels ORDER BY id")
-    levels = cur.fetchall()
-
-    # If user submitted form
-    if request.method == "POST":
-        selected = request.form.getlist("levels")  # list of strings
-        selected = [int(x) for x in selected]      # convert to ints
-
-        # save to session
-        session["selected_levels"] = selected
-
-        flash("Level preferences updated!", "success")
-        return redirect(url_for("levels"))
-
-    # Pre-fill form with selected levels
-    selected_levels = session.get("selected_levels", [])
-
-    conn.close()
-
-    return render_template("levels.html", levels=levels, selected_levels=selected_levels)
-
-@app.route('/set_levels', methods=['POST'])
-def set_levels():
-    data = request.get_json()
-    # convert to ints, default empty list if none
-    selected = [int(lvl) for lvl in data.get("levels", [])]
-    session["selected_levels"] = selected
-    return jsonify(success=True)
-
 
 
 @app.route('/categories/<category_name>')
 def show_category(category_name):
+    # view = table / cards / flashcards
     view = request.args.get("view", "table")
+    # include_subs: "1" (default) or "0"
+    include_subs_arg = request.args.get("include_subs", "1")
+    include_subs = (include_subs_arg != "0")
 
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
@@ -845,7 +874,7 @@ def show_category(category_name):
         return f"Category '{category_name}' not found."
     category_id = category["id"]
 
-    # Subcategories (direct children)
+    # Direct subcategories
     subcategories = categories_dict.get(category_id, [])
 
     # --- Fetch all levels ---
@@ -855,11 +884,10 @@ def show_category(category_name):
     levels_dict = {lvl["id"]: lvl["name"] for lvl in levels}
 
     # --- Normalize selected levels from session ---
-    stored = session.get("selected_levels")  # IMPORTANT: no default []
+    stored = session.get("selected_levels")  # no default
     selected_levels = []
 
     if stored is None:
-        # first time: default to all levels
         selected_levels = all_level_ids.copy()
     else:
         for x in stored:
@@ -869,33 +897,41 @@ def show_category(category_name):
                 continue
             if val in all_level_ids:
                 selected_levels.append(val)
-        # HERE we *allow* selected_levels to be empty on purpose
-        # (user might have "deselected all")
 
-    # write back normalized form
     session["selected_levels"] = selected_levels
 
     words_with_translations = []
 
-    if selected_levels:
-        # --- Build SQL for filtering words by category + selected levels ---
-        sql = """
-            SELECT w.id AS word_id, w.word, w.level, wc.meaning_id
+    # Determine which categories to pull words from
+    if include_subs:
+        descendants = get_descendant_category_ids(all_rows, category_id)
+        category_ids_for_words = [category_id] + descendants
+    else:
+        category_ids_for_words = [category_id]
+
+    if selected_levels and category_ids_for_words:
+        placeholders_levels = ",".join("?" for _ in selected_levels)
+        placeholders_cats = ",".join("?" for _ in category_ids_for_words)
+
+        # Deduplicate words across categories with GROUP BY and MIN()
+        sql = f"""
+            SELECT
+                w.id              AS word_id,
+                w.word            AS word,
+                w.level           AS level,
+                MIN(wc.meaning_id) AS meaning_id,
+                MIN(wc.sort_order) AS sort_order
             FROM words w
             JOIN word_categories wc ON w.id = wc.word_id
-            WHERE wc.category_id = ?
+            WHERE wc.category_id IN ({placeholders_cats})
+              AND w.level IN ({placeholders_levels})
+            GROUP BY w.id, w.word, w.level
+            ORDER BY sort_order, w.word COLLATE NOCASE
         """
-        params = [category_id]
-
-        placeholders = ",".join("?" for _ in selected_levels)
-        sql += f" AND w.level IN ({placeholders})"
-        params.extend(selected_levels)
-
-        sql += " ORDER BY wc.sort_order, w.word COLLATE NOCASE"
+        params = category_ids_for_words + selected_levels
         cur.execute(sql, params)
         words = cur.fetchall()
 
-        # --- Fetch translations for each word ---
         for w in words:
             meaning_id = w["meaning_id"]
 
@@ -926,7 +962,6 @@ def show_category(category_name):
                 "translations": translations
             })
     else:
-        # selected_levels is empty -> user deselected all levels → no words
         words_with_translations = []
 
     # Parent breadcrumb
@@ -950,20 +985,23 @@ def show_category(category_name):
         levels_dict=levels_dict,
         selected_levels=selected_levels,
         view=view,
+        include_subs=include_subs,
     )
+
 
 
 @app.route('/categories/<category_name>/update_view', methods=['POST'])
 def category_update_view(category_name):
     data = request.get_json() or {}
     view = data.get("view", "table")
+    include_subs = bool(int(data.get("include_subs", 1)))
 
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
     # Find category
-    cur.execute("SELECT id, name FROM categories WHERE name = ?", (category_name,))
+    cur.execute("SELECT id, name, parent_id FROM categories WHERE name = ?", (category_name,))
     category = cur.fetchone()
     if not category:
         conn.close()
@@ -971,7 +1009,11 @@ def category_update_view(category_name):
 
     category_id = category["id"]
 
-    # Levels + selection (same as in show_category)
+    # Load all categories (for descendants)
+    cur.execute("SELECT id, name, parent_id FROM categories ORDER BY name")
+    all_rows = cur.fetchall()
+
+    # Levels + selection
     cur.execute("SELECT id, name FROM levels ORDER BY id")
     levels = cur.fetchall()
     all_level_ids = [lvl["id"] for lvl in levels]
@@ -979,7 +1021,6 @@ def category_update_view(category_name):
 
     stored = session.get("selected_levels")
     selected_levels = []
-
     if stored is None:
         selected_levels = all_level_ids.copy()
     else:
@@ -990,22 +1031,36 @@ def category_update_view(category_name):
                 continue
             if val in all_level_ids:
                 selected_levels.append(val)
-
     session["selected_levels"] = selected_levels
 
     words_with_translations = []
 
-    if selected_levels:
-        placeholders = ",".join("?" for _ in selected_levels)
+    # Categories to include
+    if include_subs:
+        descendants = get_descendant_category_ids(all_rows, category_id)
+        category_ids_for_words = [category_id] + descendants
+    else:
+        category_ids_for_words = [category_id]
+
+    if selected_levels and category_ids_for_words:
+        placeholders_levels = ",".join("?" for _ in selected_levels)
+        placeholders_cats = ",".join("?" for _ in category_ids_for_words)
+
         sql = f"""
-            SELECT w.id AS word_id, w.word, w.level, wc.meaning_id
+            SELECT
+                w.id              AS word_id,
+                w.word            AS word,
+                w.level           AS level,
+                MIN(wc.meaning_id) AS meaning_id,
+                MIN(wc.sort_order) AS sort_order
             FROM words w
             JOIN word_categories wc ON w.id = wc.word_id
-            WHERE wc.category_id = ?
-              AND w.level IN ({placeholders})
-            ORDER BY wc.sort_order, w.word COLLATE NOCASE
+            WHERE wc.category_id IN ({placeholders_cats})
+              AND w.level IN ({placeholders_levels})
+            GROUP BY w.id, w.word, w.level
+            ORDER BY sort_order, w.word COLLATE NOCASE
         """
-        params = [category_id] + selected_levels
+        params = category_ids_for_words + selected_levels
         cur.execute(sql, params)
         words = cur.fetchall()
 
@@ -1041,6 +1096,7 @@ def category_update_view(category_name):
 
     conn.close()
 
+    # Render appropriate partial
     if view == "table":
         html = render_template("partials/words_table.html",
                                words=words_with_translations,
@@ -1049,14 +1105,12 @@ def category_update_view(category_name):
         html = render_template("partials/words_cards.html",
                                words=words_with_translations,
                                levels_dict=levels_dict)
-    else:
+    else:  # flashcards
         html = render_template("partials/words_flashcards.html",
                                words=words_with_translations,
                                levels_dict=levels_dict)
 
-    return jsonify({"html": html, "view": view})
-
-
+    return jsonify({"html": html, "view": view, "include_subs": int(include_subs)})
 
 
 
