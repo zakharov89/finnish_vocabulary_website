@@ -1,70 +1,34 @@
+{# templates/partials/words_table.html #}
 {% if words %}
-<table class="category-table" style="margin: 20px auto 0 auto; width: 90%;">
-    <thead>
-        <tr>
-            <th>Finnish</th>
-            <th>Translations</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for w in words %}
-        <tr>
-            <td><a href="{{ url_for('show_word', word_name=w.word) }}" target="_blank">{{ w.word }}</a></td>
-            <td>
-                {% if w.translations %}
-                    {{ w.translations[0] }}
-
-                    {# N = total - 1, because we show only the first one here #}
-                    {% set extra = w.total_translations - 1 %}
-
-                    {% if extra > 0 %}
-                        <a href="{{ url_for('show_word', word_name=w.word) }}"
-                        class="more-translations"
-                        target="_blank">
-                            (+{{ extra }} more)
-                        </a>
+<div class="words-section">
+    <table class="category-table">
+        <thead>
+            <tr>
+                <th>Finnish</th>
+                <th>English</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for w in words %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('show_word', word_name=w.word) }}">{{ w.word }}</a>
+                    {% if w.level is defined and w.level and w.level > 0 %}
+                        <span class="level-badge level-{{ w.level }}">
+                            {% if levels_dict is defined and w.level in levels_dict %}
+                                {{ levels_dict[w.level] }}
+                            {% else %}
+                                L{{ w.level }}
+                            {% endif %}
+                        </span>
                     {% endif %}
-                {% else %}
-                    –
-                {% endif %}
-            </td>
-
-
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+                </td>
+                <td>{{ ", ".join(w.translations) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% else %}
-<p style="text-align:center; margin-top:20px;">No words found for the selected level(s).</p>
+<p>No words found for the selected levels.</p>
 {% endif %}
-
-<style>
-.category-table {
-    border-collapse: collapse;
-    width: 100%;
-}
-
-.category-table th, .category-table td {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: left;
-}
-
-.category-table th {
-    background-color: #f1f8e9;
-    font-weight: 600;
-    color: #1a237e;
-}
-
-.category-table tr:nth-child(even) { background-color: #f9f9f9; }
-.category-table tr:hover { background-color: #e0f7fa; }
-
-.category-table a {
-    color: #1565c0;
-    text-decoration: none;
-}
-
-.category-table a:hover {
-    text-decoration: underline;
-}
-</style>

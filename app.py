@@ -2,7 +2,8 @@ from flask import Flask, session, redirect, url_for, request, render_template, f
 import sqlite3
 import os
 from dotenv import load_dotenv
-from functools import lru_cache
+from functools import lru_cache, wraps
+
 
 load_dotenv()
 
@@ -354,13 +355,23 @@ def handle_level_post(default_redirect):
     return None
 
 
+
+
+
 @app.route('/words/table', methods=['GET', 'POST'])
 def words_table():
     redirect_response = handle_level_post(url_for('words_table'))
     if redirect_response:
         return redirect_response
     words, levels, selected_levels = get_words_from_db()
-    return render_template("words_table.html", words=words, levels=levels, selected_levels=selected_levels)
+    levels_dict = {lvl["id"]: lvl["name"] for lvl in levels}
+    return render_template(
+        "words_table.html",
+        words=words,
+        levels=levels,
+        selected_levels=selected_levels,
+        levels_dict=levels_dict,
+    )
 
 @app.route('/words/cards', methods=['GET', 'POST'])
 def words_cards():
@@ -368,7 +379,14 @@ def words_cards():
     if redirect_response:
         return redirect_response
     words, levels, selected_levels = get_words_from_db()
-    return render_template("words_cards.html", words=words, levels=levels, selected_levels=selected_levels)
+    levels_dict = {lvl["id"]: lvl["name"] for lvl in levels}
+    return render_template(
+        "words_cards.html",
+        words=words,
+        levels=levels,
+        selected_levels=selected_levels,
+        levels_dict=levels_dict,
+    )
 
 @app.route('/words/flashcards', methods=['GET', 'POST'])
 def words_flashcards():
@@ -376,7 +394,15 @@ def words_flashcards():
     if redirect_response:
         return redirect_response
     words, levels, selected_levels = get_words_from_db()
-    return render_template("words_flashcards.html", words=words, levels=levels, selected_levels=selected_levels)
+    levels_dict = {lvl["id"]: lvl["name"] for lvl in levels}
+    return render_template(
+        "words_flashcards.html",
+        words=words,
+        levels=levels,
+        selected_levels=selected_levels,
+        levels_dict=levels_dict,
+    )
+
 
 
 @app.route('/words/flashcards/ajax', methods=['POST'])
@@ -384,7 +410,6 @@ def words_flashcards_ajax():
     data = request.get_json() or {}
     raw_levels = data.get("levels", [])
 
-    # normalize to ints
     selected_levels = []
     for x in raw_levels:
         try:
@@ -392,11 +417,14 @@ def words_flashcards_ajax():
         except (TypeError, ValueError):
             continue
 
-    # This will validate, default if needed, and update session
     words, levels, _ = get_words_from_db(selected_levels=selected_levels)
+    levels_dict = {lvl["id"]: lvl["name"] for lvl in levels}
 
-    html = render_template("partials/words_flashcards.html", words=words)
+    html = render_template("partials/words_flashcards.html",
+                           words=words,
+                           levels_dict=levels_dict)
     return jsonify({"html": html, "selected_levels": selected_levels})
+
 
 
 
@@ -413,9 +441,9 @@ def get_words_from_db(selected_levels=None):
 
     # 2) Decide selected_levels:
     #    - if passed as argument, use it (after validation) and store in session
-    #    - else read from session, falling back to all levels
+    #    - else read from session, falling back to all levels (first time),
+    #      and allowing empty afterwards if user deselected all.
     if selected_levels is not None:
-        # normalize and validate
         normalized = []
         for x in selected_levels:
             try:
@@ -424,17 +452,18 @@ def get_words_from_db(selected_levels=None):
                 continue
             if val in all_level_ids:
                 normalized.append(val)
+        # if nothing valid was passed, default to ALL
         if not normalized:
             normalized = all_level_ids
         selected_levels = normalized
         session["selected_levels"] = selected_levels
     else:
-        stored = session.get("selected_levels")  # IMPORTANT: no default []
+        stored = session.get("selected_levels")  # no default
+        normalized = []
         if stored is None:
-            # no value yet in session -> default to all levels
+            # first time: all levels
             normalized = all_level_ids
         else:
-            normalized = []
             for x in stored:
                 try:
                     val = int(x)
@@ -442,64 +471,63 @@ def get_words_from_db(selected_levels=None):
                     continue
                 if val in all_level_ids:
                     normalized.append(val)
-            # DO NOT override empty here
-            # empty list now truly means “no levels selected”
-
-        if not normalized:
-            normalized = all_level_ids
+            # Here we allow normalized to be [] (user may have deselected all)
         selected_levels = normalized
         session["selected_levels"] = selected_levels
 
-    # 3) Fetch words filtered by selected_levels
-    placeholders = ",".join("?" for _ in selected_levels)
-    cur.execute(f"""
-        SELECT w.id, w.word
-        FROM words w
-        WHERE w.level IN ({placeholders})
-        ORDER BY LOWER(w.word)
-    """, selected_levels)
-
-    words_raw = cur.fetchall()
     words = []
 
-    # 4) Enrich each word with translations (your existing logic)
-    for w in words_raw:
-        cur.execute("""
-            SELECT DISTINCT t.translation_text
-            FROM translations t
-            JOIN meanings m ON m.id = t.meaning_id
-            WHERE m.word_id = ?
-            ORDER BY m.meaning_number, t.translation_number
-        """, (w["id"],))
+    if selected_levels:
+        # 3) Fetch words filtered by selected_levels (include level!)
+        placeholders = ",".join("?" for _ in selected_levels)
+        cur.execute(f"""
+            SELECT w.id, w.word, w.level
+            FROM words w
+            WHERE w.level IN ({placeholders})
+            ORDER BY LOWER(w.word)
+        """, selected_levels)
 
-        all_translations = [row["translation_text"] for row in cur.fetchall()]
-        total_count = len(all_translations)
+        words_raw = cur.fetchall()
 
-        max_display = 3
-        max_total_len = 40
+        # 4) Enrich each word with translations (your existing logic)
+        for w in words_raw:
+            cur.execute("""
+                SELECT DISTINCT t.translation_text
+                FROM translations t
+                JOIN meanings m ON m.id = t.meaning_id
+                WHERE m.word_id = ?
+                ORDER BY m.meaning_number, t.translation_number
+            """, (w["id"],))
 
-        display_translations = []
-        current_len = 0
+            all_translations = [row["translation_text"] for row in cur.fetchall()]
+            total_count = len(all_translations)
 
-        for t in all_translations:
-            if not display_translations:
-                display_translations.append(t)
-                current_len += len(t)
-            else:
-                if len(display_translations) >= max_display:
-                    break
-                projected_len = current_len + 2 + len(t)  # ", "
-                if projected_len > max_total_len:
-                    break
-                display_translations.append(t)
-                current_len = projected_len
+            max_display = 3
+            max_total_len = 40
 
-        words.append({
-            "id": w["id"],
-            "word": w["word"],
-            "translations": display_translations,
-            "total_translations": total_count,
-        })
+            display_translations = []
+            current_len = 0
+
+            for t in all_translations:
+                if not display_translations:
+                    display_translations.append(t)
+                    current_len += len(t)
+                else:
+                    if len(display_translations) >= max_display:
+                        break
+                    projected_len = current_len + 2 + len(t)  # ", "
+                    if projected_len > max_total_len:
+                        break
+                    display_translations.append(t)
+                    current_len = projected_len
+
+            words.append({
+                "id": w["id"],
+                "word": w["word"],
+                "level": w["level"],
+                "translations": display_translations,
+                "total_translations": total_count,
+            })
 
     conn.close()
     return words, levels, selected_levels
@@ -536,13 +564,20 @@ def update_view():
 
     view = data.get("view", "cards")
     words, levels, _ = get_words_from_db()
+    levels_dict = {lvl["id"]: lvl["name"] for lvl in levels}
 
     if view == "cards":
-        html = render_template("partials/words_cards.html", words=words)
+        html = render_template("partials/words_cards.html",
+                               words=words,
+                               levels_dict=levels_dict)
     elif view == "table":
-        html = render_template("partials/words_table.html", words=words)
+        html = render_template("partials/words_table.html",
+                               words=words,
+                               levels_dict=levels_dict)
     else:
-        html = render_template("partials/words_flashcards.html", words=words)
+        html = render_template("partials/words_flashcards.html",
+                               words=words,
+                               levels_dict=levels_dict)
 
     return jsonify({"html": html, "current_view": view, "selected_levels": selected_levels})
 
@@ -918,9 +953,115 @@ def show_category(category_name):
     )
 
 
+@app.route('/categories/<category_name>/update_view', methods=['POST'])
+def category_update_view(category_name):
+    data = request.get_json() or {}
+    view = data.get("view", "table")
 
-# ----- Admin-only decorator -----
-from functools import wraps
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Find category
+    cur.execute("SELECT id, name FROM categories WHERE name = ?", (category_name,))
+    category = cur.fetchone()
+    if not category:
+        conn.close()
+        return jsonify({"html": "<p>Category not found.</p>"}), 404
+
+    category_id = category["id"]
+
+    # Levels + selection (same as in show_category)
+    cur.execute("SELECT id, name FROM levels ORDER BY id")
+    levels = cur.fetchall()
+    all_level_ids = [lvl["id"] for lvl in levels]
+    levels_dict = {lvl["id"]: lvl["name"] for lvl in levels}
+
+    stored = session.get("selected_levels")
+    selected_levels = []
+
+    if stored is None:
+        selected_levels = all_level_ids.copy()
+    else:
+        for x in stored:
+            try:
+                val = int(x)
+            except (TypeError, ValueError):
+                continue
+            if val in all_level_ids:
+                selected_levels.append(val)
+
+    session["selected_levels"] = selected_levels
+
+    words_with_translations = []
+
+    if selected_levels:
+        placeholders = ",".join("?" for _ in selected_levels)
+        sql = f"""
+            SELECT w.id AS word_id, w.word, w.level, wc.meaning_id
+            FROM words w
+            JOIN word_categories wc ON w.id = wc.word_id
+            WHERE wc.category_id = ?
+              AND w.level IN ({placeholders})
+            ORDER BY wc.sort_order, w.word COLLATE NOCASE
+        """
+        params = [category_id] + selected_levels
+        cur.execute(sql, params)
+        words = cur.fetchall()
+
+        for w in words:
+            meaning_id = w["meaning_id"]
+
+            if meaning_id:
+                cur.execute("""
+                    SELECT translation_text
+                    FROM translations
+                    WHERE meaning_id = ?
+                    ORDER BY translation_number
+                    LIMIT 5
+                """, (meaning_id,))
+            else:
+                cur.execute("""
+                    SELECT t.translation_text
+                    FROM meanings m
+                    JOIN translations t ON t.meaning_id = m.id
+                    WHERE m.word_id = ?
+                    ORDER BY m.meaning_number, t.translation_number
+                    LIMIT 5
+                """, (w["word_id"],))
+
+            translations = [row["translation_text"] for row in cur.fetchall()]
+
+            words_with_translations.append({
+                "id": w["word_id"],
+                "word": w["word"],
+                "level": w["level"],
+                "translations": translations
+            })
+
+    conn.close()
+
+    if view == "table":
+        html = render_template("partials/words_table.html",
+                               words=words_with_translations,
+                               levels_dict=levels_dict)
+    elif view == "cards":
+        html = render_template("partials/words_cards.html",
+                               words=words_with_translations,
+                               levels_dict=levels_dict)
+    else:
+        html = render_template("partials/words_flashcards.html",
+                               words=words_with_translations,
+                               levels_dict=levels_dict)
+
+    return jsonify({"html": html, "view": view})
+
+
+
+
+
+
+
 
 def admin_required(f):
     @wraps(f)

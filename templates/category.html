@@ -1,9 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 
-
-
-{# ---- Level pills (same global selection concept) ---- #}
+{# ---- Level pills (global selection) ---- #}
 <form id="levels-form" class="level-pill-form" style="margin-bottom: 12px;">
     <div class="level-pill-container" style="display:flex; flex-wrap:wrap; gap:10px;">
         {% for level in levels %}
@@ -19,8 +17,8 @@
     </div>
 </form>
 
-<h2>{{ category['name'] }}</h2>
 
+<h2>{{ category['name'] }}</h2>
 
 {# ---- Subcategories with small arrow toggle ---- #}
 {% if subcategories %}
@@ -56,23 +54,22 @@
 </div>
 {% endif %}
 
-
-<!-- View switcher -->
+{# ---- View switcher (AJAX, same style as words page) ---- #}
 <div class="view-switcher" style="margin: 10px 0; display: flex; gap: 15px; flex-wrap: wrap;">
 
-    <a href="{{ url_for('show_category', category_name=category['name'], view='cards') }}"
+    <a href="#"
        class="apply-button {% if view == 'cards' %}active-view{% endif %}"
        data-view="cards">
         Card View
     </a>
 
-    <a href="{{ url_for('show_category', category_name=category['name'], view='table') }}"
+    <a href="#"
        class="apply-button {% if view == 'table' %}active-view{% endif %}"
        data-view="table">
         Table View
     </a>
 
-    <a href="{{ url_for('show_category', category_name=category['name'], view='flashcards') }}"
+    <a href="#"
        class="apply-button {% if view == 'flashcards' %}active-view{% endif %}"
        data-view="flashcards">
         Flashcards
@@ -80,48 +77,20 @@
 
 </div>
 
-{# ---- Words section, depending on view ---- #}
-{% if words %}
-  {% if view == 'table' %}
-    {# keep your existing table view here #}
-    <div class="words-section">
-        <table class="category-table">
-            <thead>
-                <tr>
-                    <th>Finnish</th>
-                    <th>English</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for w in words %}
-                <tr>
-                    <td>
-                        <a href="{{ url_for('show_word', word_name=w.word) }}">{{ w.word }}</a>
-                        {% if w.level and w.level > 0 %}
-                            <span class="level-badge level-{{ w.level }}">
-                                {{ levels_dict[w.level] }}
-                            </span>
-                        {% endif %}
-                    </td>
-                    <td>{{ ", ".join(w.translations) }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-  {% elif view == 'cards' %}
-    {# reuse the same layout as words cards #}
-    {% include "partials/words_cards.html" %}
-
-  {% else %} {# flashcards #}
-    {# reuse the same layout as words flashcards #}
-    {% include "partials/words_flashcards.html" %}
-  {% endif %}
-{% else %}
-  <p>No words in this category for the selected levels.</p>
-{% endif %}
-
+{# ---- Words section container (AJAX target) ---- #}
+<div id="category-words-container">
+    {% if words %}
+        {% if view == 'table' %}
+            {% include "partials/words_table.html" %}
+        {% elif view == 'cards' %}
+            {% include "partials/words_cards.html" %}
+        {% else %}
+            {% include "partials/words_flashcards.html" %}
+        {% endif %}
+    {% else %}
+        <p>No words in this category for the selected levels.</p>
+    {% endif %}
+</div>
 
 {# ---- Breadcrumb ---- #}
 {% if parent %}
@@ -135,7 +104,9 @@
 {% endif %}
 
 <script>
-// ---- Level helpers (category page uses global selection via set_levels) ----
+let currentView = "{{ view }}";  // keep track of current view for AJAX updates
+
+// ---- Level helpers (uses global /set_levels and then refreshes words via AJAX) ----
 function getSelectedLevels() {
     return Array.from(document.querySelectorAll('.level-pill.selected[data-level-id]'))
                 .map(p => p.dataset.levelId);
@@ -151,6 +122,10 @@ function updateSelectAllLabel() {
 }
 
 function sendSelectedLevels(selectedLevels) {
+    const wordsContainer = document.getElementById('category-words-container');
+    if (!wordsContainer) return;
+
+    // 1) Save levels globally
     fetch('{{ url_for("set_levels") }}', {
         method: "POST",
         headers: {
@@ -161,8 +136,22 @@ function sendSelectedLevels(selectedLevels) {
     })
     .then(resp => resp.json())
     .then(data => {
-        // Reload this category page with same view
-        window.location.reload();
+        // 2) Update just the words section for the current view
+        return fetch('{{ url_for("category_update_view", category_name=category["name"]) }}', {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                'X-CSRFToken': '{{ csrf_token() if csrf_token is defined }}'
+            },
+            body: JSON.stringify({ view: currentView })
+        });
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.html) {
+            wordsContainer.innerHTML = data.html;
+            bindFlashcards();  // re-bind after DOM update
+        }
     })
     .catch(err => console.error("Error updating levels:", err));
 }
@@ -208,10 +197,6 @@ function initLevelPills() {
         selectAll.addEventListener('click', toggleAllLevels);
     }
 
-    const resetBtn = document.getElementById('reset-levels-btn');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', resetLevels);
-    }
 
     updateSelectAllLabel();
 }
@@ -243,10 +228,48 @@ function bindFlashcards() {
     });
 }
 
+// ---- View switcher for category (AJAX) ----
+function bindCategoryViewSwitcher() {
+    const buttons = document.querySelectorAll('.view-switcher .apply-button');
+    const container = document.getElementById('category-words-container');
+    if (!buttons || !container) return;
+
+    buttons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const view = this.dataset.view;
+            if (!view) return;
+
+            // update active button
+            buttons.forEach(b => b.classList.remove('active-view'));
+            this.classList.add('active-view');
+            currentView = view;
+
+            fetch('{{ url_for("category_update_view", category_name=category["name"]) }}', {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    'X-CSRFToken': '{{ csrf_token() if csrf_token is defined }}'
+                },
+                body: JSON.stringify({ view: view })
+            })
+            .then(resp => resp.json())
+            .then(data => {
+                if (data.html) {
+                    container.innerHTML = data.html;
+                    bindFlashcards();
+                }
+            })
+            .catch(err => console.error("Error updating category view:", err));
+        });
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     initLevelPills();
     bindSubcategoryToggles();
     bindFlashcards();
+    bindCategoryViewSwitcher();
 });
 </script>
 
