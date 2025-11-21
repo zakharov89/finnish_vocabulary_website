@@ -486,16 +486,16 @@ footer {
    Word Levels
 ========================== */
 .level-badge {
-    position: absolute;
-    top: 0;
-    right: 0;
     display: inline-block;
-    color: white;
-    padding: 2px 8px;
-    border-radius: 8px;
-    font-size: 1rem;
-    margin-left: 0;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    margin-left: 6px;
+    border-radius: 999px;
+    background: #eee;
+    color: #555;
+    position: static;   /* important: no absolute by default */
 }
+
 
 .level-1 { background-color: #4CAF50; }
 .level-2 { background-color: #2b60c9; }

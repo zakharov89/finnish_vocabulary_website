@@ -13,15 +13,6 @@
             <tr>
                 <td>
                     <a href="{{ url_for('show_word', word_name=w.word) }}">{{ w.word }}</a>
-                    {% if w.level is defined and w.level and w.level > 0 %}
-                        <span class="level-badge level-{{ w.level }}">
-                            {% if levels_dict is defined and w.level in levels_dict %}
-                                {{ levels_dict[w.level] }}
-                            {% else %}
-                                L{{ w.level }}
-                            {% endif %}
-                        </span>
-                    {% endif %}
                 </td>
                 <td>{{ ", ".join(w.translations) }}</td>
             </tr>
