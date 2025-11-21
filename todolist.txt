@@ -1,3 +1,5 @@
 
 - Add user identification, progress, some quizes etc
-- Add levels of words. How many? What about meanings and categories?
+
+- order of words in categories? e.g. for months important
+- different arrow for subcategories like examples

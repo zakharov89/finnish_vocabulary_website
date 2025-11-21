@@ -486,13 +486,14 @@ footer {
 ========================== */
 .level-badge {
     display: inline-block;
-    font-size: 0.75rem;
-    padding: 2px 6px;
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: white;
     margin-left: 6px;
-    border-radius: 999px;
-    background: #eee;
-    color: #555;
-    position: static;   /* important: no absolute by default */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    vertical-align: middle;
 }
 
 
@@ -942,3 +943,92 @@ footer {
     color: #444;
 }
 
+.expand-btn {
+    background: none;
+    border: none;
+    padding: 4px 0;
+    color: #1565c0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    transition: color 0.2s ease;
+}
+
+.expand-btn:hover {
+    color: #0b54b3;
+    text-decoration: none;
+}
+
+.expand-btn .chevron {
+    display: inline-block;
+    font-size: 0.9rem;
+    transition: transform 0.25s ease;
+}
+
+/* Rotate down when expanded */
+.expand-btn.expanded .chevron {
+    transform: rotate(90deg);
+}
+
+
+.relation-type-label {
+    font-weight: 600;
+    color: #1a237e;
+    margin-right: 6px;
+}
+
+.relation-item a {
+    background: #e3f2fd;
+    padding: 3px 8px;
+    border-radius: 12px;
+    color: #1565c0;
+    text-decoration: none;
+    margin-right: 4px;
+    display: inline-block;
+}
+
+.relation-item a:hover {
+    background: #bbdefb;
+    text-decoration: underline;
+}
+
+.relation-block {
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+}
+
+.relation-type-label {
+    font-weight: 600;
+    color: #1a237e;
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+}
+
+.relation-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.relation-chip {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #e3f2fd;
+    color: #1565c0;
+    font-size: 0.85rem;
+    text-decoration: none;
+}
+
+.relation-chip:hover {
+    background: #bbdefb;
+    text-decoration: underline;
+}

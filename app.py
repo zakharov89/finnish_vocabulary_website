@@ -38,7 +38,6 @@ def logout():
     flash("Logged out.", "info")
     return redirect(url_for('login'))
 
-
 @app.route('/home')
 def home():
     return render_template('home.html', title="Home")
@@ -46,7 +45,6 @@ def home():
 @app.route('/')
 def root():
     return redirect(url_for('home'))
-
 
 @app.route('/levels', methods=['GET', 'POST'])
 def levels():
@@ -86,13 +84,9 @@ def set_levels():
     session["selected_levels"] = selected
     return jsonify(success=True)
 
-
-
 @app.route('/about')
 def about():
     return render_template('about.html', title="About")
-
-
 
 @app.route('/search', methods=['GET'])
 def search():
@@ -150,9 +144,6 @@ def search():
         mode=mode
     )
 
-
-
-
 @app.route('/autocomplete', methods=['GET'])
 def autocomplete():
     query = request.args.get('query', '').strip()
@@ -209,11 +200,6 @@ def autocomplete():
     conn.close()
     return jsonify(suggestions)
 
-
-
-
-
-
 @app.route('/word/<word_name>')
 def show_word(word_name):
     conn = sqlite3.connect("finnish.db")
@@ -241,18 +227,19 @@ def show_word(word_name):
     # ---- Fetch meanings + POS + translations + examples ----
     cur.execute("""
         SELECT 
-            m.id AS meaning_id,
+            m.id   AS meaning_id,
             m.meaning_number,
             m.definition,
             m.notes,
             p.name AS pos_name,
             t.translation_text,
+            e.id   AS example_id,
             e.example_text,
             e.example_translation_text
         FROM meanings m
         LEFT JOIN parts_of_speech p ON m.pos_id = p.id
-        LEFT JOIN translations t ON t.meaning_id = m.id
-        LEFT JOIN examples e ON e.meaning_id = m.id
+        LEFT JOIN translations t    ON t.meaning_id = m.id
+        LEFT JOIN examples e        ON e.meaning_id = m.id
         WHERE m.word_id = ?
         ORDER BY p.name ASC, m.meaning_number ASC
     """, (word_id,))
@@ -272,9 +259,9 @@ def show_word(word_name):
     if not rows:
         conn.close()
         return render_template(
-            "word.html", 
-            meanings_by_pos=None, 
-            word_name=word_name, 
+            "word.html",
+            meanings_by_pos=None,
+            word_name=word_name,
             categories=categories
         )
 
@@ -284,7 +271,10 @@ def show_word(word_name):
         pos = r["pos_name"] or "other"
         meanings_by_pos.setdefault(pos, [])
 
-        meaning = next((m for m in meanings_by_pos[pos] if m["id"] == r["meaning_id"]), None)
+        meaning = next(
+            (m for m in meanings_by_pos[pos] if m["id"] == r["meaning_id"]),
+            None
+        )
         if meaning is None:
             meaning = {
                 "id": r["meaning_id"],
@@ -292,18 +282,29 @@ def show_word(word_name):
                 "definition": r["definition"],
                 "notes": r["notes"],
                 "translations": [],
-                "examples": []
+                "examples": [],
+                "seen_example_ids": set(),  # for de-duplication
             }
             meanings_by_pos[pos].append(meaning)
 
+        # translations
         if r["translation_text"] and r["translation_text"] not in meaning["translations"]:
             meaning["translations"].append(r["translation_text"])
 
+        # examples (avoid duplicates caused by JOIN)
         if r["example_text"]:
-            meaning["examples"].append({
-                "text": r["example_text"],
-                "translation": r["example_translation_text"]
-            })
+            ex_id = r["example_id"]
+            if ex_id not in meaning["seen_example_ids"]:
+                meaning["examples"].append({
+                    "text": r["example_text"],
+                    "translation": r["example_translation_text"]
+                })
+                meaning["seen_example_ids"].add(ex_id)
+
+    # remove helper set before passing to template
+    for pos_block in meanings_by_pos.values():
+        for m in pos_block:
+            m.pop("seen_example_ids", None)
 
     # ---- Through-numbering ----
     counter = 1
@@ -315,7 +316,6 @@ def show_word(word_name):
     # ============================================================
     # WORD RELATIONS (only outgoing)
     # ============================================================
-
     cur.execute("""
         SELECT 
             wr.id,
@@ -323,7 +323,7 @@ def show_word(word_name):
             w2.word AS target_word
         FROM word_relations wr
         JOIN relation_types rt ON wr.relation_type_id = rt.id
-        JOIN words w2 ON wr.word2_id = w2.id
+        JOIN words w2          ON wr.word2_id = w2.id
         WHERE wr.word1_id = ?
         ORDER BY rt.name, w2.word
     """, (word_id,))
@@ -336,48 +336,64 @@ def show_word(word_name):
             "target_word": r["target_word"]
         })
 
-
-
-    # ============================================================
+        # ============================================================
     # MEANING RELATIONS (only outgoing)
     # ============================================================
-    # Get all meaning IDs for this word
     meaning_ids = [m["id"] for plist in meanings_by_pos.values() for m in plist]
 
-   # ============================================================
-    # MEANING RELATIONS (only outgoing)
-    # ============================================================
-    cur.execute("""
-        SELECT 
-            mr.id,
-            mr.meaning1_id,
-            mr.meaning2_id,
-            rt.name AS relation_type,
-            w2.word AS target_word,
-            m2.meaning_number AS target_meaning_number
-        FROM meaning_relations mr
-        JOIN relation_types rt ON mr.relation_type_id = rt.id
-        JOIN meanings m2 ON mr.meaning2_id = m2.id
-        JOIN words w2 ON m2.word_id = w2.id
-        WHERE mr.meaning1_id IN ({})
-        ORDER BY rt.name, w2.word, m2.meaning_number
-    """.format(",".join("?" * len(meaning_ids))), meaning_ids)
+    if meaning_ids:
+        cur.execute("""
+            SELECT 
+                mr.id,
+                mr.meaning1_id,
+                mr.meaning2_id,
+                rt.name AS relation_type,
+                w2.word AS target_word,
+                m2.meaning_number AS target_meaning_number,
+                t2.translation_text AS target_translation
+            FROM meaning_relations mr
+            JOIN relation_types rt ON mr.relation_type_id = rt.id
+            JOIN meanings m2       ON mr.meaning2_id = m2.id
+            JOIN words   w2        ON m2.word_id = w2.id
+            LEFT JOIN translations t2 ON t2.meaning_id = m2.id
+            WHERE mr.meaning1_id IN ({})
+            ORDER BY rt.name, w2.word, m2.meaning_number, t2.translation_number
+        """.format(",".join("?" * len(meaning_ids))), meaning_ids)
 
-    meaning_rel_rows = cur.fetchall()
+        meaning_rel_rows = cur.fetchall()
+    else:
+        meaning_rel_rows = []
 
     meaning_relations = {}
-
     for r in meaning_rel_rows:
         m1 = r["meaning1_id"]
         rt = r["relation_type"]
+        target_word = r["target_word"]
+        target_num  = r["target_meaning_number"]
+        target_tr   = r["target_translation"]
 
+        # ensure structure: meaning_relations[meaning1_id][relation_type] = [entries...]
         meaning_relations.setdefault(m1, {})
-        meaning_relations[m1].setdefault(rt, [])
+        group = meaning_relations[m1].setdefault(rt, [])
 
-        meaning_relations[m1][rt].append({
-            "target_word": r["target_word"],
-            "target_number": r["target_meaning_number"]
-        })
+        # find or create entry for (target_word, target_num)
+        entry = None
+        for e in group:
+            if e["target_word"] == target_word and e["target_number"] == target_num:
+                entry = e
+                break
+
+        if entry is None:
+            entry = {
+                "target_word": target_word,
+                "target_number": target_num,
+                "translations": []
+            }
+            group.append(entry)
+
+        # add translation if present and not duplicate
+        if target_tr and target_tr not in entry["translations"]:
+            entry["translations"].append(target_tr)
 
 
     conn.close()
@@ -393,7 +409,6 @@ def show_word(word_name):
         word_level_name=word_level_name
     )
 
-
 def handle_level_post(default_redirect):
     if request.method == "POST":
         selected = request.form.getlist("levels")
@@ -401,10 +416,6 @@ def handle_level_post(default_redirect):
         session["selected_levels"] = selected_levels
         return redirect(default_redirect)
     return None
-
-
-
-
 
 @app.route('/words/table', methods=['GET', 'POST'])
 def words_table():
@@ -451,8 +462,6 @@ def words_flashcards():
         levels_dict=levels_dict,
     )
 
-
-
 @app.route('/words/flashcards/ajax', methods=['POST'])
 def words_flashcards_ajax():
     data = request.get_json() or {}
@@ -473,10 +482,6 @@ def words_flashcards_ajax():
                            levels_dict=levels_dict)
     return jsonify({"html": html, "selected_levels": selected_levels})
 
-
-
-
-# Helper function to fetch words (reuse in all views)
 def get_words_from_db(selected_levels=None):
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
@@ -580,9 +585,6 @@ def get_words_from_db(selected_levels=None):
     conn.close()
     return words, levels, selected_levels
 
-
-
-
 @app.route('/levels/ajax', methods=['POST'])
 def handle_levels_ajax():
     data = request.get_json()
@@ -593,7 +595,6 @@ def handle_levels_ajax():
     except ValueError:
         session["selected_levels"] = []
     return jsonify({"success": True, "selected_levels": session["selected_levels"]})
-
 
 @app.route('/levels/update_view', methods=['POST'])
 def update_view():
@@ -629,12 +630,6 @@ def update_view():
 
     return jsonify({"html": html, "current_view": view, "selected_levels": selected_levels})
 
-
-
-
-
-
-
 def get_all_levels(cur):
     cur.execute("SELECT id, name FROM levels ORDER BY id")
     return cur.fetchall()
@@ -660,12 +655,6 @@ def get_selected_levels(cur):
 
     # Default: all levels selected
     return all_ids, levels
-
-
-
-
-
-
 
 def resolve_selected_levels(cur):
     """
@@ -697,9 +686,6 @@ def resolve_selected_levels(cur):
     session["selected_levels"] = normalized
     return levels, normalized
 
-
-
-
 def get_descendant_category_ids(all_rows, root_id):
     """
     Given all category rows and a root category_id,
@@ -720,9 +706,6 @@ def get_descendant_category_ids(all_rows, root_id):
 
     dfs(root_id)
     return descendants
-
-
-
 
 def get_categories_with_counts(cur, level_ids):
     """
@@ -804,7 +787,6 @@ def get_categories_with_counts(cur, level_ids):
 
     return categories_dict
 
-
 @app.route('/categories')
 def categories():
     conn = sqlite3.connect("finnish.db")
@@ -823,7 +805,6 @@ def categories():
         levels=levels,
         selected_levels=selected_levels,
     )
-
 
 @app.route('/categories/filter', methods=['POST'])
 def filter_categories():
@@ -854,10 +835,6 @@ def filter_categories():
 
     html = render_template("partials/categories_grid.html", categories=categories_dict)
     return jsonify({"html": html})
-
-
-
-
 
 @app.route('/categories/<category_name>')
 def show_category(category_name):
@@ -1024,8 +1001,6 @@ def show_category(category_name):
         include_subs=include_subs,
     )
 
-
-
 @app.route('/categories/<category_name>/update_view', methods=['POST'])
 def category_update_view(category_name):
     data = request.get_json() or {}
@@ -1152,12 +1127,6 @@ def category_update_view(category_name):
         "subtopics_html": subtopics_html,
     })
 
-
-
-
-
-
-
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -1166,7 +1135,6 @@ def admin_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
-
 
 @app.route("/admin")
 @admin_required
@@ -1199,10 +1167,6 @@ def admin_dashboard():
         recent_words=recent_words,
         recent_categories=recent_categories
     )
-
-
-
-
 
 @app.route('/admin/add_word', methods=['GET', 'POST'])
 @admin_required
@@ -1294,8 +1258,6 @@ def admin_add_word():
     conn.close()
     return render_template('admin_add_word.html', pos_list=pos_list, levels=levels)
 
-
-
 @app.route('/admin/edit_word/<int:word_id>', methods=['GET', 'POST'])
 @admin_required
 def admin_edit_word(word_id):
@@ -1372,9 +1334,6 @@ def admin_edit_word(word_id):
     conn.close()
     return render_template('admin_edit_word.html', word=word, levels=levels, meanings_by_pos=meanings_by_pos, pos_list=pos_list)
 
-
-
-
 @app.route('/admin/edit_meaning/<int:meaning_id>', methods=['GET', 'POST'])
 @admin_required
 def admin_edit_meaning(meaning_id):
@@ -1450,9 +1409,6 @@ def admin_edit_meaning(meaning_id):
         meanings_count=meanings_count  
     )
 
-
-
-
 @app.route('/admin/add_meaning/<int:word_id>', methods=['GET', 'POST'])
 @admin_required
 def admin_add_meaning(word_id):
@@ -1519,12 +1475,6 @@ def admin_add_meaning(word_id):
     conn.close()
     return render_template('admin_add_meaning.html', word=word, pos_list=pos_list)
 
-
-
-
-
-
-
 @app.route('/admin/edit_word_search', methods=['GET'])
 @admin_required
 def admin_edit_word_search():
@@ -1543,8 +1493,6 @@ def admin_edit_word_search():
 
 
     return render_template("admin_edit_word_search.html", results=results, query=query)
-
-
 
 @app.route('/admin/delete_word/<int:word_id>', methods=['POST'])
 @admin_required
@@ -1579,7 +1527,6 @@ def admin_delete_word(word_id):
     flash(f"Word '{word_text}' deleted successfully!", "success")
     return redirect(url_for('admin_dashboard'))
 
-
 @app.route("/admin/delete_meaning/<int:meaning_id>", methods=["POST"])
 @admin_required
 def admin_delete_meaning(meaning_id):
@@ -1603,13 +1550,6 @@ def admin_delete_meaning(meaning_id):
     conn.close()
     flash("Meaning deleted successfully.", "success")
     return redirect(url_for("admin_edit_word", word_id=word_id))
-
-
-
-
-
-
-
 
 @app.route("/admin/add_category", methods=["GET", "POST"])
 @admin_required
@@ -1654,10 +1594,6 @@ def admin_add_category():
 
     return render_template("admin_add_category.html", categories=categories)
 
-
-
-
-
 @app.route("/admin/categories/search")
 @admin_required
 def admin_search_category():
@@ -1682,12 +1618,6 @@ def admin_search_category():
         query=query,
         results=results
     )
-
-
-
-
-
-
 
 @app.route("/admin/categories/<int:category_id>/edit", methods=["GET", "POST"])
 @admin_required
@@ -1857,7 +1787,6 @@ def admin_edit_category(category_id):
         levels=levels
     )
 
-
 @app.route("/admin/categories/<int:category_id>/remove_word/<int:word_id>", methods=["POST"])
 @admin_required
 def admin_remove_word_from_category(category_id, word_id):
@@ -1872,8 +1801,6 @@ def admin_remove_word_from_category(category_id, word_id):
     
     flash("Word removed from category.", "success")
     return redirect(url_for("admin_edit_category", category_id=category_id))
-
-
 
 @app.route("/admin/categories/<int:category_id>/delete", methods=["POST"])
 @admin_required
@@ -1898,11 +1825,6 @@ def admin_delete_category(category_id):
 
     flash(f"Category '{category['name']}' deleted successfully.", "success")
     return redirect(url_for("admin_dashboard"))
-
-
-
-
-
 
 @app.route("/admin/categories/<int:category_id>/meanings", methods=["GET", "POST"])
 @admin_required
@@ -2001,8 +1923,6 @@ def admin_category_meanings(category_id):
         words=words
     )
 
-
-
 @app.route("/admin/set_main_meaning", methods=["POST"])
 @admin_required
 def admin_set_main_meaning():
@@ -2026,7 +1946,6 @@ def admin_set_main_meaning():
     conn.commit()
     conn.close()
     return jsonify({"status": "ok"})
-
 
 # ----- List all words -----
 @app.route("/admin/words")
@@ -2058,8 +1977,6 @@ def admin_list_words():
         page=page,
         total_pages=total_pages
     )
-
-
 
 # ----- List all categories -----
 @app.route("/admin/categories")
