@@ -2,28 +2,52 @@
 {% block content %}
 
 
+
+{# ---- Level pills (same global selection concept) ---- #}
+<form id="levels-form" class="level-pill-form" style="margin-bottom: 12px;">
+    <div class="level-pill-container" style="display:flex; flex-wrap:wrap; gap:10px;">
+        {% for level in levels %}
+        <label class="level-pill"
+               data-level-id="{{ level.id }}">
+            {{ level.name }}
+        </label>
+        {% endfor %}
+
+        <label class="level-pill select-all-pill">
+            Select All
+        </label>
+    </div>
+</form>
+
 <h2>{{ category['name'] }}</h2>
 
 
+{# ---- Subcategories with small arrow toggle ---- #}
 {% if subcategories %}
-<div class="subcategories-section">
+<div class="subcategories-section" style="margin-bottom: 1.5em;">
     <div class="category-grid">
         {% for sub in subcategories %}
         <div class="category-card">
-            <a href="{{ url_for('show_category', category_name=sub['name']) }}" class="category-link">
-                <span class="title">{{ sub['name'] }}</span>
-            </a>
+            <div class="category-header">
+                <a href="{{ url_for('show_category', category_name=sub['name']) }}" class="category-link">
+                    <span class="title">{{ sub['name'] }}</span>
+                </a>
+                {% if categories.get(sub['id']) %}
+                  <button type="button"
+                          class="subcat-toggle"
+                          data-cat-id="{{ sub['id'] }}">
+                      ▼
+                  </button>
+                {% endif %}
+            </div>
 
             {% if categories.get(sub['id']) %}
-            <div class="subcats-toggle">
-                <button class="expand-btn">Show Subcategories</button>
-                <div class="subcats" style="display: none;">
-                    {% for child in categories.get(sub['id']) %}
+            <div class="subcats" data-subcats-for="{{ sub['id'] }}" style="display: none;">
+                {% for child in categories.get(sub['id']) %}
                     <a class="subcat" href="{{ url_for('show_category', category_name=child['name']) }}">
                         {{ child['name'] }}
                     </a>
-                    {% endfor %}
-                </div>
+                {% endfor %}
             </div>
             {% endif %}
         </div>
@@ -32,122 +56,197 @@
 </div>
 {% endif %}
 
-{% if words %}
-<div class="words-section">
-    <table class="category-table">
-        <thead>
-            <tr>
-                <th>Finnish</th>
-                <th>English</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for w in words %}
-            <tr>
-                <td>
-                    <a href="{{ url_for('show_word', word_name=w['word']) }}">{{ w['word'] }}</a>
-                    {% if w.level and w.level > 0 %}
-                        <span class="level-badge level-{{ w.level }}">{{ levels_dict[w.level] }}</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {{ ", ".join(w['translations']) }}
-                    {% if w.translations|length > 3 %}…{% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+
+<!-- View switcher -->
+<div class="view-switcher" style="margin: 10px 0; display: flex; gap: 15px; flex-wrap: wrap;">
+
+    <a href="{{ url_for('show_category', category_name=category['name'], view='cards') }}"
+       class="apply-button {% if view == 'cards' %}active-view{% endif %}"
+       data-view="cards">
+        Card View
+    </a>
+
+    <a href="{{ url_for('show_category', category_name=category['name'], view='table') }}"
+       class="apply-button {% if view == 'table' %}active-view{% endif %}"
+       data-view="table">
+        Table View
+    </a>
+
+    <a href="{{ url_for('show_category', category_name=category['name'], view='flashcards') }}"
+       class="apply-button {% if view == 'flashcards' %}active-view{% endif %}"
+       data-view="flashcards">
+        Flashcards
+    </a>
+
 </div>
+
+{# ---- Words section, depending on view ---- #}
+{% if words %}
+  {% if view == 'table' %}
+    {# keep your existing table view here #}
+    <div class="words-section">
+        <table class="category-table">
+            <thead>
+                <tr>
+                    <th>Finnish</th>
+                    <th>English</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in words %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('show_word', word_name=w.word) }}">{{ w.word }}</a>
+                        {% if w.level and w.level > 0 %}
+                            <span class="level-badge level-{{ w.level }}">
+                                {{ levels_dict[w.level] }}
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>{{ ", ".join(w.translations) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+  {% elif view == 'cards' %}
+    {# reuse the same layout as words cards #}
+    {% include "partials/words_cards.html" %}
+
+  {% else %} {# flashcards #}
+    {# reuse the same layout as words flashcards #}
+    {% include "partials/words_flashcards.html" %}
+  {% endif %}
 {% else %}
-<p>No words in this category for the selected levels.</p>
+  <p>No words in this category for the selected levels.</p>
 {% endif %}
 
 
-<div class="levels-footer" style="margin-top: 2em; padding: 10px; border-top: 1px solid #ccc;">
-    <p>
-        Currently showing: 
-        {% if selected_levels %}
-            {% for lvl_id in selected_levels %}
-                {{ levels_dict[lvl_id] }}{% if not loop.last %}, {% endif %}
-            {% endfor %}
-        {% else %}
-            All words
-        {% endif %}.
-        <a href="#" id="change-levels-link">Change?</a>
-    </p>
-
-    <form id="category-level-form" style="display: none;">
-        {% for lvl in levels %}
-        <label style="margin-right:10px;">
-            <input type="checkbox" name="level" value="{{ lvl.id }}"
-                {% if lvl.id in selected_levels %}checked{% endif %}>
-            {{ lvl.name }}
-        </label>
-        {% endfor %}
-        <label style="margin-right:10px;">
-            <input type="checkbox" name="level" value="0"
-                {% if 0 in selected_levels %}checked{% endif %}>
-            No level
-        </label>
-        <button type="submit" style="margin-left: 10px;">Apply</button>
-    </form>
-</div>
-
-<script>
-    const changeLink = document.getElementById('change-levels-link');
-    const levelForm = document.getElementById('category-level-form');
-
-    changeLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        levelForm.style.display = levelForm.style.display === 'none' ? 'block' : 'none';
-    });
-
-    levelForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        // collect selected levels
-        const levels = Array.from(levelForm.querySelectorAll('input[name="level"]:checked'))
-            .map(input => input.value);
-
-        // send AJAX POST to set_levels route
-        fetch('{{ url_for("set_levels") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() if csrf_token is defined }}'
-            },
-            body: JSON.stringify({ levels: levels })
-        })
-        .then(res => res.json())
-        .then(data => {
-            // optionally refresh the page or update words list dynamically
-            location.reload();  // simplest: reload the category page
-        })
-        .catch(err => console.error(err));
-    });
-</script>
-
-
-
-
+{# ---- Breadcrumb ---- #}
 {% if parent %}
-<p class="breadcrumb">
+<p class="breadcrumb" style="margin-top: 1.5em;">
     <a href="{{ url_for('show_category', category_name=parent['name']) }}">Back to {{ parent['name'] }}</a>
 </p>
 {% else %}
-<p class="breadcrumb">
+<p class="breadcrumb" style="margin-top: 1.5em;">
     <a href="{{ url_for('categories') }}">Back to all categories</a>
 </p>
 {% endif %}
 
 <script>
-document.querySelectorAll('.expand-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-        const subcats = btn.nextElementSibling;
-        subcats.style.display = subcats.style.display === 'none' ? 'block' : 'none';
-        btn.textContent = subcats.style.display === 'none' ? 'Show Subcategories' : 'Hide Subcategories';
+// ---- Level helpers (category page uses global selection via set_levels) ----
+function getSelectedLevels() {
+    return Array.from(document.querySelectorAll('.level-pill.selected[data-level-id]'))
+                .map(p => p.dataset.levelId);
+}
+
+function updateSelectAllLabel() {
+    const allPills = document.querySelectorAll('.level-pill[data-level-id]');
+    const btn = document.querySelector('.select-all-pill');
+    if (!btn || allPills.length === 0) return;
+
+    const allSelected = Array.from(allPills).every(p => p.classList.contains('selected'));
+    btn.textContent = allSelected ? 'Deselect All' : 'Select All';
+}
+
+function sendSelectedLevels(selectedLevels) {
+    fetch('{{ url_for("set_levels") }}', {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            'X-CSRFToken': '{{ csrf_token() if csrf_token is defined }}'
+        },
+        body: JSON.stringify({ levels: selectedLevels })
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        // Reload this category page with same view
+        window.location.reload();
+    })
+    .catch(err => console.error("Error updating levels:", err));
+}
+
+function toggleAllLevels() {
+    const allPills = document.querySelectorAll('.level-pill[data-level-id]');
+    if (allPills.length === 0) return;
+
+    const allSelected = Array.from(allPills).every(p => p.classList.contains('selected'));
+
+    allPills.forEach(p => p.classList.toggle('selected', !allSelected));
+
+    updateSelectAllLabel();
+    sendSelectedLevels(getSelectedLevels());
+}
+
+function resetLevels() {
+    const allPills = document.querySelectorAll('.level-pill[data-level-id]');
+    allPills.forEach(p => p.classList.add('selected'));
+    updateSelectAllLabel();
+    sendSelectedLevels(getSelectedLevels());
+}
+
+function initLevelPills() {
+    const allPills = document.querySelectorAll('.level-pill[data-level-id]');
+    const selectedFromServer = {{ selected_levels | tojson }};
+
+    allPills.forEach(pill => {
+        const id = parseInt(pill.dataset.levelId);
+        if (selectedFromServer.includes(id)) {
+            pill.classList.add('selected');
+        }
+
+        pill.addEventListener('click', () => {
+            pill.classList.toggle('selected');
+            updateSelectAllLabel();
+            sendSelectedLevels(getSelectedLevels());
+        });
     });
+
+    const selectAll = document.querySelector('.select-all-pill');
+    if (selectAll) {
+        selectAll.addEventListener('click', toggleAllLevels);
+    }
+
+    const resetBtn = document.getElementById('reset-levels-btn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetLevels);
+    }
+
+    updateSelectAllLabel();
+}
+
+// ---- Subcategory arrow toggles ----
+function bindSubcategoryToggles() {
+    document.querySelectorAll('.subcat-toggle').forEach(toggle => {
+        toggle.addEventListener('click', () => {
+            const catId = toggle.dataset.catId;
+            const subcats = document.querySelector(`[data-subcats-for="${catId}"]`);
+            if (!subcats) return;
+
+            const isHidden =
+                subcats.style.display === 'none' ||
+                subcats.style.display === '';
+
+            subcats.style.display = isHidden ? 'block' : 'none';
+            toggle.textContent = isHidden ? '▲' : '▼';
+        });
+    });
+}
+
+// ---- Flashcard flip ----
+function bindFlashcards() {
+    document.querySelectorAll('.flashcard').forEach(card => {
+        card.addEventListener('click', () => {
+            card.classList.toggle('flipped');
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initLevelPills();
+    bindSubcategoryToggles();
+    bindFlashcards();
 });
 </script>
 

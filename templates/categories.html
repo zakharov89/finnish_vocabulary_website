@@ -111,14 +111,24 @@ function initLevelPills() {
     updateSelectAllLabel();
 }
 
-// ---- Expand buttons ----
+
+// ---- Expand buttons (arrow toggles) ----
 function bindExpandButtons() {
-    document.querySelectorAll('.expand-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            const subcats = btn.nextElementSibling;
-            const isHidden = (subcats.style.display === 'none' || !subcats.style.display);
+    document.querySelectorAll('.subcat-toggle').forEach(toggle => {
+        toggle.addEventListener('click', () => {
+            const catId = toggle.dataset.catId;
+            const subcats = document.querySelector(`[data-subcats-for="${catId}"]`);
+            if (!subcats) return;
+
+            const isHidden =
+                subcats.style.display === 'none' ||
+                subcats.style.display === '';
+
+            // Toggle subcats
             subcats.style.display = isHidden ? 'block' : 'none';
-            btn.textContent = isHidden ? 'Hide Subcategories' : 'Show Subcategories';
+
+            // Swap arrow
+            toggle.textContent = isHidden ? '▲' : '▼';
         });
     });
 }

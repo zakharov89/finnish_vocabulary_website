@@ -429,15 +429,22 @@ def get_words_from_db(selected_levels=None):
         selected_levels = normalized
         session["selected_levels"] = selected_levels
     else:
-        stored = session.get("selected_levels", [])
-        normalized = []
-        for x in stored:
-            try:
-                val = int(x)
-            except (TypeError, ValueError):
-                continue
-            if val in all_level_ids:
-                normalized.append(val)
+        stored = session.get("selected_levels")  # IMPORTANT: no default []
+        if stored is None:
+            # no value yet in session -> default to all levels
+            normalized = all_level_ids
+        else:
+            normalized = []
+            for x in stored:
+                try:
+                    val = int(x)
+                except (TypeError, ValueError):
+                    continue
+                if val in all_level_ids:
+                    normalized.append(val)
+            # DO NOT override empty here
+            # empty list now truly means “no levels selected”
+
         if not normalized:
             normalized = all_level_ids
         selected_levels = normalized
@@ -586,15 +593,21 @@ def resolve_selected_levels(cur):
     levels = cur.fetchall()
     all_level_ids = [row["id"] for row in levels]
 
-    stored = session.get("selected_levels", [])
-    normalized = []
-    for x in stored:
-        try:
-            val = int(x)
-        except (TypeError, ValueError):
-            continue
-        if val in all_level_ids:
-            normalized.append(val)
+    stored = session.get("selected_levels")  # IMPORTANT: no default []
+    if stored is None:
+        # no value yet in session -> default to all levels
+        normalized = all_level_ids
+    else:
+        normalized = []
+        for x in stored:
+            try:
+                val = int(x)
+            except (TypeError, ValueError):
+                continue
+            if val in all_level_ids:
+                normalized.append(val)
+        # DO NOT override empty here
+        # empty list now truly means “no levels selected”
 
     if not normalized:
         normalized = all_level_ids
@@ -775,6 +788,8 @@ def set_levels():
 
 @app.route('/categories/<category_name>')
 def show_category(category_name):
+    view = request.args.get("view", "table")
+
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -791,68 +806,93 @@ def show_category(category_name):
     cur.execute("SELECT id, name, parent_id FROM categories WHERE name = ?", (category_name,))
     category = cur.fetchone()
     if not category:
+        conn.close()
         return f"Category '{category_name}' not found."
     category_id = category["id"]
 
-    # Subcategories
+    # Subcategories (direct children)
     subcategories = categories_dict.get(category_id, [])
 
-    # --- Fetch all levels (0 included) ---
+    # --- Fetch all levels ---
     cur.execute("SELECT id, name FROM levels ORDER BY id")
     levels = cur.fetchall()
+    all_level_ids = [lvl["id"] for lvl in levels]
     levels_dict = {lvl["id"]: lvl["name"] for lvl in levels}
 
-    # --- Get selected levels from session (not query params) ---
-    selected_levels = session.get("selected_levels", [])
+    # --- Normalize selected levels from session ---
+    stored = session.get("selected_levels")  # IMPORTANT: no default []
+    selected_levels = []
 
-    # --- Build SQL for filtering ---
-    sql = """
-        SELECT w.id AS word_id, w.word, w.level, wc.meaning_id
-        FROM words w
-        JOIN word_categories wc ON w.id = wc.word_id
-        WHERE wc.category_id = ?
-    """
-    params = [category_id]
+    if stored is None:
+        # first time: default to all levels
+        selected_levels = all_level_ids.copy()
+    else:
+        for x in stored:
+            try:
+                val = int(x)
+            except (TypeError, ValueError):
+                continue
+            if val in all_level_ids:
+                selected_levels.append(val)
+        # HERE we *allow* selected_levels to be empty on purpose
+        # (user might have "deselected all")
+
+    # write back normalized form
+    session["selected_levels"] = selected_levels
+
+    words_with_translations = []
 
     if selected_levels:
+        # --- Build SQL for filtering words by category + selected levels ---
+        sql = """
+            SELECT w.id AS word_id, w.word, w.level, wc.meaning_id
+            FROM words w
+            JOIN word_categories wc ON w.id = wc.word_id
+            WHERE wc.category_id = ?
+        """
+        params = [category_id]
+
         placeholders = ",".join("?" for _ in selected_levels)
         sql += f" AND w.level IN ({placeholders})"
         params.extend(selected_levels)
 
-    sql += " ORDER BY wc.sort_order, w.word"
-    cur.execute(sql, params)
-    words = cur.fetchall()
+        sql += " ORDER BY wc.sort_order, w.word COLLATE NOCASE"
+        cur.execute(sql, params)
+        words = cur.fetchall()
 
-    # --- Fetch translations ---
-    words_with_translations = []
-    for w in words:
-        meaning_id = w["meaning_id"]
+        # --- Fetch translations for each word ---
+        for w in words:
+            meaning_id = w["meaning_id"]
 
-        if meaning_id:
-            cur.execute("""
-                SELECT translation_text
-                FROM translations
-                WHERE meaning_id = ?
-                ORDER BY translation_number
-                LIMIT 3
-            """, (meaning_id,))
-        else:
-            cur.execute("""
-                SELECT t.translation_text
-                FROM meanings m
-                JOIN translations t ON t.meaning_id = m.id
-                WHERE m.word_id = ?
-                ORDER BY m.meaning_number, t.translation_number
-                LIMIT 3
-            """, (w["word_id"],))
+            if meaning_id:
+                cur.execute("""
+                    SELECT translation_text
+                    FROM translations
+                    WHERE meaning_id = ?
+                    ORDER BY translation_number
+                    LIMIT 5
+                """, (meaning_id,))
+            else:
+                cur.execute("""
+                    SELECT t.translation_text
+                    FROM meanings m
+                    JOIN translations t ON t.meaning_id = m.id
+                    WHERE m.word_id = ?
+                    ORDER BY m.meaning_number, t.translation_number
+                    LIMIT 5
+                """, (w["word_id"],))
 
-        translations = [row["translation_text"] for row in cur.fetchall()]
+            translations = [row["translation_text"] for row in cur.fetchall()]
 
-        words_with_translations.append({
-            "word": w["word"],
-            "level": w["level"],
-            "translations": translations
-        })
+            words_with_translations.append({
+                "id": w["word_id"],
+                "word": w["word"],
+                "level": w["level"],
+                "translations": translations
+            })
+    else:
+        # selected_levels is empty -> user deselected all levels → no words
+        words_with_translations = []
 
     # Parent breadcrumb
     parent = None
@@ -873,8 +913,10 @@ def show_category(category_name):
         categories=categories_dict,
         levels=levels,
         levels_dict=levels_dict,
-        selected_levels=selected_levels
+        selected_levels=selected_levels,
+        view=view,
     )
+
 
 
 # ----- Admin-only decorator -----

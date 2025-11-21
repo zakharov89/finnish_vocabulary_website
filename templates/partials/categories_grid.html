@@ -1,25 +1,38 @@
-{# templates/_categories_grid.html #}
+{# templates/partials/categories_grid.html #}
 <div class="category-grid">
   {% for cat in categories.get(None, []) %}
-    <div class="category-card {% if cat.count == 0 %}category-card--empty{% endif %}">
+    <div class="category-card {% if cat.count is defined and cat.count == 0 %}category-card--empty{% endif %}">
+      <div class="category-header">
         <a href="{{ url_for('show_category', category_name=cat.name) }}" class="category-link">
-            <span class="title">{{ cat.name }}</span>
+          <span class="title">{{ cat.name }}</span>
+          {% if cat.count is defined %}
             <span class="category-count">({{ cat.count }})</span>
+          {% endif %}
         </a>
 
         {% if categories.get(cat.id) %}
-        <div class="subcats-toggle">
-            <button class="expand-btn">Show Subcategories</button>
-            <div class="subcats" style="display: none;">
-                {% for sub in categories.get(cat.id) %}
-                    <a class="subcat {% if sub.count == 0 %}subcat--empty{% endif %}"
-                       href="{{ url_for('show_category', category_name=sub.name) }}">
-                        {{ sub.name }} <span class="category-count">({{ sub.count }})</span>
-                    </a>
-                {% endfor %}
-            </div>
-        </div>
+        <button type="button"
+                class="subcat-toggle"
+                data-cat-id="{{ cat.id }}">
+            ▼
+        </button>
         {% endif %}
+      </div>
+
+      {% if categories.get(cat.id) %}
+        <div class="subcats" data-subcats-for="{{ cat.id }}" style="display: none;">
+          {% for sub in categories.get(cat.id) %}
+            <a class="subcat {% if sub.count is defined and sub.count == 0 %}subcat--empty{% endif %}"
+               href="{{ url_for('show_category', category_name=sub.name) }}">
+              {{ sub.name }}
+              {% if sub.count is defined %}
+                <span class="category-count">({{ sub.count }})</span>
+              {% endif %}
+            </a>
+          {% endfor %}
+        </div>
+      {% endif %}
     </div>
   {% endfor %}
 </div>
+
