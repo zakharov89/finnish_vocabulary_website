@@ -2,6 +2,7 @@ from flask import Flask, session, redirect, url_for, request, render_template, f
 import sqlite3
 import os
 from dotenv import load_dotenv
+from functools import lru_cache
 
 load_dotenv()
 
@@ -503,6 +504,68 @@ def update_view():
 
 
 
+def get_categories_with_counts(cur, level_ids):
+    """
+    Returns parent_id -> [category dicts], each dict has:
+        id, name, parent_id, sort_order, count
+    count = words in this category or any descendant, restricted to levels.
+    """
+    categories_dict = {}
+
+    # 1) Load all categories
+    cur.execute("""
+        SELECT id, name, parent_id, sort_order
+        FROM categories
+        ORDER BY sort_order, name
+    """)
+    rows = cur.fetchall()
+
+    by_id = {}
+    children_by_parent = {}
+    for row in rows:
+        cat = dict(row)
+        cat["count"] = 0
+        by_id[cat["id"]] = cat
+        parent_id = cat["parent_id"]
+        children_by_parent.setdefault(parent_id, []).append(cat["id"])
+
+    # 2) Direct counts for selected levels
+    if level_ids:
+        placeholders = ",".join("?" * len(level_ids))
+        cur.execute(f"""
+            SELECT wc.category_id AS category_id,
+                   COUNT(DISTINCT w.id) AS direct_count
+            FROM word_categories wc
+            JOIN words w ON w.id = wc.word_id
+            WHERE w.level IN ({placeholders})
+            GROUP BY wc.category_id
+        """, level_ids)
+        for row in cur.fetchall():
+            cid = row["category_id"]
+            if cid in by_id:
+                by_id[cid]["count"] = row["direct_count"]
+
+    # 3) Aggregate counts up tree
+    @lru_cache(maxsize=None)
+    def total_count(cat_id):
+        cat = by_id[cat_id]
+        base = cat["count"]
+        children = children_by_parent.get(cat_id, [])
+        return base + sum(total_count(child_id) for child_id in children)
+
+    for cid in by_id:
+        by_id[cid]["count"] = total_count(cid)
+
+    # 4) Build parent -> children mapping
+    for cat in by_id.values():
+        parent_key = cat["parent_id"]
+        categories_dict.setdefault(parent_key, []).append(cat)
+
+    # 5) Sort children
+    for parent_id, children in categories_dict.items():
+        children.sort(key=lambda c: (c["sort_order"], c["name"].lower()))
+
+    return categories_dict
 
 
 @app.route('/categories')
@@ -511,20 +574,44 @@ def categories():
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Fetch all categories
-    cur.execute("SELECT id, name, parent_id FROM categories ORDER BY name")
-    rows = cur.fetchall()
+    cur.execute("SELECT id, name FROM levels ORDER BY id")
+    levels = cur.fetchall()
 
-    # Organize into parent-child dict
-    categories_dict = {}
-    for row in rows:
-        if row['parent_id']:
-            categories_dict.setdefault(row['parent_id'], []).append(row)
-        else:
-            categories_dict.setdefault(None, []).append(row)
+    selected_levels = [row["id"] for row in levels]  # all selected at start
+
+    categories_dict = get_categories_with_counts(cur, selected_levels)
 
     conn.close()
-    return render_template('categories.html', categories=categories_dict)
+
+    return render_template(
+        "categories.html",
+        categories=categories_dict,
+        levels=levels,
+        selected_levels=selected_levels,
+    )
+
+
+@app.route('/categories/filter', methods=['POST'])
+def filter_categories():
+    data = request.get_json() or {}
+    level_ids = data.get("levels", [])
+
+    try:
+        level_ids = [int(x) for x in level_ids]
+    except (TypeError, ValueError):
+        level_ids = []
+
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    categories_dict = get_categories_with_counts(cur, level_ids)
+
+    conn.close()
+
+    html = render_template("partials/categories_grid.html", categories=categories_dict)
+    return jsonify({"html": html})
+
 
 
 

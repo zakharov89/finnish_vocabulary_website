@@ -1,0 +1,25 @@
+{# templates/_categories_grid.html #}
+<div class="category-grid">
+  {% for cat in categories.get(None, []) %}
+    <div class="category-card {% if cat.count == 0 %}category-card--empty{% endif %}">
+        <a href="{{ url_for('show_category', category_name=cat.name) }}" class="category-link">
+            <span class="title">{{ cat.name }}</span>
+            <span class="category-count">({{ cat.count }})</span>
+        </a>
+
+        {% if categories.get(cat.id) %}
+        <div class="subcats-toggle">
+            <button class="expand-btn">Show Subcategories</button>
+            <div class="subcats" style="display: none;">
+                {% for sub in categories.get(cat.id) %}
+                    <a class="subcat {% if sub.count == 0 %}subcat--empty{% endif %}"
+                       href="{{ url_for('show_category', category_name=sub.name) }}">
+                        {{ sub.name }} <span class="category-count">({{ sub.count }})</span>
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+  {% endfor %}
+</div>

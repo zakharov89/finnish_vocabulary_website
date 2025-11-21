@@ -1,42 +1,132 @@
 {% extends "base.html" %}
 {% block content %}
 
+<form id="levels-form" class="level-pill-form" style="margin-bottom: 12px;">
+    <div class="level-pill-container" style="display:flex; flex-wrap:wrap; gap:10px;">
 
+        {% for level in levels %}
+        <label class="level-pill"
+               data-level-id="{{ level.id }}">
+            {{ level.name }}
+        </label>
+        {% endfor %}
 
-
-<div class="category-grid">
-{% for cat in categories.get(None, []) %}
-    <div class="category-card">
-        <a href="{{ url_for('show_category', category_name=cat['name']) }} " class="category-link">
-            <span class="title">{{ cat['name'] }}</span>
-        </a>
-
-        <!-- Subcategories inside card -->
-        {% if categories.get(cat['id']) %}
-        <div class="subcats-toggle">
-            <button class="expand-btn">Show Subcategories</button>
-            <div class="subcats" style="display: none;">
-                {% for sub in categories.get(cat['id']) %}
-                    <a class="subcat" href="{{ url_for('show_category', category_name=sub['name']) }} " >
-                        {{ sub['name'] }}
-                    </a>
-                {% endfor %}
-            </div>
-        </div>
-    {% endif %}
+        <label class="level-pill select-all-pill">
+            Select All
+        </label>
     </div>
-{% endfor %}
+</form>
+
+<div style="margin-bottom: 10px; font-size: 0.9em; color: #555;">
+  
+    <button id="reset-levels-btn" type="button" style="margin-left: 8px;">Reset</button>
+</div>
+
+<div id="categories-container">
+    {% include "partials/categories_grid.html" %}
 </div>
 
 <script>
-    document.querySelectorAll('.expand-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-        const subcats = btn.nextElementSibling; // Get the .subcats div
-        subcats.style.display = subcats.style.display === 'none' ? 'block' : 'none';
-        btn.textContent = subcats.style.display === 'none' ? 'Show Subcategories' : 'Hide Subcategories';
-    });
-});
+// ---- Level helpers ----
+function getSelectedLevels() {
+    return Array.from(document.querySelectorAll('.level-pill.selected[data-level-id]'))
+                .map(p => p.dataset.levelId);
+}
 
+function updateSelectAllLabel() {
+    const allPills = document.querySelectorAll('.level-pill[data-level-id]');
+    const btn = document.querySelector('.select-all-pill');
+    if (!btn || allPills.length === 0) return;
+
+    const allSelected = Array.from(allPills).every(p => p.classList.contains('selected'));
+    btn.textContent = allSelected ? 'Deselect All' : 'Select All';
+}
+
+function sendSelectedLevels(selectedLevels) {
+    console.log("Sending levels:", selectedLevels); // DEBUG
+
+    fetch("/categories/filter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ levels: selectedLevels })
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        console.log("Response from /categories/filter:", data); // DEBUG
+        if (data.html) {
+            const container = document.getElementById('categories-container');
+            container.innerHTML = data.html;
+            bindExpandButtons();
+        }
+    })
+    .catch(err => console.error("Error updating categories:", err));
+}
+
+function toggleAllLevels() {
+    const allPills = document.querySelectorAll('.level-pill[data-level-id]');
+    if (allPills.length === 0) return;
+
+    const allSelected = Array.from(allPills).every(p => p.classList.contains('selected'));
+
+    allPills.forEach(p => p.classList.toggle('selected', !allSelected));
+
+    updateSelectAllLabel();
+    sendSelectedLevels(getSelectedLevels());
+}
+
+function resetLevels() {
+    const allPills = document.querySelectorAll('.level-pill[data-level-id]');
+    allPills.forEach(p => p.classList.add('selected'));
+    updateSelectAllLabel();
+    sendSelectedLevels(getSelectedLevels());
+}
+
+function initLevelPills() {
+    const allPills = document.querySelectorAll('.level-pill[data-level-id]');
+    const selectedFromServer = {{ selected_levels | tojson }};
+
+    allPills.forEach(pill => {
+        const id = parseInt(pill.dataset.levelId);
+        if (selectedFromServer.includes(id)) {
+            pill.classList.add('selected');
+        }
+
+        pill.addEventListener('click', () => {
+            pill.classList.toggle('selected');
+            updateSelectAllLabel();
+            sendSelectedLevels(getSelectedLevels());
+        });
+    });
+
+    const selectAll = document.querySelector('.select-all-pill');
+    if (selectAll) {
+        selectAll.addEventListener('click', toggleAllLevels);
+    }
+
+    const resetBtn = document.getElementById('reset-levels-btn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetLevels);
+    }
+
+    updateSelectAllLabel();
+}
+
+// ---- Expand buttons ----
+function bindExpandButtons() {
+    document.querySelectorAll('.expand-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const subcats = btn.nextElementSibling;
+            const isHidden = (subcats.style.display === 'none' || !subcats.style.display);
+            subcats.style.display = isHidden ? 'block' : 'none';
+            btn.textContent = isHidden ? 'Hide Subcategories' : 'Show Subcategories';
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initLevelPills();
+    bindExpandButtons();
+});
 </script>
 
 {% endblock %}

@@ -920,3 +920,14 @@ footer {
 .card-word-link:hover {
     text-decoration: underline;
 }
+
+.category-card--empty,
+.subcat--empty {
+    opacity: 0.45;
+}
+
+.category-count {
+    font-size: 0.85em;
+    margin-left: 4px;
+    color: #666;
+}
