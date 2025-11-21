@@ -353,6 +353,7 @@ def handle_level_post(default_redirect):
         return redirect(default_redirect)
     return None
 
+
 @app.route('/words/table', methods=['GET', 'POST'])
 def words_table():
     redirect_response = handle_level_post(url_for('words_table'))
@@ -377,38 +378,73 @@ def words_flashcards():
     words, levels, selected_levels = get_words_from_db()
     return render_template("words_flashcards.html", words=words, levels=levels, selected_levels=selected_levels)
 
+
 @app.route('/words/flashcards/ajax', methods=['POST'])
 def words_flashcards_ajax():
-    selected_levels = request.json.get("levels", [])
-    # Ensure integers
-    selected_levels = [int(x) for x in selected_levels] if selected_levels else []
+    data = request.get_json() or {}
+    raw_levels = data.get("levels", [])
 
-    # Fetch words for these levels
+    # normalize to ints
+    selected_levels = []
+    for x in raw_levels:
+        try:
+            selected_levels.append(int(x))
+        except (TypeError, ValueError):
+            continue
+
+    # This will validate, default if needed, and update session
     words, levels, _ = get_words_from_db(selected_levels=selected_levels)
 
-    # Render only the flashcards grid partial
     html = render_template("partials/words_flashcards.html", words=words)
     return jsonify({"html": html, "selected_levels": selected_levels})
 
 
 
 # Helper function to fetch words (reuse in all views)
-def get_words_from_db():
+def get_words_from_db(selected_levels=None):
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    selected_levels = session.get("selected_levels", [])
-    try:
-        selected_levels = [int(x) for x in selected_levels]
-    except ValueError:
-        selected_levels = []
-    session["selected_levels"] = selected_levels
-
+    # 1) Load all levels
     cur.execute("SELECT id, name FROM levels ORDER BY id")
     levels = cur.fetchall()
+    all_level_ids = [row["id"] for row in levels]
 
-    placeholders = ",".join("?" for _ in selected_levels) or "NULL"  # handle empty
+    # 2) Decide selected_levels:
+    #    - if passed as argument, use it (after validation) and store in session
+    #    - else read from session, falling back to all levels
+    if selected_levels is not None:
+        # normalize and validate
+        normalized = []
+        for x in selected_levels:
+            try:
+                val = int(x)
+            except (TypeError, ValueError):
+                continue
+            if val in all_level_ids:
+                normalized.append(val)
+        if not normalized:
+            normalized = all_level_ids
+        selected_levels = normalized
+        session["selected_levels"] = selected_levels
+    else:
+        stored = session.get("selected_levels", [])
+        normalized = []
+        for x in stored:
+            try:
+                val = int(x)
+            except (TypeError, ValueError):
+                continue
+            if val in all_level_ids:
+                normalized.append(val)
+        if not normalized:
+            normalized = all_level_ids
+        selected_levels = normalized
+        session["selected_levels"] = selected_levels
+
+    # 3) Fetch words filtered by selected_levels
+    placeholders = ",".join("?" for _ in selected_levels)
     cur.execute(f"""
         SELECT w.id, w.word
         FROM words w
@@ -419,8 +455,8 @@ def get_words_from_db():
     words_raw = cur.fetchall()
     words = []
 
+    # 4) Enrich each word with translations (your existing logic)
     for w in words_raw:
-        # 1) Fetch ALL translations for proper +N count
         cur.execute("""
             SELECT DISTINCT t.translation_text
             FROM translations t
@@ -432,41 +468,35 @@ def get_words_from_db():
         all_translations = [row["translation_text"] for row in cur.fetchall()]
         total_count = len(all_translations)
 
-        # 2) Choose how many to display based on length
-        max_display = 3          # never show more than 3 in cards
-        max_total_len = 40       # total character limit for card view (tune this!)
+        max_display = 3
+        max_total_len = 40
 
         display_translations = []
         current_len = 0
 
         for t in all_translations:
             if not display_translations:
-                # always include the first one
                 display_translations.append(t)
                 current_len += len(t)
             else:
                 if len(display_translations) >= max_display:
                     break
-
-                # +2 for comma/space or visual separation
-                projected_len = current_len + 2 + len(t)
-
-                # if adding this makes it too long, stop
+                projected_len = current_len + 2 + len(t)  # ", "
                 if projected_len > max_total_len:
                     break
-
                 display_translations.append(t)
                 current_len = projected_len
 
         words.append({
             "id": w["id"],
             "word": w["word"],
-            "translations": display_translations,   # used in cards, table, etc.
-            "total_translations": total_count       # used for +N more
+            "translations": display_translations,
+            "total_translations": total_count,
         })
 
     conn.close()
     return words, levels, selected_levels
+
 
 
 
@@ -484,8 +514,17 @@ def handle_levels_ajax():
 
 @app.route('/levels/update_view', methods=['POST'])
 def update_view():
-    data = request.get_json()
-    selected_levels = [int(x) for x in data.get("levels", []) if x.isdigit()]
+    data = request.get_json() or {}
+    raw_levels = data.get("levels", [])
+
+    selected_levels = []
+    for x in raw_levels:
+        try:
+            val = int(x)
+        except (TypeError, ValueError):
+            continue
+        selected_levels.append(val)
+
     session["selected_levels"] = selected_levels
 
     view = data.get("view", "cards")
@@ -501,6 +540,67 @@ def update_view():
     return jsonify({"html": html, "current_view": view, "selected_levels": selected_levels})
 
 
+
+
+
+
+
+def get_all_levels(cur):
+    cur.execute("SELECT id, name FROM levels ORDER BY id")
+    return cur.fetchall()
+
+def get_selected_levels(cur):
+    """
+    Returns (selected_level_ids, levels_rows).
+    - Reads from session["selected_levels"] if present/valid
+    - Otherwise uses all levels.
+    """
+    levels = get_all_levels(cur)
+    all_ids = [row["id"] for row in levels]
+
+    stored = session.get("selected_levels")
+    if stored:
+        # Keep only valid IDs that actually exist
+        try:
+            selected = [int(x) for x in stored if int(x) in all_ids]
+        except (TypeError, ValueError):
+            selected = []
+        if selected:
+            return selected, levels
+
+    # Default: all levels selected
+    return all_ids, levels
+
+
+
+
+
+
+
+def resolve_selected_levels(cur):
+    """
+    Load levels from DB and return (levels_rows, selected_level_ids),
+    using session["selected_levels"] if present/valid, else all levels.
+    """
+    cur.execute("SELECT id, name FROM levels ORDER BY id")
+    levels = cur.fetchall()
+    all_level_ids = [row["id"] for row in levels]
+
+    stored = session.get("selected_levels", [])
+    normalized = []
+    for x in stored:
+        try:
+            val = int(x)
+        except (TypeError, ValueError):
+            continue
+        if val in all_level_ids:
+            normalized.append(val)
+
+    if not normalized:
+        normalized = all_level_ids
+
+    session["selected_levels"] = normalized
+    return levels, normalized
 
 
 
@@ -574,10 +674,7 @@ def categories():
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    cur.execute("SELECT id, name FROM levels ORDER BY id")
-    levels = cur.fetchall()
-
-    selected_levels = [row["id"] for row in levels]  # all selected at start
+    levels, selected_levels = resolve_selected_levels(cur)
 
     categories_dict = get_categories_with_counts(cur, selected_levels)
 
@@ -594,18 +691,30 @@ def categories():
 @app.route('/categories/filter', methods=['POST'])
 def filter_categories():
     data = request.get_json() or {}
-    level_ids = data.get("levels", [])
+    raw_levels = data.get("levels", [])
 
-    try:
-        level_ids = [int(x) for x in level_ids]
-    except (TypeError, ValueError):
-        level_ids = []
+    selected_levels = []
+    for x in raw_levels:
+        try:
+            selected_levels.append(int(x))
+        except (TypeError, ValueError):
+            continue
 
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    categories_dict = get_categories_with_counts(cur, level_ids)
+    # Normalize against actual levels from DB (like resolve_selected_levels does)
+    cur.execute("SELECT id FROM levels ORDER BY id")
+    all_level_ids = [row["id"] for row in cur.fetchall()]
+    selected_levels = [lvl for lvl in selected_levels if lvl in all_level_ids]
+    if not selected_levels:
+        selected_levels = all_level_ids
+
+    # Store globally
+    session["selected_levels"] = selected_levels
+
+    categories_dict = get_categories_with_counts(cur, selected_levels)
 
     conn.close()
 
