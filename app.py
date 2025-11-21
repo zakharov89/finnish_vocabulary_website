@@ -670,15 +670,17 @@ def get_selected_levels(cur):
 def resolve_selected_levels(cur):
     """
     Load levels from DB and return (levels_rows, selected_level_ids),
-    using session["selected_levels"] if present/valid, else all levels.
+    using session["selected_levels"] if present/valid,
+    else all levels. IMPORTANT: if the user has explicitly
+    selected NONE, we allow [].
     """
     cur.execute("SELECT id, name FROM levels ORDER BY id")
     levels = cur.fetchall()
     all_level_ids = [row["id"] for row in levels]
 
-    stored = session.get("selected_levels")  # IMPORTANT: no default []
+    stored = session.get("selected_levels")  # may be None or list
     if stored is None:
-        # no value yet in session -> default to all levels
+        # first time: default to all levels
         normalized = all_level_ids
     else:
         normalized = []
@@ -689,14 +691,12 @@ def resolve_selected_levels(cur):
                 continue
             if val in all_level_ids:
                 normalized.append(val)
-        # DO NOT override empty here
-        # empty list now truly means “no levels selected”
-
-    if not normalized:
-        normalized = all_level_ids
+        # IMPORTANT: do NOT force fallback here.
+        # If user cleared all levels, normalized can be [].
 
     session["selected_levels"] = normalized
     return levels, normalized
+
 
 
 
@@ -791,9 +791,16 @@ def get_categories_with_counts(cur, level_ids):
         parent = cat["parent_id"]
         categories_dict.setdefault(parent, []).append(cat)
 
-    # 6) Sort children nicely
+   # 6) Sort children: non-empty first, then sort_order, then name
     for parent_id, children in categories_dict.items():
-        children.sort(key=lambda c: (c.get("sort_order", 0), c["name"].lower()))
+        children.sort(
+            key=lambda c: (
+                c["count"] == 0,           # False (non-empty) comes before True (empty)
+                c.get("sort_order", 0),    # then your manual order if you ever use it
+                c["name"].lower(),         # then alphabetical
+            )
+        )
+
 
     return categories_dict
 
@@ -834,14 +841,11 @@ def filter_categories():
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Normalize against actual levels from DB (like resolve_selected_levels does)
     cur.execute("SELECT id FROM levels ORDER BY id")
     all_level_ids = [row["id"] for row in cur.fetchall()]
+    # keep only valid IDs
     selected_levels = [lvl for lvl in selected_levels if lvl in all_level_ids]
-    if not selected_levels:
-        selected_levels = all_level_ids
-
-    # Store globally
+    # DO NOT fallback to all_level_ids here – empty is allowed
     session["selected_levels"] = selected_levels
 
     categories_dict = get_categories_with_counts(cur, selected_levels)
@@ -850,7 +854,6 @@ def filter_categories():
 
     html = render_template("partials/categories_grid.html", categories=categories_dict)
     return jsonify({"html": html})
-
 
 
 
@@ -957,7 +960,9 @@ def show_category(category_name):
             WHERE wc.category_id IN ({placeholders_cats})
               AND w.level IN ({placeholders_levels})
             GROUP BY w.id, w.word, w.level
-            ORDER BY sort_order, w.word COLLATE NOCASE
+            -- ORDER BY sort_order, w.word COLLATE NOCASE
+            ORDER BY LOWER(w.word)
+
         """
         params = category_ids_for_words + selected_levels
         cur.execute(sql, params)
@@ -1090,7 +1095,9 @@ def category_update_view(category_name):
             JOIN word_categories wc ON w.id = wc.word_id
             WHERE wc.category_id IN ({cat_placeholders})
               AND w.level IN ({level_placeholders})
-            ORDER BY wc.sort_order, w.word COLLATE NOCASE
+            -- ORDER BY wc.sort_order, w.word COLLATE NOCASE
+            ORDER BY LOWER(w.word)
+
         """
         params = category_ids + selected_levels
         cur.execute(sql, params)
