@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 
-{# ---- Level pills (global selection) ---- #}
+{# ---- Level pills at the very top (same as other pages) ---- #}
 <form id="levels-form" class="level-pill-form" style="margin-bottom: 12px;">
     <div class="level-pill-container" style="display:flex; flex-wrap:wrap; gap:10px;">
         {% for level in levels %}
@@ -17,20 +17,20 @@
     </div>
 </form>
 
-<h2>{{ category['name'] }}</h2>
+{# ---- Topic title ---- #}
+<h2 style="margin-bottom: 0.6em;">{{ category['name'] }}</h2>
 
-{# ---- Collapsible subcategories section ---- #}
+{# ---- Subtopics panel (button just under the title) ---- #}
 {% if subcategories %}
-<div class="subcategories-wrapper" style="margin-bottom: 1.5em;">
-
+<div class="subtopics-wrapper" style="margin-bottom: 1.5em;">
     <button type="button"
-            id="toggle-subcategories"
+            id="toggle-subtopics"
             class="apply-button"
             style="margin-bottom: 8px;">
-        Show subcategories
+        Show subtopics
     </button>
 
-    <div id="subcategories-section"
+    <div id="subtopics-section"
          class="subcategories-section"
          style="margin-top: 4px; display:none;">
         <div class="category-grid">
@@ -38,7 +38,12 @@
             <div class="category-card">
                 <div class="category-header">
                     <a href="{{ url_for('show_category', category_name=sub['name']) }}" class="category-link">
-                        <span class="title">{{ sub['name'] }}</span>
+                        <span class="title">
+                            {{ sub['name'] }}
+                            {% if sub['count'] is defined %}
+                                <span style="font-size:0.8em; color:#666;">({{ sub['count'] }})</span>
+                            {% endif %}
+                        </span>
                     </a>
                     {% if categories.get(sub['id']) %}
                       <button type="button"
@@ -63,23 +68,41 @@
         </div>
     </div>
 </div>
-{% endif %}
 
-{# ---- Single toggle: include / exclude subcategory words ---- #}
-<div style="margin: 10px 0;">
-    <button type="button"
-            id="toggle-include-subs"
-            class="apply-button"
-            data-include-subs="{{ 1 if include_subs else 0 }}">
-        {% if include_subs %}
-            Only this category
-        {% else %}
-            Include words from subcategories
-        {% endif %}
-    </button>
+
+{# ---- Include-subtopics: highlighted box ---- #}
+<div class="include-subs-wrapper"
+     style="margin: 4px 0 18px 0;">
+    <label for="include-subs-checkbox"
+           class="include-subs-box"
+           style="
+                display:flex;
+                flex-direction:column;
+                gap:4px;
+                padding:10px 14px;
+                border-radius:10px;
+                background: #f3f8ff;
+                border: 1px solid #d5e4ff;
+                box-shadow: 0 1px 4px rgba(0, 60, 150, 0.04);
+                max-width:460px;
+            ">
+            <span style="display:flex; align-items:center; gap:10px;">
+            <input type="checkbox"
+                   id="include-subs-checkbox"
+                   style="transform: scale(1.15);"
+                   {% if include_subs %}checked{% endif %}>
+            <span class="include-subs-title"
+                  style="font-weight:600; font-size:0.98em;">
+                Include words from subtopics
+            </span>
+        </span>
+    
+    </label>
 </div>
 
-{# ---- View switcher (AJAX) ---- #}
+{% endif %}
+
+{# ---- View switcher (same style as words page) ---- #}
 <div class="view-switcher" style="margin: 10px 0; display: flex; gap: 15px; flex-wrap: wrap;">
 
     <a href="#"
@@ -103,7 +126,7 @@
 </div>
 
 {# ---- Words section container (AJAX target) ---- #}
-<div id="category-words-container">
+<div id="category-words-container" style="margin-top: 10px;">
     {% if words %}
         {% if view == 'table' %}
             {% include "partials/words_table.html" %}
@@ -113,7 +136,7 @@
             {% include "partials/words_flashcards.html" %}
         {% endif %}
     {% else %}
-        <p>No words in this view for the selected levels.</p>
+        <p>No words in this topic for the selected levels.</p>
     {% endif %}
 </div>
 
@@ -124,7 +147,7 @@
 </p>
 {% else %}
 <p class="breadcrumb" style="margin-top: 1.5em;">
-    <a href="{{ url_for('categories') }}">Back to all categories</a>
+    <a href="{{ url_for('categories') }}">Back to all topics</a>
 </p>
 {% endif %}
 
@@ -219,7 +242,7 @@ function initLevelPills() {
     updateSelectAllLabel();
 }
 
-// ---- Subcategory arrow toggles (inside cards) ----
+// ---- Subtopic arrow toggles (inside cards) ----
 function bindSubcategoryToggles() {
     document.querySelectorAll('.subcat-toggle').forEach(toggle => {
         toggle.addEventListener('click', () => {
@@ -237,46 +260,35 @@ function bindSubcategoryToggles() {
     });
 }
 
-// ---- Whole subcategories panel toggle ----
-function bindSubcategoriesPanelToggle() {
-    const btn = document.getElementById('toggle-subcategories');
-    const panel = document.getElementById('subcategories-section');
+// ---- Whole subtopics panel toggle ----
+function bindSubtopicsPanelToggle() {
+    const btn = document.getElementById('toggle-subtopics');
+    const panel = document.getElementById('subtopics-section');
     if (!btn || !panel) return;
 
     btn.addEventListener('click', () => {
         const isHidden = panel.style.display === 'none' || panel.style.display === '';
         panel.style.display = isHidden ? 'block' : 'none';
-        btn.textContent = isHidden ? 'Hide subcategories' : 'Show subcategories';
+        btn.textContent = isHidden ? 'Hide subtopics' : 'Show subtopics';
     });
 }
 
-// ---- Include subcategories toggle (words) ----
-function bindIncludeSubsToggle() {
-    const btn = document.getElementById('toggle-include-subs');
+// ---- Include subtopics checkbox (words) ----
+function bindIncludeSubsCheckbox() {
+    const cb = document.getElementById('include-subs-checkbox');
     const wordsContainer = document.getElementById('category-words-container');
-    if (!btn || !wordsContainer) return;
+    if (!cb || !wordsContainer) return;
 
-    btn.addEventListener('click', () => {
-        const current = parseInt(btn.dataset.includeSubs || "0", 10);
-        const next = current ? 0 : 1;
-        btn.dataset.includeSubs = String(next);
-        currentIncludeSubs = next;
+    cb.addEventListener('change', () => {
+        currentIncludeSubs = cb.checked ? 1 : 0;
 
-        // Update button label
-        if (next) {
-            btn.textContent = 'Only this category';
-        } else {
-            btn.textContent = 'Include words from subcategories';
-        }
-
-        // Reload words via AJAX
         fetch('{{ url_for("category_update_view", category_name=category["name"]) }}', {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 'X-CSRFToken': '{{ csrf_token() if csrf_token is defined }}'
             },
-            body: JSON.stringify({ view: currentView, include_subs: next })
+            body: JSON.stringify({ view: currentView, include_subs: currentIncludeSubs })
         })
         .then(resp => resp.json())
         .then(data => {
@@ -330,7 +342,7 @@ function bindCategoryViewSwitcher() {
                     bindFlashcards();
                 }
             })
-            .catch(err => console.error("Error updating category view:", err));
+            .catch(err => console.error("Error updating topic view:", err));
         });
     });
 }
@@ -338,8 +350,8 @@ function bindCategoryViewSwitcher() {
 document.addEventListener('DOMContentLoaded', function() {
     initLevelPills();
     bindSubcategoryToggles();
-    bindSubcategoriesPanelToggle();
-    bindIncludeSubsToggle();
+    bindSubtopicsPanelToggle();
+    bindIncludeSubsCheckbox();
     bindFlashcards();
     bindCategoryViewSwitcher();
 });

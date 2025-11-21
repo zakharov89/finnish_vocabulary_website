@@ -301,15 +301,14 @@ form label {
    Category Tables
 ========================== */
 .category-table {
-    width: auto;
-    max-width: 100%;
-    margin: 1em auto;
+    width: 100%;              /* full width of the content column */
+    margin: 1em 0;            /* normal top/bottom spacing */
     border-collapse: collapse;
     background: #fff;
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-    table-layout: auto;
+    table-layout: fixed;      /* same as words table */
 }
 
 .category-table th,
@@ -942,3 +941,4 @@ footer {
     line-height: 1;
     color: #444;
 }
+

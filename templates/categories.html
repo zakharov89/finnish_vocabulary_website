@@ -17,10 +17,6 @@
     </div>
 </form>
 
-<div style="margin-bottom: 10px; font-size: 0.9em; color: #555;">
-  
-    <button id="reset-levels-btn" type="button" style="margin-left: 8px;">Reset</button>
-</div>
 
 <div id="categories-container">
     {% include "partials/categories_grid.html" %}
@@ -103,10 +99,6 @@ function initLevelPills() {
         selectAll.addEventListener('click', toggleAllLevels);
     }
 
-    const resetBtn = document.getElementById('reset-levels-btn');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', resetLevels);
-    }
 
     updateSelectAllLabel();
 }

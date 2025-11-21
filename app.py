@@ -728,9 +728,10 @@ def get_categories_with_counts(cur, level_ids):
     """
     Returns parent_id -> [category dicts], each dict has:
         id, name, parent_id, sort_order, count
-    count = words in this category or any descendant, restricted to levels.
+    where `count` = number of *distinct* words in this topic
+    AND all its descendants, filtered by the given level_ids.
+    No double-counting if the same word appears in multiple subtopics.
     """
-    categories_dict = {}
 
     # 1) Load all categories
     cur.execute("""
@@ -742,48 +743,57 @@ def get_categories_with_counts(cur, level_ids):
 
     by_id = {}
     children_by_parent = {}
+
     for row in rows:
         cat = dict(row)
         cat["count"] = 0
-        by_id[cat["id"]] = cat
+        cid = cat["id"]
+        by_id[cid] = cat
         parent_id = cat["parent_id"]
-        children_by_parent.setdefault(parent_id, []).append(cat["id"])
+        children_by_parent.setdefault(parent_id, []).append(cid)
 
-    # 2) Direct counts for selected levels
+    # 2) Build direct word sets per category (by cat_id -> set(word_id))
+    words_by_cat = {}
+
     if level_ids:
         placeholders = ",".join("?" * len(level_ids))
         cur.execute(f"""
             SELECT wc.category_id AS category_id,
-                   COUNT(DISTINCT w.id) AS direct_count
+                   w.id           AS word_id
             FROM word_categories wc
             JOIN words w ON w.id = wc.word_id
             WHERE w.level IN ({placeholders})
-            GROUP BY wc.category_id
         """, level_ids)
+
         for row in cur.fetchall():
             cid = row["category_id"]
-            if cid in by_id:
-                by_id[cid]["count"] = row["direct_count"]
+            wid = row["word_id"]
+            words_by_cat.setdefault(cid, set()).add(wid)
 
-    # 3) Aggregate counts up tree
+    # 3) Recursively gather sets up the tree (with caching)
     @lru_cache(maxsize=None)
-    def total_count(cat_id):
-        cat = by_id[cat_id]
-        base = cat["count"]
-        children = children_by_parent.get(cat_id, [])
-        return base + sum(total_count(child_id) for child_id in children)
+    def gather_words(cat_id):
+        # Start with direct words
+        merged = set(words_by_cat.get(cat_id, set()))
+        # Add words from all descendants
+        for child_id in children_by_parent.get(cat_id, []):
+            merged |= gather_words(child_id)
+        return merged
 
-    for cid in by_id:
-        by_id[cid]["count"] = total_count(cid)
+    # 4) Fill in counts
+    for cid, cat in by_id.items():
+        word_set = gather_words(cid)
+        cat["count"] = len(word_set)
 
-    # 4) Build parent -> children mapping
-    for cat in by_id.values():
-        parent_key = cat["parent_id"]
-        categories_dict.setdefault(parent_key, []).append(cat)
+    # 5) Build parent -> children mapping for template
+    categories_dict = {}
+    for cid, cat in by_id.items():
+        parent = cat["parent_id"]
+        categories_dict.setdefault(parent, []).append(cat)
 
-    # 5) Sort children
+    # 6) Sort children nicely
     for parent_id, children in categories_dict.items():
-        children.sort(key=lambda c: (c["sort_order"], c["name"].lower()))
+        children.sort(key=lambda c: (c.get("sort_order", 0), c["name"].lower()))
 
     return categories_dict
 
@@ -858,23 +868,44 @@ def show_category(category_name):
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Load all categories into memory
+    # Load all categories rows (for descendants & breadcrumb)
     cur.execute("SELECT id, name, parent_id FROM categories ORDER BY name")
     all_rows = cur.fetchall()
-    categories_dict = {}
-    for row in all_rows:
-        parent = row['parent_id']
-        categories_dict.setdefault(parent, []).append(row)
 
-    # Load current category
+    # Find current topic
     cur.execute("SELECT id, name, parent_id FROM categories WHERE name = ?", (category_name,))
     category = cur.fetchone()
     if not category:
         conn.close()
-        return f"Category '{category_name}' not found."
+        return f"Topic '{category_name}' not found."
     category_id = category["id"]
 
-    # Direct subcategories
+    # --- Fetch all levels ---
+    cur.execute("SELECT id, name FROM levels ORDER BY id")
+    levels = cur.fetchall()
+    all_level_ids = [lvl["id"] for lvl in levels]
+    levels_dict = {lvl["id"]: lvl["name"] for lvl in levels}
+
+    # --- Normalize selected levels from session ---
+    stored = session.get("selected_levels")
+    selected_levels = []
+    if stored is None:
+        selected_levels = all_level_ids.copy()
+    else:
+        for x in stored:
+            try:
+                val = int(x)
+            except (TypeError, ValueError):
+                continue
+            if val in all_level_ids:
+                selected_levels.append(val)
+    session["selected_levels"] = selected_levels
+
+    # ---- Build topic tree WITH counts (per selected levels) ----
+    effective_levels = selected_levels if selected_levels else all_level_ids
+    categories_dict = get_categories_with_counts(cur, effective_levels)
+
+    # Direct subtopics of this topic (now each has 'count')
     subcategories = categories_dict.get(category_id, [])
 
     # --- Fetch all levels ---
