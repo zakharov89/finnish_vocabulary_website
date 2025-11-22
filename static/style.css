@@ -1,6 +1,9 @@
 /* ==========================
    Global Styles
 ========================== */
+/* ==========================
+   Global Styles
+========================== */
 body {
     font-family: Arial, sans-serif;
     max-width: 800px;
@@ -47,22 +50,34 @@ button {
 /* ==========================
    Header & Navigation
 ========================== */
+
 header {
     background-color: #f8f9fa;
-    padding: 12px 24px;
-    margin-bottom: 30px;
+    padding: 10px 16px;
+    margin-bottom: 24px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.08);
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 10px;
     position: sticky;
     top: 0;
     z-index: 1000;
     color: #333;
 }
 
+/* Hamburger button – LEFT side */
+.nav-toggle {
+    display: none;          /* hidden on desktop */
+    background: none;
+    border: none;
+    font-size: 1.6rem;
+    cursor: pointer;
+    color: #555;
+}
+
+/* Logo / title */
 header .logo {
-    font-size: 1.35rem;
+    font-size: 1.5rem;
     font-family: "Inter", sans-serif;
     font-weight: 600;
     color: #2a6ae9;
@@ -73,9 +88,11 @@ header .logo:hover {
     text-decoration: none;
 }
 
+/* Desktop nav: row on the RIGHT */
 header nav {
     display: flex;
     gap: 18px;
+    margin-left: auto;      /* push nav to the right on desktop */
 }
 
 header nav a {
@@ -101,20 +118,51 @@ header nav a.active {
     border-bottom-color: #1565c0;
 }
 
-/* Responsive adjustments */
+/* ==========================
+   Responsive Header / Nav
+========================== */
+
 @media (max-width: 768px) {
     header {
-        flex-direction: column;
-        align-items: flex-start;
-        padding: 12px 16px;
+        padding: 10px 12px;
+        flex-wrap: wrap;
+        justify-content: flex-start;  /* row: [☰][logo] */
     }
 
+    /* Show hamburger on mobile */
+    .nav-toggle {
+        display: block;
+    }
+
+    /* Logo grows and is centered */
+    header .logo {
+        flex: 1;
+        text-align: center;
+    }
+
+    /* Nav becomes vertical below header, hidden by default */
     header nav {
-        gap: 12px;
+        display: none;
+        flex-direction: column;
+        width: 100%;
         margin-top: 8px;
-        flex-wrap: wrap;
+        margin-left: 0;       /* override desktop margin-left:auto */
+        gap: 4px;
+    }
+
+    /* When nav-open class is added by JS */
+    header nav.nav-open {
+        display: flex;
+    }
+
+    header nav a {
+        padding: 8px 4px;
+        border-radius: 4px;
+        border-bottom: none;
     }
 }
+
+
 
 /* ==========================
    Forms / Inputs / Search
@@ -1090,23 +1138,3 @@ footer {
     }
 }
 
-* {
-    -webkit-tap-highlight-color: transparent;
-}
-
-.level-pill:active {
-    opacity: 0.85;
-}
-
-@media (max-width: 600px) {
-    header {
-        position: static;      /* no longer sticky */
-        box-shadow: none;      /* softer look */
-        margin-bottom: 20px;
-        padding: 8px 16px;
-    }
-
-    body {
-        padding-top: 0;        /* just in case */
-    }
-}
