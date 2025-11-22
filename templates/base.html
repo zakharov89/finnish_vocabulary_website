@@ -13,8 +13,8 @@
     <a class="logo">Finnish Vocabulary</a>
     <nav>
         <a href="{{ url_for('home') }}" class="{% if request.endpoint == 'home' %}active{% endif %}">Home</a>
-        <a href="{{ url_for('words_table') }}" class="{% if request.endpoint in ['words_table', 'words_cards', 'words_flashcards'] %}active{% endif %}">Words</a>
-        <a href="{{ url_for('categories') }}" class="{% if request.endpoint == 'categories' %}active{% endif %}">Topics</a>
+        <a href="{{ url_for('words_table') }}" class="{% if request.endpoint in ['words_table', 'words_cards', 'words_flashcards', 'show_word'] %}active{% endif %}">Words</a>
+        <a href="{{ url_for('categories') }}" class="{% if request.endpoint in ['categories', 'show_category'] %}active{% endif %}">Topics</a>
         <a href="{{ url_for('search') }}" class="{% if request.endpoint == 'search' %}active{% endif %}">Search</a>
         <a href="{{ url_for('about') }}" class="{% if request.endpoint == 'about' %}active{% endif %}">About</a>
     </nav>
