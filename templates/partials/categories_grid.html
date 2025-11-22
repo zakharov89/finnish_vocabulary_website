@@ -1,4 +1,4 @@
-{# templates/partials/categories_grid.html #}
+
 <div class="category-grid">
   {% for cat in categories.get(None, []) %}
     <div class="category-card {% if cat.count is defined and cat.count == 0 %}category-card--empty{% endif %}">

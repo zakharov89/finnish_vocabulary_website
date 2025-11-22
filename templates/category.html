@@ -69,17 +69,19 @@
 
 {# ---- View switcher (same style as words page) ---- #}
 <div class="view-switcher" style="margin: 10px 0; display: flex; gap: 15px; flex-wrap: wrap;">
+   
+    <a href="#"
+       class="apply-button {% if view == 'table' %}active-view{% endif %}"
+       data-view="table">
+        Table View
+    </a>
+
     <a href="#"
        class="apply-button {% if view == 'cards' %}active-view{% endif %}"
        data-view="cards">
         Card View
     </a>
 
-    <a href="#"
-       class="apply-button {% if view == 'table' %}active-view{% endif %}"
-       data-view="table">
-        Table View
-    </a>
 
     <a href="#"
        class="apply-button {% if view == 'flashcards' %}active-view{% endif %}"

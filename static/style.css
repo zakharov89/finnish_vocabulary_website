@@ -127,13 +127,15 @@ form {
 input[type="text"],
 .admin-input,
 .admin-select {
-    width: 280px;
+    width: 100%;
+    max-width: 100%;
     padding: 8px 10px;
     font-size: 16px;
     border: 1px solid #bbb;
     border-radius: 6px;
     box-sizing: border-box;
 }
+
 
 button[type="submit"] {
     padding: 8px 14px;
@@ -160,7 +162,8 @@ form label {
     padding: 0;
     margin: 4px 0 0 0;
     position: absolute;
-    width: 280px;
+    width: 100%;
+    max-width: 100%;
     max-height: 180px;
     overflow-y: auto;
     background: #fff;
@@ -720,12 +723,7 @@ footer {
     margin-top: 20px;
 }
 
-//* Shared container */
-#words-container {
-    margin-top: 20px;
-}
 
-/* Cards-only layout */
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -1031,4 +1029,58 @@ footer {
 .relation-chip:hover {
     background: #bbdefb;
     text-decoration: underline;
+}
+
+/* Wrapper that allows horizontal scroll on small screens */
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* smooth scroll on iOS */
+}
+
+/* Make sure the table can actually be wider than the screen */
+.category-table,
+.words-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+/* Force a minimum width so overflow really exists */
+.mobile-wide-table {
+    min-width: 420px; /* good target for phones */
+    width: max-content;
+}
+
+/* Slightly tighter padding on small screens */
+@media (max-width: 600px) {
+    .category-table th,
+    .category-table td,
+    .words-table th,
+    .words-table td {
+        padding: 8px 10px;
+    }
+}
+
+
+/* Make level pills comfy on touch */
+@media (max-width: 600px) {
+    .level-pill {
+        font-size: 0.85rem;
+        padding: 7px 12px;
+        margin: 3px 2px;
+    }
+
+    .apply-button {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        margin-bottom: 4px;
+    }
+}
+
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+.level-pill:active {
+    opacity: 0.85;
 }

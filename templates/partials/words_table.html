@@ -1,24 +1,27 @@
-{# templates/partials/words_table.html #}
 {% if words %}
 <div class="words-section">
-    <table class="category-table">
-        <thead>
-            <tr>
-                <th>Finnish</th>
-                <th>English</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for w in words %}
-            <tr>
-                <td>
-                    <a href="{{ url_for('show_word', word_name=w.word) }}"  target="_blank" >{{ w.word }}</a>
-                </td>
-                <td>{{ ", ".join(w.translations) }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-wrapper">
+        <table class="category-table mobile-wide-table">
+            <thead>
+                <tr>
+                    <th>Finnish</th>
+                    <th>English</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in words %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('show_word', word_name=w.word) }}" target="_blank">{{ w.word }}</a>
+                    </td>
+                    <td class="translations-cell">
+                        {{ ", ".join(w.translations) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% else %}
 <p>No words found for the selected levels.</p>
