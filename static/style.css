@@ -531,9 +531,6 @@ footer {
     transition: background 0.15s;
 }
 
-.level-pill:hover {
-    background: #e7e7e7;
-}
 
 .level-pill input[type="checkbox"] {
     transform: scale(1.1);
@@ -604,7 +601,23 @@ footer {
 .select-all-pill {
     background: #ffb74d;
     color: #fff;
-    font-weight: 600;          /* stays bold */
+    font-weight: 600;
+    border: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* Keep the same colour while tapped/focused on mobile */
+.select-all-pill:active,
+.select-all-pill:focus {
+    background: #ffb74d;
+    color: #fff;
+    outline: none;
+}
+
+.select-all-pill:focus-visible {
+    outline: 2px solid #ff9800;
+    outline-offset: 2px;
 }
 
 

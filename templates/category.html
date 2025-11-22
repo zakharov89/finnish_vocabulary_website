@@ -10,9 +10,9 @@
             {{ level.name }}
         </label>
         {% endfor %}
-        <label class="level-pill select-all-pill">
+        <button type="button" class="level-pill select-all-pill" id="select-all-pill">
             Select All
-        </label>
+        </button>
     </div>
 </form>
 
@@ -207,13 +207,18 @@ function initLevelPills() {
         });
     });
 
-    const selectAll = document.querySelector('.select-all-pill');
+    const selectAll = document.getElementById('select-all-pill');
     if (selectAll) {
-        selectAll.addEventListener('click', toggleAllLevels);
+        selectAll.addEventListener('click', (e) => {
+            e.preventDefault();       // don't submit form
+            e.stopPropagation();      // don't bubble into anything weird
+            toggleAllLevels();
+        });
     }
 
     updateSelectAllLabel();
 }
+
 
 // ---- Subcategory arrow toggles (inside each card) ----
 function bindSubcategoryToggles() {
