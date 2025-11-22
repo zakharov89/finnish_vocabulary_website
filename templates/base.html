@@ -8,64 +8,75 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet">
 </head>
 <body>
+    <header>
+        <a class="logo" href="{{ url_for('home') }}">Finnish Vocabulary</a>
+        <nav class="top-nav">
+            <a href="{{ url_for('home') }}"
+               class="{% if request.endpoint == 'home' %}active{% endif %}">
+                Home
+            </a>
 
-<header>
-    <!-- 🔹 Hamburger on the LEFT -->
-    <button class="nav-toggle" aria-label="Toggle navigation">
-        ☰
-    </button>
+            <a href="{{ url_for('words_table') }}"
+               class="{% if request.endpoint in ['words_table', 'words_cards', 'words_flashcards'] %}active{% endif %}">
+                Words
+            </a>
 
-    <!-- 🔹 Logo in the middle (flex:1 on mobile in CSS) -->
-    <a href="{{ url_for('home') }}" class="logo">
-        Finnish Vocabulary
-    </a>
+            <a href="{{ url_for('categories') }}"
+               class="{% if request.endpoint in ['categories', 'show_category'] %}active{% endif %}">
+                Topics
+            </a>
 
-    <!-- 🔹 Navigation (right on desktop, dropdown on mobile) -->
-    <nav id="main-nav">
+            <a href="{{ url_for('search') }}"
+               class="{% if request.endpoint == 'search' %}active{% endif %}">
+                Search
+            </a>
+
+            <a href="{{ url_for('about') }}"
+               class="{% if request.endpoint == 'about' %}active{% endif %}">
+                About
+            </a>
+        </nav>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Finnish Vocabulary Project, Alexander Zakharov</p>
+    </footer>
+
+    {# --- Bottom navigation (mobile only, via CSS) --- #}
+    <nav class="bottom-nav">
         <a href="{{ url_for('home') }}"
-           class="{% if request.endpoint == 'home' %}active{% endif %}">
-            Home
+           class="bottom-nav-item {% if request.endpoint == 'home' %}active{% endif %}">
+            <span class="bottom-nav-icon">🏠</span>
+            <span class="bottom-nav-label">Home</span>
         </a>
+
         <a href="{{ url_for('words_table') }}"
-           class="{% if request.endpoint in ['words_table', 'words_cards', 'words_flashcards'] %}active{% endif %}">
-            Words
+           class="bottom-nav-item {% if request.endpoint in ['words_table', 'words_cards', 'words_flashcards'] %}active{% endif %}">
+            <span class="bottom-nav-icon">📚</span>
+            <span class="bottom-nav-label">Words</span>
         </a>
+
         <a href="{{ url_for('categories') }}"
-           class="{% if request.endpoint in ['categories', 'show_category'] %}active{% endif %}">
-            Topics
+           class="bottom-nav-item {% if request.endpoint in ['categories', 'show_category'] %}active{% endif %}">
+            <span class="bottom-nav-icon">📂</span>
+            <span class="bottom-nav-label">Topics</span>
         </a>
+
         <a href="{{ url_for('search') }}"
-           class="{% if request.endpoint == 'search' %}active{% endif %}">
-            Search
+           class="bottom-nav-item {% if request.endpoint == 'search' %}active{% endif %}">
+            <span class="bottom-nav-icon">🔍</span>
+            <span class="bottom-nav-label">Search</span>
         </a>
+
         <a href="{{ url_for('about') }}"
-           class="{% if request.endpoint == 'about' %}active{% endif %}">
-            About
+           class="bottom-nav-item {% if request.endpoint == 'about' %}active{% endif %}">
+            <span class="bottom-nav-icon">ℹ️</span>
+            <span class="bottom-nav-label">About</span>
         </a>
     </nav>
-</header>
-
-<main>
-    {% block content %}{% endblock %}
-</main>
-
-<footer>
-    <p>&copy; 2025 Finnish Vocabulary Project, Alexander Zakharov</p>
-</footer>
-
-<!-- 🔹 Tiny JS to toggle mobile nav -->
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const toggle = document.querySelector('.nav-toggle');
-    const nav = document.querySelector('header nav');
-
-    if (!toggle || !nav) return;
-
-    toggle.addEventListener('click', function () {
-        nav.classList.toggle('nav-open');
-    });
-});
-</script>
-
 </body>
 </html>
