@@ -1,28 +1,200 @@
-<form id="levels-form" class="level-pill-form" style="margin-bottom: 12px;">
-    <div class="level-pill-container" style="display:flex; flex-wrap:wrap; gap:10px;">
 
-        <!-- Individual level pills -->
-        {% for level in levels %}
+<style>
+/* ============================================
+   LEVELS SUMMARY PANEL — RESPONSIVE WIDTH
+============================================ */
+
+/* Mobile: full width */
+.levels-summary-row {
+    width: 100%;
+    box-sizing: border-box;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 6px 10px;
+    margin: 0 0 10px 0;
+
+    border-radius: 10px;
+    background: #f5f7ff;
+    border: 1px solid #dde5ff;
+
+    font-size: 0.9rem;
+    gap: 8px;
+}
+
+/* Desktop: narrower + left-aligned */
+@media (min-width: 900px) {
+    .levels-summary-row {
+        max-width: 520px;     /* tweak this if you want wider/narrower */
+        margin-left: 0;
+        margin-right: auto;
+    }
+}
+
+.levels-summary-label-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.levels-summary-label-wrap span:first-child {
+    color: #555;
+    font-weight: 500;
+}
+
+#levels-summary-label {
+    font-weight: 600;
+    color: #1a237e;
+}
+
+/* "Change levels ▾" button */
+#levels-change-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    padding: 4px 10px;
+    border-radius: 999px;
+
+    border: 1px solid #c4d2ff;
+    background: #ffffff;
+    font-size: 0.85rem;
+    color: #1a3aa8;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+#levels-change-link:hover {
+    background: #eef2ff;
+    text-decoration: none;
+}
+
+#levels-change-arrow {
+    font-size: 0.8em;
+    margin-top: 1px;
+}
+
+/* ============================================
+   LEVELS SCROLL ROW + SELECT ALL
+============================================ */
+
+.levels-scroll {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 6px 2px 10px;
+    margin-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.levels-scroll::-webkit-scrollbar {
+    height: 4px;
+}
+
+.levels-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: #ccd4ff;
+}
+
+/* Select All pill */
+#select-all-btn.select-all-pill {
+    margin-top: 2px;
+    font-size: 0.85rem;
+    padding: 4px 10px;
+    align-self: flex-start;
+}
+
+@media (min-width: 768px) {
+    #select-all-btn.select-all-pill {
+        font-size: 0.8rem;
+        padding: 3px 10px;
+    }
+}
+</style>
+
+<!-- ==========================
+     LEVELS SUMMARY (always visible)
+========================== -->
+<div id="levels-summary-row" class="levels-summary-row">
+    <div class="levels-summary-label-wrap">
+        <span>Levels:</span>
+        <span id="levels-summary-label">All levels</span>
+    </div>
+
+    <a href="#"
+       id="levels-change-link"
+       aria-expanded="false">
+        <span id="levels-change-text">Change levels</span>
+        <span id="levels-change-arrow" aria-hidden="true">▾</span>
+    </a>
+</div>
+
+<!-- ==========================
+     LEVEL SELECTOR (collapsible)
+========================== -->
+<form id="levels-form" class="level-pill-form" style="margin-bottom: 12px; display:none;">
+    <div class="levels-scroll">
+
+        {# Normal levels first (everything except ID 0) #}
+        {% for level in levels if level.id != 0 %}
         <label class="level-pill"
-               data-level-id="{{ level.id }}">
+               data-level-id="{{ level.id }}"
+               style="flex: 0 0 auto;">
             {{ level.name }}
         </label>
         {% endfor %}
 
-        <!-- Select/Deselect All -->
-        <button type="button" class="level-pill select-all-pill" onclick="toggleAllLevels(this)">
-            Select All
-        </button>
+        {# Level 0 as "+" at the very end #}
+        {% for level in levels if level.id == 0 %}
+        <label class="level-pill"
+               data-level-id="0"
+               style="flex: 0 0 auto;">
+            +
+        </label>
+        {% endfor %}
     </div>
+
+    <button type="button"
+            class="level-pill select-all-pill"
+            id="select-all-btn">
+        Select All
+    </button>
 </form>
 
-
+<!-- ==========================
+     WORDS CONTAINER
+     (fill this however you already do — server-side or leave empty)
+========================== -->
+<div id="words-container">
+    {# Optional: render initial content here, or leave empty and let AJAX fill it #}
+    {# e.g. {{ initial_html|safe }} or some include you already use #}
+</div>
 
 <script>
 // ----- Get selected levels as array of IDs -----
 function getSelectedLevels() {
     return Array.from(document.querySelectorAll('.level-pill.selected[data-level-id]'))
                 .map(p => p.dataset.levelId);
+}
+
+// ----- Update "Levels: ..." text in the summary bar -----
+function updateLevelsSummary() {
+    const label = document.getElementById('levels-summary-label');
+    const pills = [...document.querySelectorAll('.level-pill[data-level-id]')];
+    const selected = pills.filter(p => p.classList.contains('selected'));
+
+    if (!label) return;
+
+    if (selected.length === 0) {
+        label.textContent = "No levels selected";
+    } else if (selected.length === pills.length) {
+        label.textContent = "All levels";
+    } else {
+        label.textContent = selected.map(p => p.textContent.trim()).join(", ");
+    }
 }
 
 // ----- Update "Select All" / "Deselect All" label -----
@@ -54,25 +226,17 @@ function sendSelectedLevels(selectedLevels) {
                     card.addEventListener('click', () => card.classList.toggle('flipped'));
                 });
             }
-
-            // Rebind level pill clicks after HTML update
-            document.querySelectorAll('.level-pill[data-level-id]').forEach(pill => {
-                pill.onclick = () => {
-                    pill.classList.toggle('selected');
-                    updateSelectAllLabel();
-                    sendSelectedLevels(getSelectedLevels());
-                };
-            });
-
-            // Make sure Select All label is correct after update
-            updateSelectAllLabel();
         }
+
+        // After content update, keep the select-all label & summary correct
+        updateSelectAllLabel();
+        updateLevelsSummary();
     })
     .catch(err => console.error("Error updating levels:", err));
 }
 
 // ----- Toggle All button -----
-function toggleAllLevels(btn) {
+function toggleAllLevels() {
     const allPills = document.querySelectorAll('.level-pill[data-level-id]');
     if (allPills.length === 0) return;
 
@@ -82,11 +246,12 @@ function toggleAllLevels(btn) {
     allPills.forEach(p => p.classList.toggle('selected', !allSelected));
 
     updateSelectAllLabel();
+    updateLevelsSummary();
     sendSelectedLevels(getSelectedLevels());
 }
 
 // ----- Initial setup for individual level pills -----
-(function initLevelPills() {
+function initLevelPills() {
     const allPills = document.querySelectorAll('.level-pill[data-level-id]');
     const selectedFromServer = {{ selected_levels | tojson }};
 
@@ -96,14 +261,56 @@ function toggleAllLevels(btn) {
             pill.classList.add('selected');
         }
 
-        pill.onclick = () => {
+        pill.addEventListener('click', () => {
             pill.classList.toggle('selected');
             updateSelectAllLabel();
+            updateLevelsSummary();
             sendSelectedLevels(getSelectedLevels());
-        };
+        });
     });
 
-    // Set correct "Select All" / "Deselect All" text on first load
+    const selectAllBtn = document.getElementById('select-all-btn');
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            toggleAllLevels();
+        });
+    }
+
+    // Set correct labels on first load
     updateSelectAllLabel();
-})();
+    updateLevelsSummary();
+}
+
+// ----- Show/hide levels panel (same behavior as the other page) -----
+function bindLevelsSummaryToggle() {
+    const link = document.getElementById('levels-change-link');
+    const form = document.getElementById('levels-form');
+    const textEl = document.getElementById('levels-change-text');
+    const arrowEl = document.getElementById('levels-change-arrow');
+    if (!link || !form) return;
+
+    const updateToggleState = (isOpen) => {
+        form.style.display = isOpen ? 'block' : 'none';
+        if (textEl) textEl.textContent = isOpen ? "Hide levels" : "Change levels";
+        if (arrowEl) arrowEl.textContent = isOpen ? "▴" : "▾";
+        link.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    };
+
+    // Start closed
+    updateToggleState(false);
+
+    link.addEventListener('click', e => {
+        e.preventDefault();
+        const isOpen = form.style.display !== 'block';
+        updateToggleState(isOpen);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initLevelPills();
+    bindLevelsSummaryToggle();
+});
 </script>
+
+
