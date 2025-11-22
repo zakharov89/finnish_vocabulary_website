@@ -1,13 +1,145 @@
 {% extends "base.html" %}
 {% block content %}
 
+<style>
+/* ============================================
+   LEVELS SUMMARY PANEL — RESPONSIVE WIDTH
+============================================ */
+
+/* Mobile: full width (same as now) */
+.levels-summary-row {
+    width: 100%;
+    box-sizing: border-box;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 6px 10px;
+    margin: 0 auto 10px auto;
+
+    border-radius: 10px;
+    background: #f5f7ff;
+    border: 1px solid #dde5ff;
+
+    font-size: 0.9rem;
+    gap: 8px;
+}
+
+/* Desktop: make it narrower + centered */
+@media (min-width: 900px) {
+    .levels-summary-row {
+        max-width: 520px;     /* narrow */
+        margin-left: 0;       /* align left */
+        margin-right: auto;   /* push to left */
+    }
+}
+
+
+/* Label styling */
+.levels-summary-label-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.levels-summary-label-wrap span:first-child {
+    color: #555;
+    font-weight: 500;
+}
+
+#levels-summary-label {
+    font-weight: 600;
+    color: #1a237e;
+}
+
+/* ============================================
+   CHANGE LEVELS BUTTON
+============================================ */
+#levels-change-link {
+    margin-left: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    padding: 4px 10px;
+    border-radius: 999px;
+
+    border: 1px solid #c4d2ff;
+    background: #ffffff;
+    font-size: 0.85rem;
+    color: #1a3aa8;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+#levels-change-link:hover {
+    background: #eef2ff;
+    text-decoration: none;
+}
+
+#levels-change-arrow {
+    font-size: 0.8em;
+    margin-top: 1px;
+}
+
+/* ============================================
+   LEVELS SCROLL (unchanged)
+============================================ */
+.levels-scroll {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 6px 2px 10px;
+    margin-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.levels-scroll::-webkit-scrollbar {
+    height: 4px;
+}
+
+.levels-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: #ccd4ff;
+}
+
+/* Select All pill */
+#select-all-btn.select-all-pill {
+    margin-top: 2px;
+    font-size: 0.85rem;
+    padding: 4px 10px;
+    align-self: flex-start;
+}
+
+@media (min-width: 768px) {
+    #select-all-btn.select-all-pill {
+        font-size: 0.8rem;
+        padding: 3px 10px;
+    }
+}
+
+
+</style>
+
+
+
 <!-- ==========================
      LEVELS SUMMARY (always visible)
 ========================== -->
-<div id="levels-summary-row" style="margin-bottom:10px;">
-    <span style="color:#555;">Levels:</span>
-    <span id="levels-summary-label">All levels</span>
-    <a href="#" id="levels-change-link" style="margin-left:8px;">Change</a>
+<div id="levels-summary-row" class="levels-summary-row">
+    <div class="levels-summary-label-wrap">
+        <span>Levels:</span>
+        <span id="levels-summary-label">All levels</span>
+    </div>
+
+    <a href="#"
+       id="levels-change-link"
+       aria-expanded="false">
+        <span id="levels-change-text">Change levels</span>
+        <span id="levels-change-arrow" aria-hidden="true">▾</span>
+    </a>
 </div>
 
 <!-- ==========================
@@ -16,16 +148,7 @@
 <form id="levels-form" class="level-pill-form" style="margin-bottom: 12px; display:none;">
 
     <!-- Scrollable row of level pills -->
-    <div class="levels-scroll" 
-         style="
-            display: flex; 
-            gap: 8px; 
-            overflow-x: auto; 
-            padding-bottom: 6px; 
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: thin;
-         ">
-         
+    <div class="levels-scroll">
         <!-- All numbered levels (1..5 or whatever exists) -->
         {% for level in levels if level.id != 0 %}
         <label class="level-pill"
@@ -48,8 +171,7 @@
     <!-- Select All button -->
     <button type="button" 
             class="level-pill select-all-pill"
-            id="select-all-btn"
-            style="margin-top: 10px; width: 100%; text-align:center;">
+            id="select-all-btn">
         Select All
     </button>
 
@@ -263,7 +385,7 @@ function bindSubtopicsPanelToggle() {
 function bindIncludeSubsCheckbox() {
     const cb = document.getElementById('include-subs-checkbox');
     const wordsContainer = document.getElementById('category-words-container');
-    if (!cb || !wordsContainer) return;  // 🔴 important guard
+    if (!cb || !wordsContainer) return;
 
     cb.addEventListener('change', () => {
         currentIncludeSubs = cb.checked ? 1 : 0;
@@ -321,19 +443,31 @@ function bindCategoryViewSwitcher() {
 function bindLevelsSummaryToggle() {
     const link = document.getElementById('levels-change-link');
     const form = document.getElementById('levels-form');
+    const textEl = document.getElementById('levels-change-text');
+    const arrowEl = document.getElementById('levels-change-arrow');
     if (!link || !form) return;
+
+    const updateToggleState = (isOpen) => {
+        form.style.display = isOpen ? 'block' : 'none';
+        if (textEl) textEl.textContent = isOpen ? "Hide levels" : "Change levels";
+        if (arrowEl) arrowEl.textContent = isOpen ? "▴" : "▾";
+        link.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    };
+
+    // Initialize based on current display (default: closed)
+    updateToggleState(form.style.display === 'block');
 
     link.addEventListener('click', e => {
         e.preventDefault();
-        const hidden = form.style.display !== 'block';
-        form.style.display = hidden ? 'block' : 'none';
+        const isOpen = form.style.display !== 'block';
+        updateToggleState(isOpen);
     });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     initLevelPills();
     bindSubtopicsPanelToggle();
-    bindIncludeSubsCheckbox();    // now safe if checkbox doesn't exist
+    bindIncludeSubsCheckbox();
     bindCategoryViewSwitcher();
     bindLevelsSummaryToggle();
 });
