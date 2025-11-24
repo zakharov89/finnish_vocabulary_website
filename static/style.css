@@ -1495,23 +1495,172 @@ footer {
     }
 }
 
-/* Category cards – soft background so they look tappable */
-.category-card,
-.subcategory-item {
-    background: #f5f7ff;              /* light blue, same family as level bar */
+/* ============================================
+   CATEGORY GRID
+============================================ */
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 10px;
+}
+
+
+/* ============================================
+   CATEGORY CARDS (clean, no duplicates)
+============================================ */
+.category-card {
+    background: #f5f7ff;           /* soft blue */
     border: 1px solid #dde5ff;
     border-radius: 12px;
     padding: 12px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+    cursor: pointer;
 }
 
-/* Hover state (desktop only effect in practice) */
-.category-card:hover,
-.subcategory-item:hover {
+/* Hover (desktop only in practice) */
+.category-card:hover {
     background: #eef2ff;
     transform: translateY(-1px);
     box-shadow: 0 2px 6px rgba(0,0,0,0.12);
 }
 
+/* Optional: faded look if category has zero items */
+.category-card--empty {
+    opacity: 0.55;
+}
 
+
+/* ============================================
+   HEADER: NAME + COUNT (left) and ARROW (right)
+============================================ */
+.category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+/* Text block expands to fill space */
+.category-main {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-grow: 1;
+    min-width: 0;
+}
+
+/* Category name — NEW CLEAR COLOUR */
+.category-main .title {
+    font-weight: 600;
+    color: #0d1b5e;  /* darker blue than before, still on-brand */
+    font-size: 1.05rem;
+}
+
+/* Count text */
+.category-count {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+/* Remove text underlines */
+.category-link,
+.category-link:hover {
+    color: inherit;
+    text-decoration: none;
+}
+
+
+/* ============================================
+   SUBCATEGORY TOGGLE ARROW
+============================================ */
+.subcat-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+
+    border-radius: 50%;
+    border: 1px solid #b9c4ff;
+    background: #f0f3ff;
+
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+
+    cursor: pointer;
+    padding: 0;
+
+    color: #1a2a7a;
+    transition: background 0.15s ease;
+}
+
+.subcat-toggle:hover {
+    background: #e2e7ff;
+}
+
+.subcat-toggle.open {
+    background: #d3dcff;
+}
+
+
+/* ============================================
+   SUBCATEGORY LIST INSIDE CARD
+============================================ */
+.subcats {
+    margin-top: 8px;
+    padding-left: 16px;         /* was 32px */
+    border-left: none;       /* remove the blue line */
+}
+
+.subcat {
+    display: block;
+    margin: 2px 0;
+    font-size: 0.9rem;
+    color: #1a73e8;
+    text-decoration: none;
+}
+
+.subcat:hover {
+    text-decoration: underline;
+}
+
+.category-main .title {
+    color: #1a237e;   /* same blue as headings */
+}
+
+/* Subcategories as soft pills */
+.subcats {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-left: 0;
+}
+
+.subcat {
+    display: inline-block;
+    padding: 6px 12px;
+    background: #eef3ff;
+    border: 1px solid #d5ddff;
+    border-radius: 14px;
+
+    font-size: 0.88rem;
+    color: #1a237e;
+    text-decoration: none;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.subcat:hover {
+    background: #dce4ff;
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.subcat--empty {
+    opacity: 0.55;
+}

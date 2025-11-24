@@ -1,15 +1,21 @@
-
 <div class="category-grid">
   {% for cat in categories.get(None, []) %}
-    <div class="category-card {% if cat.count is defined and cat.count == 0 %}category-card--empty{% endif %}">
+    <div class="category-card
+                {% if cat.count is defined and cat.count == 0 %}category-card--empty{% endif %}"
+         data-url="{{ url_for('show_category', category_name=cat.name) }}"
+         data-cat-id="{{ cat.id }}">
+
       <div class="category-header">
-        <a href="{{ url_for('show_category', category_name=cat.name) }}" class="category-link">
+
+        <!-- NAME block (grows to fill space) -->
+        <div class="category-main">
           <span class="title">{{ cat.name }}</span>
           {% if cat.count is defined %}
             <span class="category-count">({{ cat.count }})</span>
           {% endif %}
-        </a>
+        </div>
 
+        <!-- ARROW stays on the right -->
         {% if categories.get(cat.id) %}
         <button type="button"
                 class="subcat-toggle"
@@ -35,4 +41,3 @@
     </div>
   {% endfor %}
 </div>
-

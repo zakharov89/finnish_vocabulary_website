@@ -216,8 +216,10 @@ function sendSelectedLevels(selectedLevels) {
             const container = document.getElementById('categories-container');
             container.innerHTML = data.html;
             bindExpandButtons();
+            bindCategoryCardClicks();
         }
     })
+
     .catch(err => console.error("Error updating categories:", err));
 }
 
@@ -298,9 +300,15 @@ function bindLevelsSummaryToggle() {
 }
 
 // ---- Expand buttons (arrow toggles) ----
+
 function bindExpandButtons() {
     document.querySelectorAll('.subcat-toggle').forEach(toggle => {
-        toggle.addEventListener('click', () => {
+        if (toggle.dataset.bound === "1") return;  // avoid double-binding
+        toggle.dataset.bound = "1";
+
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation(); // don't trigger card click
+
             const catId = toggle.dataset.catId;
             const subcats = document.querySelector(`[data-subcats-for="${catId}"]`);
             if (!subcats) return;
@@ -315,11 +323,34 @@ function bindExpandButtons() {
     });
 }
 
+function bindCategoryCardClicks() {
+    document.querySelectorAll('.category-card').forEach(card => {
+        if (card.dataset.clickBound === "1") return;
+        card.dataset.clickBound = "1";
+
+        card.addEventListener('click', (e) => {
+            const target = e.target;
+
+            // If click is on arrow or inside subcategory list, do NOT navigate to parent
+            if (target.closest('.subcat-toggle') || target.closest('.subcats')) {
+                return;
+            }
+
+            const url = card.dataset.url;
+            if (url) {
+                window.location.href = url;
+            }
+        });
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     initLevelPills();
     bindLevelsSummaryToggle();
     bindExpandButtons();
+    bindCategoryCardClicks();
 });
+
 </script>
 
 {% endblock %}
