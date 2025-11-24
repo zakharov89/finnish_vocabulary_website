@@ -3,12 +3,24 @@
 {% block content %}
 
 {% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
+{% if messages %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const container = document.getElementById("toast-container");
+
     {% for category_name, message in messages %}
-      <div class="flash {{ category_name }}">{{ message }}</div>
+        const el = document.createElement("div");
+        el.className = "toast {{ category_name }}";
+        el.textContent = "{{ message }}";
+        container.appendChild(el);
+
+        setTimeout(() => el.remove(), 4000);
     {% endfor %}
-  {% endif %}
+});
+</script>
+{% endif %}
 {% endwith %}
+
 
 <h2>Edit Category: {{ category['name'] }}</h2>
 
@@ -33,15 +45,14 @@
         <p>
             <label>Current Parent:</label><br>
             {% if parent_category %}
-                <a href="{{ url_for('admin_edit_category', category_id=parent_category.id) }}"
-                class="admin-btn-small">
+                <a href="{{ url_for('admin_edit_category', category_id=parent_category.id) }}#top"
+                   class="admin-btn-small">
                     {{ parent_category.name }}
                 </a>
             {% else %}
                 <em>No parent (top-level category)</em>
             {% endif %}
         </p>
-
 
         <p>
             <label>Change Parent Category</label><br>
@@ -69,14 +80,15 @@
 
     <hr>
 
+    <!-- 🌳 Subcategories of this category -->
     <h3>Subcategories of this Category</h3>
 
     {% if subcategories %}
         <div class="admin-subcat-list">
             {% for sc in subcategories %}
                 <p>
-                    <a href="{{ url_for('admin_edit_category', category_id=sc.id) }}"
-                    class="admin-btn-small">
+                    <a href="{{ url_for('admin_edit_category', category_id=sc.id) }}#top"
+                       class="admin-btn-small">
                         {{ sc.name }}
                     </a>
                 </p>
@@ -89,7 +101,7 @@
     <hr>
 
     <!-- 📋 Words in Category -->
-    <h3>Words in this Category</h3>
+    <h3 id="words-section">Words in this Category</h3>
 
     {% if category_words %}
         <table class="admin-table">
@@ -128,18 +140,28 @@
     <hr>
 
     <!-- 🔍 Add Existing Word -->
-    <h3>Add Existing Word</h3>
+    <h3 id="add-existing-word">Add Existing Word</h3>
     <form method="GET"
-          action="{{ url_for('admin_edit_category', category_id=category['id']) }}"
-          class="admin-add-word-form">
+          action="{{ url_for('admin_edit_category', category_id=category['id']) }}#add-existing-word"
+          class="admin-add-word-form"
+          id="word-search-form"
+          autocomplete="off">
         <p>
             <input type="text"
                    name="word_query"
+                   id="word_query_input"
                    class="admin-input"
                    placeholder="Search for a word..."
-                   value="{{ search_query }}">
+                   value="{{ search_query }}"
+                   autocomplete="off"
+                   autocorrect="off"
+                   autocapitalize="off"
+                   spellcheck="false">
             <button type="submit" class="admin-btn">Search</button>
         </p>
+
+        <!-- 🔍 Autocomplete suggestions for words -->
+        <div id="word-suggestions" class="autocomplete-list"></div>
     </form>
 
     {% if search_results %}
@@ -153,7 +175,7 @@
         </ul>
 
         <form method="POST"
-              action="{{ url_for('admin_edit_category', category_id=category['id']) }}"
+              action="{{ url_for('admin_edit_category', category_id=category['id']) }}#add-existing-word"
               class="admin-add-word-form">
             <input type="hidden" name="action" value="add_existing">
             <p>
@@ -177,8 +199,9 @@
     <!-- 🆕 Add New Word to this Category -->
     <h3>Add New Word to this Category</h3>
     <form method="POST"
-          action="{{ url_for('admin_edit_category', category_id=category['id']) }}"
-          class="admin-add-word-form">
+          action="{{ url_for('admin_edit_category', category_id=category['id']) }}#add-new-word"
+          class="admin-add-word-form"
+          id="add-new-word">
         <input type="hidden" name="action" value="add_new_word">
 
         <p>
@@ -374,6 +397,7 @@
 </script>
 
 <script>
+// ===== Parent category autocomplete =====
 const categories = [
     {% for c in all_categories %}
         { id: {{ c.id }}, name: {{ c.name|tojson }} },
@@ -384,7 +408,7 @@ const input = document.getElementById("categoryInput");
 const idField = document.getElementById("categoryId");
 const list = document.getElementById("suggestions");
 
-function showSuggestions(value) {
+function showCategorySuggestions(value) {
     list.innerHTML = "";
     list.style.display = "block";
 
@@ -392,44 +416,124 @@ function showSuggestions(value) {
         value === "" || c.name.toLowerCase().startsWith(value.toLowerCase())
     );
 
-    filtered.forEach(cat => {
-        const item = document.createElement("div");
-        item.className = "autocomplete-item";
-        item.textContent = cat.name;
-
-        item.onclick = () => {
-            input.value = cat.name;
-            idField.value = cat.id;
-            list.style.display = "none";
-        };
-
-        list.appendChild(item);
-    });
-
     if (filtered.length === 0) {
         const item = document.createElement("div");
         item.className = "autocomplete-item empty";
         item.textContent = "No matches";
         list.appendChild(item);
+        return;
     }
+
+    filtered.forEach(cat => {
+        const item = document.createElement("div");
+        item.className = "autocomplete-item";
+        item.textContent = cat.name;
+
+        item.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            input.value = cat.name;
+            idField.value = cat.id;
+            list.style.display = "none";
+        });
+
+        list.appendChild(item);
+    });
 }
 
-input.addEventListener("input", () => {
-    if (input.value.trim() === "") {
-        idField.value = "";
-    }
-    showSuggestions(input.value);
-});
+if (input) {
+    input.addEventListener("input", () => {
+        if (input.value.trim() === "") {
+            idField.value = "";
+        }
+        showCategorySuggestions(input.value);
+    });
 
-input.addEventListener("focus", () => {
-    showSuggestions(input.value);
-});
+    input.addEventListener("focus", () => {
+        showCategorySuggestions(input.value);
+    });
 
-document.addEventListener("click", (e) => {
-    if (!list.contains(e.target) && e.target !== input) {
-        list.style.display = "none";
+    document.addEventListener("click", (e) => {
+        if (!list.contains(e.target) && e.target !== input) {
+            list.style.display = "none";
+        }
+    });
+}
+</script>
+
+<script>
+// ===== Word search autocomplete =====
+const allWords = [
+    {% for w in all_words %}
+        { id: {{ w.id }}, word: {{ w.word|tojson }} },
+    {% endfor %}
+];
+
+const wordInput = document.getElementById("word_query_input");
+const wordSuggestions = document.getElementById("word-suggestions");
+const wordSearchForm = document.getElementById("word-search-form");
+
+function showWordSuggestions(value) {
+    wordSuggestions.innerHTML = "";
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+        wordSuggestions.style.display = "none";
+        return;
     }
-});
+
+    wordSuggestions.style.display = "block";
+
+    const lower = trimmed.toLowerCase();
+    const filtered = allWords
+        .filter(w => w.word.toLowerCase().startsWith(lower))
+        .slice(0, 15);
+
+    if (filtered.length === 0) {
+        const item = document.createElement("div");
+        item.className = "autocomplete-item empty";
+        item.textContent = "No matches";
+        wordSuggestions.appendChild(item);
+        return;
+    }
+
+    filtered.forEach(w => {
+        const item = document.createElement("div");
+        item.className = "autocomplete-item";
+        item.textContent = w.word;
+
+        // mousedown so blur doesn't kill us first; auto-submit to skip pressing Search
+        item.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            wordInput.value = w.word;
+            wordSuggestions.style.display = "none";
+            if (wordSearchForm) {
+                wordSearchForm.submit();   // 🔁 reload to same page + #add-existing-word
+            }
+        });
+
+        wordSuggestions.appendChild(item);
+    });
+}
+
+if (wordInput) {
+    wordInput.addEventListener("input", () => {
+        showWordSuggestions(wordInput.value);
+    });
+
+    wordInput.addEventListener("focus", () => {
+        if (wordInput.value.trim() !== "") {
+            showWordSuggestions(wordInput.value);
+        }
+    });
+
+    document.addEventListener("click", (e) => {
+        if (!wordSuggestions.contains(e.target) && e.target !== wordInput) {
+            wordSuggestions.style.display = "none";
+        }
+    });
+}
 </script>
 
 {% endblock %}

@@ -1832,7 +1832,7 @@ def admin_edit_category(category_id):
             )
             conn.commit()
             conn.close()
-            flash("Existing word added to category.", "success")
+            flash("Word added to category.", "success")
             return redirect(url_for("admin_edit_category", category_id=category_id))
 
     # --- GET branch or after actions ---
@@ -1860,7 +1860,7 @@ def admin_edit_category(category_id):
     )
     category_words = cur.fetchall()
 
-    # Direct subcategories of this category
+        # Direct subcategories of this category
     cur.execute(
         """
         SELECT id, name
@@ -1871,6 +1871,10 @@ def admin_edit_category(category_id):
         (category_id,),
     )
     subcategories = cur.fetchall()
+
+    # 👉 NEW: fetch all words for autocomplete in "Add Existing Word"
+    cur.execute("SELECT id, word FROM words ORDER BY word")
+    all_words = cur.fetchall()
 
     conn.close()
     return render_template(
@@ -1884,7 +1888,9 @@ def admin_edit_category(category_id):
         search_results=search_results,
         levels=levels,
         subcategories=subcategories,
+        all_words=all_words,   # 👉 pass to template
     )
+
 
 @app.route("/admin/categories/<int:category_id>/remove_word/<int:word_id>", methods=["POST"])
 @admin_required
@@ -1899,7 +1905,7 @@ def admin_remove_word_from_category(category_id, word_id):
     conn.close()
     
     flash("Word removed from category.", "success")
-    return redirect(url_for("admin_edit_category", category_id=category_id))
+    return redirect(url_for("admin_edit_category", category_id=category_id) + "#words-section")
 
 @app.route("/admin/categories/<int:category_id>/delete", methods=["POST"])
 @admin_required
