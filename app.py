@@ -927,21 +927,42 @@ def show_category(category_name):
         # Deduplicate words across categories with GROUP BY and MIN()
         sql = f"""
             SELECT
-                w.id              AS word_id,
-                w.word            AS word,
-                w.level           AS level,
+                w.id               AS word_id,
+                w.word             AS word,
+                w.level            AS level,
                 MIN(wc.meaning_id) AS meaning_id,
-                MIN(wc.sort_order) AS sort_order
+
+                -- which category "wins" for this word: parent (0) or a subcategory (1)
+                MIN(
+                    CASE
+                        WHEN wc.category_id = ? THEN 0
+                        ELSE 1
+                    END
+                ) AS cat_priority,
+
+                -- smallest category sort order among the categories this word is in
+                MIN(c.sort_order)  AS cat_sort_order,
+
+                -- smallest word sort_order among those categories
+                MIN(wc.sort_order) AS word_sort_order
+
             FROM words w
             JOIN word_categories wc ON w.id = wc.word_id
+            JOIN categories c       ON c.id = wc.category_id
             WHERE wc.category_id IN ({placeholders_cats})
-              AND w.level IN ({placeholders_levels})
+              AND w.level      IN ({placeholders_levels})
             GROUP BY w.id, w.word, w.level
-            -- ORDER BY sort_order, w.word COLLATE NOCASE
-            ORDER BY LOWER(w.word)
-
+            ORDER BY
+                cat_priority,       -- parent words first, then subcategories
+                cat_sort_order,     -- order of subcategories under the parent
+                word_sort_order,    -- your manual order within each category
+                LOWER(w.word)       -- tie-breaker
         """
-        params = category_ids_for_words + selected_levels
+
+        # first parameter is for the CASE ... wc.category_id = ?
+        params = [category_id] + category_ids_for_words + selected_levels
+
+        params = [category_id] + category_ids_for_words + selected_levels
         cur.execute(sql, params)
         words = cur.fetchall()
 
@@ -1065,18 +1086,39 @@ def category_update_view(category_name):
         cat_placeholders = ",".join("?" for _ in category_ids)
 
         sql = f"""
-            SELECT w.id AS word_id, w.word, w.level, wc.meaning_id
+            SELECT
+                w.id               AS word_id,
+                w.word             AS word,
+                w.level            AS level,
+                MIN(wc.meaning_id) AS meaning_id,
+
+                MIN(
+                    CASE
+                        WHEN wc.category_id = ? THEN 0
+                        ELSE 1
+                    END
+                ) AS cat_priority,
+                MIN(c.sort_order)  AS cat_sort_order,
+                MIN(wc.sort_order) AS word_sort_order
+
             FROM words w
             JOIN word_categories wc ON w.id = wc.word_id
+            JOIN categories c       ON c.id = wc.category_id
             WHERE wc.category_id IN ({cat_placeholders})
-              AND w.level IN ({level_placeholders})
-            -- ORDER BY wc.sort_order, w.word COLLATE NOCASE
-            ORDER BY LOWER(w.word)
-
+              AND w.level      IN ({level_placeholders})
+            GROUP BY w.id, w.word, w.level
+            ORDER BY
+                cat_priority,
+                cat_sort_order,
+                word_sort_order,
+                LOWER(w.word)
         """
-        params = category_ids + selected_levels
+
+        # first ? is for CASE WHEN wc.category_id = ?
+        params = [category_id] + category_ids + selected_levels
         cur.execute(sql, params)
         words = cur.fetchall()
+
 
         for w in words:
             meaning_id = w["meaning_id"]
@@ -1947,7 +1989,6 @@ def admin_set_main_meaning():
     conn.close()
     return jsonify({"status": "ok"})
 
-# ----- List all words -----
 @app.route("/admin/words")
 @admin_required
 def admin_list_words():
@@ -1978,7 +2019,6 @@ def admin_list_words():
         total_pages=total_pages
     )
 
-# ----- List all categories -----
 @app.route("/admin/categories")
 @admin_required
 def admin_list_categories():
@@ -2009,23 +2049,6 @@ def admin_list_categories():
         total_pages=total_pages
     )
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @app.route("/admin/relation-types")
 @admin_required
 def admin_relation_types():
@@ -2036,7 +2059,6 @@ def admin_relation_types():
     relation_types = cur.fetchall()
     conn.close()
     return render_template("admin_relation_types.html", relation_types=relation_types)
-
 
 @app.post("/admin/relation-types/add")
 @admin_required
@@ -2058,7 +2080,6 @@ def admin_add_relation_type():
     conn.close()
     return redirect(url_for("admin_relation_types"))
 
-
 @app.post("/admin/relation-types/<int:type_id>/delete")
 @admin_required
 def admin_delete_relation_type(type_id):
@@ -2078,7 +2099,6 @@ def admin_delete_relation_type(type_id):
     conn.close()
     flash("Relation type deleted.", "success")
     return redirect(url_for("admin_relation_types"))
-
 
 @app.route("/admin/words/<word_name>/relations")
 @admin_required
@@ -2133,8 +2153,6 @@ def admin_word_relations(word_name):
         word_relations=word_relations,
         meaning_relations=meaning_relations
     )
-
-
 
 @app.post("/admin/word-relations/add")
 @admin_required
@@ -2192,8 +2210,6 @@ def admin_add_word_relation():
     flash("Word relation added.", "success")
     return redirect(url_for("admin_relations_search"))
 
-
-
 @app.post("/admin/word-relations/<int:rel_id>/delete")
 @admin_required
 def admin_delete_word_relation(rel_id):
@@ -2204,7 +2220,6 @@ def admin_delete_word_relation(rel_id):
     conn.close()
     flash("Word relation deleted.", "success")
     return redirect(url_for("admin_relations_search"))
-
 
 @app.post("/admin/add_meaning_relation")
 @admin_required
@@ -2269,10 +2284,6 @@ def admin_add_meaning_relation():
     flash("Meaning relation added.", "success")
     return redirect(url_for("admin_relations_search"))
 
-
-
-
-
 @app.post("/admin/meaning-relations/<int:rel_id>/delete")
 @admin_required
 def admin_delete_meaning_relation(rel_id):
@@ -2283,9 +2294,6 @@ def admin_delete_meaning_relation(rel_id):
     conn.close()
     flash("Meaning relation deleted.", "success")
     return redirect(url_for("admin_relations_search"))
-
-
-
 
 @app.route("/admin/relations/search", methods=["GET", "POST"])
 @admin_required
@@ -2348,7 +2356,6 @@ def admin_relations_search():
         relation_types=relation_types  # pass them to the template
     )
 
-
 @app.route("/word_meanings")
 def word_meanings():
     word = request.args.get("word", "").strip()
@@ -2399,7 +2406,6 @@ def word_meanings():
     conn.close()
     return jsonify(results)
 
-
 @app.route("/admin/relations/words")
 @admin_required
 def admin_word_relations_list():
@@ -2419,7 +2425,6 @@ def admin_word_relations_list():
     conn.close()
 
     return render_template("admin_word_relations_list.html", word_relations=word_relations)
-
 
 @app.route("/admin/relations/meanings")
 @admin_required
