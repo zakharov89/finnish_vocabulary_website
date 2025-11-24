@@ -36,9 +36,16 @@
         <div class="meaning" style="margin-top:1.5em;">
 
             {# POS label #}
-            <div style="margin-bottom:0.4em; font-style:italic; color:#555;">
-                {{ pos_name }}
-            </div>
+                    <div style="
+            display:inline-block;
+            margin-bottom:0.4em;
+            padding:2px 8px;
+            border-radius:999px;
+            font-size:0.85rem;
+            background:#eef2ff;
+            color:#1a237e;">
+            {{ pos_name }}
+        </div>
 
             {% for meaning in meanings %}
             <div class="meaning-block">
@@ -53,7 +60,7 @@
 
                 {# ---- DETAILS BUTTON ---- #}
                 {% if meaning.definition or meaning.notes %}
-                    <button class="expand-btn"
+                    <button type="button" class="expand-btn"
                             data-label-show="Show details"
                             data-label-hide="Hide details"
                             style="margin-top:6px;">
@@ -73,7 +80,7 @@
 
                 {# ---- EXAMPLES BUTTON ---- #}
                 {% if meaning.examples %}
-                    <button class="expand-btn"
+                    <button type="button" class="expand-btn"
                             data-label-show="Show examples"
                             data-label-hide="Hide examples"
                             style="margin-top:6px;">
@@ -95,7 +102,7 @@
 
                 {# ---- MEANING-LEVEL RELATIONS (this sense) ---- #}
                 {% if meaning_relations.get(meaning.id) %}
-                    <button class="expand-btn"
+                    <button type="button" class="expand-btn"
                             data-label-show="Show relations"
                             data-label-hide="Hide relations"
                             style="margin-top:6px;">
@@ -161,7 +168,7 @@
     {# ---- WORD-LEVEL RELATIONS (global for this word) ---- #}
     {% if word_relations %}
     <div style="margin-top:1.8em;">
-        <button class="expand-btn"
+        <button type="button" class="expand-btn"
                 data-label-show="Show related words"
                 data-label-hide="Hide related words">
             <span class="chevron">▶</span>
@@ -211,24 +218,26 @@
 {% endif %}
 
 {# ---- EXPAND TOGGLE JS (shared for all buttons) ---- #}
+
 <script>
-document.querySelectorAll('.expand-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const content = btn.nextElementSibling;
-        if (!content) return;
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.expand-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const content = btn.nextElementSibling;
+            if (!content) return;
 
-        const hidden = content.style.display === 'none' || content.style.display === '';
-        content.style.display = hidden ? 'block' : 'none';
+            const hidden = content.style.display === 'none' || content.style.display === '';
+            content.style.display = hidden ? 'block' : 'none';
 
-        // Toggle class for chevron rotation
-        btn.classList.toggle('expanded', hidden);
+            btn.classList.toggle('expanded', hidden);
 
-        const labelSpan = btn.querySelector('.label');
-        if (labelSpan) {
-            labelSpan.textContent = hidden
-                ? btn.dataset.labelHide
-                : btn.dataset.labelShow;
-        }
+            const labelSpan = btn.querySelector('.label');
+            if (labelSpan) {
+                labelSpan.textContent = hidden
+                    ? btn.dataset.labelHide
+                    : btn.dataset.labelShow;
+            }
+        });
     });
 });
 </script>
