@@ -1331,3 +1331,25 @@ footer {
     100% { opacity: 0; transform: translateY(-10px); }
 }
 
+.autocomplete-list {
+    position: absolute;
+    background: white;
+    border: 1px solid #ccc;
+    width: 100%;
+    max-height: 180px;
+    overflow-y: auto;
+    z-index: 10;
+    display: none;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.autocomplete-item {
+    padding: 8px 10px;
+    cursor: pointer;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.active {
+    background: #e8f0ff;
+}

@@ -1185,30 +1185,47 @@ def admin_dashboard():
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Counts for summary
-    cur.execute("SELECT COUNT(*) as count FROM words")
+    # Counts
+    cur.execute("SELECT COUNT(*) AS count FROM words")
     total_words = cur.fetchone()["count"]
 
-    cur.execute("SELECT COUNT(*) as count FROM categories")
+    cur.execute("SELECT COUNT(*) AS count FROM categories")
     total_categories = cur.fetchone()["count"]
 
-    # Recent words (last 10 added)
-    cur.execute("SELECT word, id FROM words ORDER BY id DESC LIMIT 10")
+    # Recent words (last 10)
+    cur.execute("SELECT id, word FROM words ORDER BY id DESC LIMIT 10")
     recent_words = cur.fetchall()
 
-    # Recent categories (last 10 added)
-    cur.execute("SELECT name, id FROM categories ORDER BY id DESC LIMIT 10")
+    # Recent categories (last 10)
+    cur.execute("SELECT id, name FROM categories ORDER BY id DESC LIMIT 10")
     recent_categories = cur.fetchall()
 
+    # 🔹 Autocomplete source: all words with IDs
+    cur.execute("SELECT id, word FROM words ORDER BY word COLLATE NOCASE")
+    all_words_full = cur.fetchall()          # [{id, word}, ...]
+
+    # 🔹 Autocomplete source: all categories with IDs
+    cur.execute("SELECT id, name FROM categories ORDER BY name COLLATE NOCASE")
+    all_categories_full = cur.fetchall()     # [{id, name}, ...]
+
     conn.close()
-    
+
     return render_template(
         "admin_dashboard.html",
         total_words=total_words,
         total_categories=total_categories,
         recent_words=recent_words,
-        recent_categories=recent_categories
+        recent_categories=recent_categories,
+
+        # needed for autocomplete
+        all_words_full=all_words_full,
+        all_categories_full=all_categories_full,
+
+        # also provide name-only lists if needed
+        all_words=[w["word"] for w in all_words_full],
+        all_categories=[c["name"] for c in all_categories_full],
     )
+
 
 @app.route('/admin/add_word', methods=['GET', 'POST'])
 @admin_required

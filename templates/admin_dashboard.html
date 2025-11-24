@@ -2,7 +2,6 @@
 
 {% block content %}
 
-
 <h2>Admin Dashboard</h2>
 
 <div class="admin-summary">
@@ -18,9 +17,25 @@
 
 <!-- Search Word -->
 <h4>Search Word</h4>
-<form method="get" action="{{ url_for('admin_edit_word_search') }}">
-    <input type="text" name="word_query" placeholder="Enter word to edit" class="admin-input" required>
-    <button type="submit" class="admin-btn">Search</button>
+<form method="get"
+      action="{{ url_for('admin_edit_word_search') }}"
+      id="word-search-form"
+      autocomplete="off"
+      style="position: relative; max-width: 320px;">
+
+    <input type="text"
+           name="word_query"
+           id="word-search-input"
+           placeholder="Enter word to edit"
+           class="admin-input"
+           autocomplete="off"
+           autocorrect="off"
+           autocapitalize="off"
+           spellcheck="false">
+
+    <div id="word-suggestions" class="autocomplete-list"></div>
+
+    <button type="submit" class="admin-btn" style="margin-top: 6px;">Search</button>
 </form>
 
 <!-- Last 10 Added Words -->
@@ -28,15 +43,13 @@
 <ul>
     {% for w in recent_words %}
         <li>
-            {{ w['word'] }} -
+            {{ w['word'] }} –
             <a href="{{ url_for('admin_edit_word', word_id=w['id']) }}">Edit</a>
         </li>
     {% endfor %}
 </ul>
 
-
-
-<a href="{{ url_for('admin_list_words') }}" class="admin-btn-small">View All Words</a></li>
+<a href="{{ url_for('admin_list_words') }}" class="admin-btn-small">View All Words</a>
 
 <hr>
 
@@ -48,9 +61,25 @@
 
 <!-- Search Category -->
 <h4>Search Category</h4>
-<form method="get" action="{{ url_for('admin_search_category') }}">
-    <input type="text" name="query" placeholder="Enter category name" class="admin-input">
-    <button type="submit" class="admin-btn">Search</button>
+<form method="get"
+      action="{{ url_for('admin_search_category') }}"
+      id="category-search-form"
+      autocomplete="off"
+      style="position: relative; max-width: 320px;">
+
+    <input type="text"
+           name="query"
+           id="category-search-input"
+           placeholder="Enter category name"
+           class="admin-input"
+           autocomplete="off"
+           autocorrect="off"
+           autocapitalize="off"
+           spellcheck="false">
+
+    <div id="category-suggestions" class="autocomplete-list"></div>
+
+    <button type="submit" class="admin-btn" style="margin-top: 6px;">Search</button>
 </form>
 
 <!-- Last 10 Added Categories -->
@@ -58,7 +87,7 @@
 <ul>
     {% for c in recent_categories %}
         <li>
-            {{ c['name'] }} -
+            {{ c['name'] }} –
             <a href="{{ url_for('admin_edit_category', category_id=c['id']) }}">Edit</a> 
         </li>
     {% endfor %}
@@ -67,7 +96,6 @@
 <a href="{{ url_for('admin_list_categories') }}" class="admin-btn-small">View All Categories</a>
 
 <hr>
-
 
 <h3>Relations</h3>
 <ul>
@@ -94,8 +122,120 @@
 </ul>
 
 <hr>
+
 <!-- Logout -->
 <form method="get" action="{{ url_for('logout') }}">
     <button type="submit" class="admin-btn">Logout</button>
 </form>
+
+<script>
+// === Data from backend ===
+const ALL_WORDS = {{ all_words|tojson }};
+const ALL_CATEGORIES = {{ all_categories|tojson }};
+
+// Maps name -> id for direct edit navigation
+const WORD_IDS = {
+    {% for w in all_words_full %}
+        {{ w["word"]|tojson }}: {{ w["id"] }}{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+
+const CATEGORY_IDS = {
+    {% for c in all_categories_full %}
+        {{ c["name"]|tojson }}: {{ c["id"] }}{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+
+// Full URL templates with 0 as placeholder
+const WORD_EDIT_TEMPLATE = {{ url_for('admin_edit_word', word_id=0)|tojson }};
+const CATEGORY_EDIT_TEMPLATE = {{ url_for('admin_edit_category', category_id=0)|tojson }};
+
+function setupAutocomplete(inputId, listId, sourceArray, idMap, urlTemplate) {
+    const input = document.getElementById(inputId);
+    const list = document.getElementById(listId);
+    if (!input || !list) return;
+
+    function clearList() {
+        list.innerHTML = "";
+        list.style.display = "none";
+    }
+
+    function goToEdit(name) {
+        const id = idMap[name];
+        if (!id) return;
+        // Replace the first occurrence of "0" in the template with the real id
+        const url = urlTemplate.replace("0", String(id));
+        window.location.href = url;
+    }
+
+    function buildSuggestions(value) {
+        const v = value.trim().toLowerCase();
+        clearList();
+        if (!v) return;
+
+        const matches = sourceArray
+            .filter(txt => txt.toLowerCase().startsWith(v))
+            .slice(0, 15);
+
+        if (!matches.length) return;
+
+        matches.forEach(txt => {
+            const item = document.createElement("div");
+            item.className = "autocomplete-item";
+            item.textContent = txt;
+
+            item.addEventListener("mousedown", (e) => {
+                e.preventDefault();  // avoid blur firing first
+                clearList();
+                goToEdit(txt);      // 🔗 go directly to edit page
+            });
+
+            list.appendChild(item);
+        });
+
+        list.style.display = "block";
+    }
+
+    input.addEventListener("input", () => {
+        buildSuggestions(input.value);
+    });
+
+    // Optional: Enter key goes directly if exact match exists
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            const name = input.value.trim();
+            if (idMap[name]) {
+                e.preventDefault();
+                goToEdit(name);
+            }
+        }
+    });
+
+    document.addEventListener("click", (e) => {
+        if (!list.contains(e.target) && e.target !== input) {
+            clearList();
+        }
+    });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    setupAutocomplete(
+        "word-search-input",
+        "word-suggestions",
+        ALL_WORDS,
+        WORD_IDS,
+        WORD_EDIT_TEMPLATE
+    );
+
+    setupAutocomplete(
+        "category-search-input",
+        "category-suggestions",
+        ALL_CATEGORIES,
+        CATEGORY_IDS,
+        CATEGORY_EDIT_TEMPLATE
+    );
+});
+</script>
+
+
 {% endblock %}
