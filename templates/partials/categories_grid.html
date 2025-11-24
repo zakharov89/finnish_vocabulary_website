@@ -25,7 +25,7 @@
                href="{{ url_for('show_category', category_name=sub.name) }}">
               <span class="subcat-name">{{ sub.name }}</span>
               {% if sub.count is defined %}
-                <span class="subcat-count">({{ sub.count }})</span>
+                <span class="subcat-count">&nbsp; ({{ sub.count }})</span>
               {% endif %}
             </a>
           {% endfor %}
