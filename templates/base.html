@@ -100,16 +100,31 @@ document.addEventListener("DOMContentLoaded", () => {
             <span class="bottom-nav-label">About</span>
         </a>
     </nav>
-        <script>
-    /* =====================================================
-    FLASHCARD GLOBAL FUNCTIONS (available on all pages)
-    ===================================================== */
 
+
+    <script>
+    // ============ FLASHCARDS — shared for ALL pages ============
+
+    // Find whichever flashcard container exists on the current page
+    function getFlashcardRoot() {
+        // Category page first
+        let root = document.getElementById('category-words-container');
+        if (root && root.querySelector('.flashcard')) return root;
+
+        // Words pages
+        root = document.getElementById('words-container');
+        if (root && root.querySelector('.flashcard')) return root;
+
+        return null;
+    }
+
+    // Flip individual cards on click
     function bindFlashcards() {
-        const cards = document.querySelectorAll('#words-container .flashcard');
+        const root = getFlashcardRoot();
+        if (!root) return;
 
-        cards.forEach(card => {
-            if (card.dataset.bound === '1') return;
+        root.querySelectorAll('.flashcard').forEach(card => {
+            if (card.dataset.bound === '1') return; // avoid double binding
             card.dataset.bound = '1';
 
             card.addEventListener('click', () => {
@@ -118,32 +133,38 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-
-    // --- FORCE all cards to show translations ---
+    // Always show translations on ALL cards
     function showAllTranslations() {
-        const cards = document.querySelectorAll('#words-container .flashcard');
-        cards.forEach(card => card.classList.add('flipped'));
+        const root = getFlashcardRoot();
+        if (!root) return;
+
+        root.querySelectorAll('.flashcard').forEach(card => {
+            card.classList.add('flipped');
+        });
     }
 
-
-    // --- FORCE all cards to show original words ---
+    // Always show original words on ALL cards
     function showAllOriginals() {
-        const cards = document.querySelectorAll('#words-container .flashcard');
-        cards.forEach(card => card.classList.remove('flipped'));
+        const root = getFlashcardRoot();
+        if (!root) return;
+
+        root.querySelectorAll('.flashcard').forEach(card => {
+            card.classList.remove('flipped');
+        });
     }
 
-
-    // Bind after initial load
+    // Run once on every page load
     document.addEventListener('DOMContentLoaded', () => {
         bindFlashcards();
     });
 
-    // Make available if AJAX reloads #words-container
-    window.bindFlashcards = bindFlashcards;
-    window.showAllTranslations = showAllTranslations;
-    window.showAllOriginals = showAllOriginals;
+    // Expose to other scripts (AJAX pages, etc.)
+    window.bindFlashcards       = bindFlashcards;
+    window.showAllTranslations  = showAllTranslations;
+    window.showAllOriginals     = showAllOriginals;
     </script>
-
+</body>
 </html>
+
 
    

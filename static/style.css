@@ -1605,3 +1605,75 @@ a.word-card:hover * {
     text-decoration: none !important;
 }
 
+/* =====================================================
+   Compact Flashcard Control Buttons
+===================================================== */
+
+.flashcards-toolbar {
+    margin: 10px 0 14px 0;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Base style */
+.flashcard-control-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    padding: 6px 12px;
+    border-radius: 16px;
+    border: 1px solid transparent;
+
+    font-size: 0.8rem;
+    font-weight: 600;
+
+    cursor: pointer;
+    user-select: none;
+
+    transition: background 0.15s ease,
+                border-color 0.15s ease,
+                box-shadow 0.15s ease,
+                transform 0.1s ease;
+}
+
+/* Blue “show translations” */
+.flashcard-control-btn.show-btn {
+    background: #e7f2ff;
+    border-color: #bcd9ff;
+    color: #1a3da6;
+}
+
+/* Purple “show originals” */
+.flashcard-control-btn.hide-btn {
+    background: #f1e8ff;
+    border-color: #d9c9ff;
+    color: #512da8;
+}
+
+/* Hover: very subtle lift */
+.flashcard-control-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+/* Active (tap/click) */
+.flashcard-control-btn:active {
+    transform: scale(0.97);
+}
+
+/* Icon */
+.flashcard-control-btn .icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+/* Mobile: slightly bigger touch target */
+@media (max-width: 480px) {
+    .flashcard-control-btn {
+        padding: 8px 14px;
+        font-size: 0.9rem;
+        border-radius: 18px;
+    }
+}
