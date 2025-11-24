@@ -129,8 +129,8 @@
     align-items: center;
     justify-content: center;
 
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 30px;
 
     margin-left: 4px;
 
@@ -166,6 +166,38 @@
     }
 }
 
+/* ===============================
+   CATEGORY + SUBCATEGORY COLORS
+=============================== */
+
+/* Main category titles */
+.category-link .title,
+.category-link .title span {
+    color: #1a237e !important;   /* deep blue */
+}
+
+/* Subcategory names (TOP categories page — pills) */
+#categories-container .subcat-name {
+    color: #1a73e8 !important;   /* medium blue */
+    font-weight: 500;
+}
+
+/* Subcategory names (CATEGORY page — nested subcats) */
+.subcats .subcat .subcat-name {
+    color: #1a73e8 !important;
+}
+
+/* Counts everywhere */
+.category-count,
+.subcat-count {
+    color: #666 !important;
+}
+
+/* Hover behavior */
+.category-link:hover,
+.subcat:hover {
+    text-decoration: none !important;
+}
 
 </style>
 

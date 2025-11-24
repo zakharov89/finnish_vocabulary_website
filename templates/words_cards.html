@@ -1,64 +1,51 @@
 {% extends "base.html" %}
 {% block content %}
 
-<script>
-window.currentView = "cards";
-
-document.addEventListener("DOMContentLoaded", function() {
-
-    // View switcher buttons
-    document.querySelectorAll('.apply-button[data-view]').forEach(btn => {
-        btn.addEventListener('click', e => {
-            e.preventDefault();
-            window.currentView = btn.dataset.view;
-            updateWords();
-
-            // Update active button style
-            document.querySelectorAll('.apply-button').forEach(b => b.classList.remove('active-view'));
-            btn.classList.add('active-view');
-        });
-    });
-
-    initCards(); // initial level pill click binding
-});
-
-// Initialize level pills and flashcards
-function initCards() {
-    document.querySelectorAll('.level-pill[data-level-id]').forEach(pill => {
-        pill.onclick = () => {
-            pill.classList.toggle('selected');
-            updateWords(); // refresh cards via AJAX
-        };
-    });
-
-    document.querySelectorAll('.flashcard').forEach(card => {
-        card.addEventListener('click', () => card.classList.toggle('flipped'));
-    });
+<style>
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
 }
 
-// AJAX: fetch filtered words/cards
-function updateWords() {
-    const selectedLevels = Array.from(document.querySelectorAll('.level-pill.selected[data-level-id]'))
-                                .map(p => p.dataset.levelId);
-
-    fetch("{{ url_for('update_view') }}", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ levels: selectedLevels, view: window.currentView })
-    })
-    .then(resp => resp.json())
-    .then(data => {
-        const container = document.getElementById('words-container');
-        container.innerHTML = data.html;
-
-        // Reinitialize JS for cards or flashcards
-        if(window.currentView === "cards" || window.currentView === "flashcards") {
-            initCards();
-        }
-    })
-    .catch(err => console.error("Error updating words:", err));
+/* Card as a link */
+.word-card {
+    display: block;
+    padding: 12px;
+    border-radius: 12px;
+    background: #f5f7ff;
+    border: 1px solid #dde5ff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+    color: inherit;
 }
-</script>
+
+/* Word title styling */
+.word-card .word-title {
+    font-weight: 600;
+    color: #1a237e;
+    margin-bottom: 6px;
+}
+
+/* 🔹 HARD overrides: no underline anywhere in these cards */
+.words-page-container a.word-card,
+.words-page-container a.word-card:visited,
+.words-page-container a.word-card:hover,
+.words-page-container a.word-card:active,
+.words-page-container .word-title,
+.words-page-container .word-title:hover {
+    text-decoration: none !important;
+    color: #1a237e !important;
+}
+
+/* Hover look (just background & lift) */
+.word-card:hover {
+    background: #eef2ff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+</style>
 
 <div class="words-page-container">
 
@@ -76,8 +63,72 @@ function updateWords() {
         {% include 'partials/words_cards.html' %}
     </div>
 
-
 </div>
 
+<script>
+window.currentView = "cards";
+
+document.addEventListener("DOMContentLoaded", function() {
+    // View switcher buttons
+    document.querySelectorAll('.apply-button[data-view]').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.preventDefault();
+            const view = btn.dataset.view;
+            if (!view) return;
+
+            window.currentView = view;
+            updateWords();
+
+            // Update active button style
+            document
+                .querySelectorAll('.apply-button[data-view]')
+                .forEach(b => b.classList.remove('active-view'));
+            btn.classList.add('active-view');
+        });
+    });
+
+    initCards(); // initial binding
+});
+
+// Initialize level pills & flashcards
+function initCards() {
+    // Level pills
+    document.querySelectorAll('.level-pill[data-level-id]').forEach(pill => {
+        pill.onclick = () => {
+            pill.classList.toggle('selected');
+            updateWords(); // refresh via AJAX
+        };
+    });
+
+    // Flashcards (if present)
+    document.querySelectorAll('.flashcard').forEach(card => {
+        card.addEventListener('click', () => card.classList.toggle('flipped'));
+    });
+}
+
+// AJAX: fetch filtered words / different views
+function updateWords() {
+    const selectedLevels = Array.from(
+        document.querySelectorAll('.level-pill.selected[data-level-id]')
+    ).map(p => p.dataset.levelId);
+
+    fetch("{{ url_for('update_view') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ levels: selectedLevels, view: window.currentView })
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        const container = document.getElementById('words-container');
+        container.innerHTML = data.html;
+
+        // Reinitialize JS for cards or flashcards
+        if (window.currentView === "cards" || window.currentView === "flashcards") {
+            initCards();
+        }
+    })
+    .catch(err => console.error("Error updating words:", err));
+}
+</script>
 
 {% endblock %}
