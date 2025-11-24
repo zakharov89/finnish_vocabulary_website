@@ -1,5 +1,23 @@
+<div class="flashcards-toolbar"
+     style="margin: 6px 0 10px 0; display:flex; gap:10px; flex-wrap:wrap;">
+
+    <button type="button"
+            id="show-all-translations-btn"
+            class="apply-button"
+            onclick="showAllTranslations()">
+        Show all translations
+    </button>
+
+    <button type="button"
+            id="show-all-originals-btn"
+            class="apply-button"
+            onclick="showAllOriginals()">
+        Show all original words
+    </button>
+
+</div>
+
 <div class="flashcard-grid">
-    {# Only include words with reasonably short headwords and at least 1 translation #}
     {% for w in words if w.word|length <= 30 and w.translations %}
     <div class="flashcard">
         <div class="front">

@@ -100,5 +100,50 @@ document.addEventListener("DOMContentLoaded", () => {
             <span class="bottom-nav-label">About</span>
         </a>
     </nav>
-</body>
+        <script>
+    /* =====================================================
+    FLASHCARD GLOBAL FUNCTIONS (available on all pages)
+    ===================================================== */
+
+    function bindFlashcards() {
+        const cards = document.querySelectorAll('#words-container .flashcard');
+
+        cards.forEach(card => {
+            if (card.dataset.bound === '1') return;
+            card.dataset.bound = '1';
+
+            card.addEventListener('click', () => {
+                card.classList.toggle('flipped');
+            });
+        });
+    }
+
+
+    // --- FORCE all cards to show translations ---
+    function showAllTranslations() {
+        const cards = document.querySelectorAll('#words-container .flashcard');
+        cards.forEach(card => card.classList.add('flipped'));
+    }
+
+
+    // --- FORCE all cards to show original words ---
+    function showAllOriginals() {
+        const cards = document.querySelectorAll('#words-container .flashcard');
+        cards.forEach(card => card.classList.remove('flipped'));
+    }
+
+
+    // Bind after initial load
+    document.addEventListener('DOMContentLoaded', () => {
+        bindFlashcards();
+    });
+
+    // Make available if AJAX reloads #words-container
+    window.bindFlashcards = bindFlashcards;
+    window.showAllTranslations = showAllTranslations;
+    window.showAllOriginals = showAllOriginals;
+    </script>
+
 </html>
+
+   
