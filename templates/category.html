@@ -2,6 +2,16 @@
 {% block content %}
 
 <style>
+/* Desktop: show subtopics by default */
+@media (min-width: 800px) {
+    #subtopics-section[data-default-open="1"] {
+        display: block !important;
+    }
+    #toggle-subtopics[data-default-open="1"]::after {
+        content: "Hide subtopics";
+    }
+}
+
 /* Mobile: full width */
 .levels-summary-row {
     width: 100%;
@@ -265,6 +275,7 @@
 let currentView = "{{ view }}";
 let currentIncludeSubs = {{ 1 if include_subs else 0 }};
 
+// ----- Levels helpers -----
 function getSelectedLevels() {
     return Array.from(document.querySelectorAll('.level-pill.selected[data-level-id]'))
                 .map(p => p.dataset.levelId);
@@ -345,7 +356,8 @@ function initLevelPills() {
 
     const selectAllBtn = document.getElementById('select-all-btn');
     if (selectAllBtn) {
-        selectAllBtn.addEventListener('click', () => {
+        selectAllBtn.addEventListener('click', (e) => {
+            e.preventDefault();
             const all = [...document.querySelectorAll('.level-pill[data-level-id]')];
             const allSelected = all.every(p => p.classList.contains('selected'));
             all.forEach(p => p.classList.toggle('selected', !allSelected));
@@ -359,18 +371,38 @@ function initLevelPills() {
     updateLevelsSummary();
 }
 
+// ----- Subtopics: default open/closed depending on screen -----
+function initSubtopicsDefault() {
+    const panel = document.getElementById('subtopics-section');
+    const btn = document.getElementById('toggle-subtopics');
+    if (!panel || !btn) return;
+
+    // Mobile: keep closed by default
+    if (window.innerWidth < 800) {
+        panel.style.display = "none";
+        btn.textContent = "Show subtopics";
+        return;
+    }
+
+    // Desktop: open by default
+    panel.style.display = "block";
+    btn.textContent = "Hide subtopics";
+}
+
+// ----- Show / Hide subtopics panel button -----
 function bindSubtopicsPanelToggle() {
     const btn = document.getElementById('toggle-subtopics');
     const panel = document.getElementById('subtopics-section');
     if (!btn || !panel) return;
 
     btn.addEventListener('click', () => {
-        const hidden = panel.style.display !== 'block';
-        panel.style.display = hidden ? 'block' : 'none';
-        btn.textContent = hidden ? "Hide subtopics" : "Show subtopics";
+        const isHidden = panel.style.display !== 'block';
+        panel.style.display = isHidden ? "block" : "none";
+        btn.textContent = isHidden ? "Hide subtopics" : "Show subtopics";
     });
 }
 
+// ----- Include subtopics checkbox -----
 function bindIncludeSubsCheckbox() {
     const cb = document.getElementById('include-subs-checkbox');
     const wordsContainer = document.getElementById('category-words-container');
@@ -396,6 +428,7 @@ function bindIncludeSubsCheckbox() {
     });
 }
 
+// ----- View switcher (table / cards / flashcards) -----
 function bindCategoryViewSwitcher() {
     const buttons = document.querySelectorAll('.view-switcher .apply-button');
     const container = document.getElementById('category-words-container');
@@ -429,6 +462,7 @@ function bindCategoryViewSwitcher() {
     });
 }
 
+// ----- Levels summary "Change levels" toggle -----
 function bindLevelsSummaryToggle() {
     const link = document.getElementById('levels-change-link');
     const form = document.getElementById('levels-form');
@@ -453,22 +487,10 @@ function bindLevelsSummaryToggle() {
     });
 }
 
-/* ============================================
-   Subcategory arrow binding
-   Expects:
-   <button class="subcat-toggle" data-cat-id="123">▶</button>
-   <div class="subcat-children" data-subcats-for="123" style="display:none;">...</div>
-============================================ */
-/* ============================================
-   Subcategory arrow binding
-   Expects:
-   <button class="subcat-toggle" data-cat-id="123">〉</button>
-   <div class="subcat-children" data-subcats-for="123" style="display:none;">...</div>
-============================================ */
-
+// ----- Subcategory expand arrows (▲ / ▼) -----
 function bindSubcategoryExpandButtons() {
     document.querySelectorAll('.subcat-toggle').forEach(toggle => {
-        toggle.addEventListener('click', () => {
+        toggle.onclick = () => {
             const catId = toggle.dataset.catId;
             const subcats = document.querySelector(`[data-subcats-for="${catId}"]`);
             if (!subcats) return;
@@ -479,20 +501,21 @@ function bindSubcategoryExpandButtons() {
 
             subcats.style.display = isHidden ? 'block' : 'none';
             toggle.textContent = isHidden ? '▲' : '▼';
-        });
+        };
     });
 }
 
-
-
+// ----- Init on page load -----
 document.addEventListener('DOMContentLoaded', function() {
     initLevelPills();
+    initSubtopicsDefault();
     bindSubtopicsPanelToggle();
     bindIncludeSubsCheckbox();
     bindCategoryViewSwitcher();
     bindLevelsSummaryToggle();
-    bindSubcategoryExpandButtons();  // initial HTML
+    bindSubcategoryExpandButtons();
 });
 </script>
+
 
 {% endblock %}
