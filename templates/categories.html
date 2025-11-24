@@ -29,7 +29,7 @@
 /* Desktop: narrower + left-aligned */
 @media (min-width: 900px) {
     .levels-summary-row {
-        max-width: 520px;     /* adjust if you want wider/narrower */
+        max-width: 520px;
         margin-left: 0;
         margin-right: auto;
     }
@@ -115,6 +115,139 @@
         padding: 3px 10px;
     }
 }
+
+/* ===== CATEGORY GRID & CARDS (visual only) ===== */
+
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 10px;
+}
+
+/* Card look – whole card is clickable now */
+.category-card {
+    background: #f5f7ff;
+    border: 1px solid #dde5ff;
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+    cursor: pointer; /* key: show it's clickable */
+}
+
+/* Hover state */
+.category-card:hover {
+    background: #eef2ff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+/* Header row: name+count on left, arrow on right */
+.category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+/* Make the link area (name+count) a nice block */
+.category-link {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    text-decoration: none;
+    color: #1a237e;  /* heading blue */
+    font-weight: 600;
+}
+
+.category-link:hover {
+    text-decoration: underline;
+}
+
+.category-count {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+/* ===== SUBCATEGORY ARROWS – big, clear ▲▼ ===== */
+.subcat-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 28px;
+    height: 28px;
+
+    margin-left: 4px;
+
+    border-radius: 50%;
+    border: 1px solid #b9c4ff;
+    background: #f0f3ff;
+
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+
+    color: #1a2a7a;
+    transition: background 0.15s ease, transform 0.15s ease;
+    flex-shrink: 0;
+}
+
+.subcat-toggle:hover {
+    background: #e2e7ff;
+}
+
+.subcat-toggle.open {
+    background: #d3dcff;
+}
+
+/* ===== SUBCATEGORIES LIST ===== */
+
+.subcats {
+    margin-top: 8px;
+    padding-left: 0;
+}
+
+/* Individual subcategory link */
+.subcat {
+    display: block;
+    margin: 2px 0;
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+
+.subcat-name {
+    color: #1a73e8;
+}
+
+.subcat-count {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.subcat:hover .subcat-name {
+    text-decoration: underline;
+}
+
+/* Optional: dim empty categories */
+.category-card--empty,
+.subcat--empty .subcat-name {
+    opacity: 0.55;
+}
+
+/* Disable text selection inside category cards */
+.category-card * {
+    user-select: none;
+}
+
+/* Remove underline from the category title on hover */
+.category-link:hover {
+    text-decoration: none !important;
+}
+
 </style>
 
 <!-- ==========================
@@ -135,28 +268,24 @@
 </div>
 
 <!-- ==========================
-     LEVEL SELECTOR (collapsible, same look as other page)
+     LEVEL SELECTOR (collapsible)
 ========================== -->
 <form id="levels-form" class="level-pill-form" style="margin-bottom: 12px; display:none;">
-
     <div class="levels-scroll">
-
-        {# Normal levels first (everything except ID 0) #}
         {% for level in levels if level.id != 0 %}
-            <label class="level-pill"
-                   data-level-id="{{ level.id }}"
-                   style="flex: 0 0 auto;">
-                {{ level.name }}
-            </label>
+        <label class="level-pill"
+               data-level-id="{{ level.id }}"
+               style="flex: 0 0 auto;">
+            {{ level.name }}
+        </label>
         {% endfor %}
 
-        {# Level 0 as "+" at the very end #}
         {% for level in levels if level.id == 0 %}
-            <label class="level-pill"
-                   data-level-id="0"
-                   style="flex: 0 0 auto;">
-                +
-            </label>
+        <label class="level-pill"
+               data-level-id="0"
+               style="flex: 0 0 auto;">
+            +
+        </label>
         {% endfor %}
     </div>
 
@@ -166,7 +295,6 @@
         Select All
     </button>
 </form>
-
 
 <div id="categories-container">
     {% include "partials/categories_grid.html" %}
@@ -215,11 +343,12 @@ function sendSelectedLevels(selectedLevels) {
         if (data.html) {
             const container = document.getElementById('categories-container');
             container.innerHTML = data.html;
+
+            // Rebind behaviour for the new DOM:
             bindExpandButtons();
             bindCategoryCardClicks();
         }
     })
-
     .catch(err => console.error("Error updating categories:", err));
 }
 
@@ -231,14 +360,6 @@ function toggleAllLevels() {
 
     allPills.forEach(p => p.classList.toggle('selected', !allSelected));
 
-    updateSelectAllLabel();
-    updateLevelsSummary();
-    sendSelectedLevels(getSelectedLevels());
-}
-
-function resetLevels() {
-    const allPills = document.querySelectorAll('.level-pill[data-level-id]');
-    allPills.forEach(p => p.classList.add('selected'));
     updateSelectAllLabel();
     updateLevelsSummary();
     sendSelectedLevels(getSelectedLevels());
@@ -274,7 +395,7 @@ function initLevelPills() {
     updateLevelsSummary();
 }
 
-// ---- Levels summary show/hide (same behavior as other page) ----
+// ---- Levels summary show/hide ----
 function bindLevelsSummaryToggle() {
     const link = document.getElementById('levels-change-link');
     const form = document.getElementById('levels-form');
@@ -289,7 +410,6 @@ function bindLevelsSummaryToggle() {
         link.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     };
 
-    // Start closed
     updateToggleState(false);
 
     link.addEventListener('click', e => {
@@ -300,14 +420,14 @@ function bindLevelsSummaryToggle() {
 }
 
 // ---- Expand buttons (arrow toggles) ----
-
 function bindExpandButtons() {
     document.querySelectorAll('.subcat-toggle').forEach(toggle => {
         if (toggle.dataset.bound === "1") return;  // avoid double-binding
         toggle.dataset.bound = "1";
 
         toggle.addEventListener('click', (e) => {
-            e.stopPropagation(); // don't trigger card click
+            // do NOT trigger card navigation
+            e.stopPropagation();
 
             const catId = toggle.dataset.catId;
             const subcats = document.querySelector(`[data-subcats-for="${catId}"]`);
@@ -319,27 +439,36 @@ function bindExpandButtons() {
 
             subcats.style.display = isHidden ? 'block' : 'none';
             toggle.textContent = isHidden ? '▲' : '▼';
+            toggle.classList.toggle('open', isHidden);
         });
     });
 }
 
+/**
+ * Make the whole category card clickable.
+ * - Clicking anywhere on the card navigates to the main category link
+ * - Clicks on subcategory links still work normally
+ * - Clicks on the expand arrow only toggle, no navigation
+ */
 function bindCategoryCardClicks() {
     document.querySelectorAll('.category-card').forEach(card => {
-        if (card.dataset.clickBound === "1") return;
-        card.dataset.clickBound = "1";
+        if (card.dataset.cardBound === "1") return;
+        card.dataset.cardBound = "1";
+
+        const mainLink = card.querySelector('.category-link');
+        if (!mainLink) return;
 
         card.addEventListener('click', (e) => {
-            const target = e.target;
-
-            // If click is on arrow or inside subcategory list, do NOT navigate to parent
-            if (target.closest('.subcat-toggle') || target.closest('.subcats')) {
+            // If click originated in subcategory toggle or a subcategory link, let them handle it
+            if (e.target.closest('.subcat-toggle') || e.target.closest('.subcat')) {
                 return;
             }
-
-            const url = card.dataset.url;
-            if (url) {
-                window.location.href = url;
+            // If click is on the main category link itself, just let the browser handle it
+            if (e.target.closest('.category-link')) {
+                return;
             }
+            // Otherwise, simulate clicking the main link
+            mainLink.click();
         });
     });
 }
@@ -350,7 +479,6 @@ document.addEventListener('DOMContentLoaded', function() {
     bindExpandButtons();
     bindCategoryCardClicks();
 });
-
 </script>
 
 {% endblock %}

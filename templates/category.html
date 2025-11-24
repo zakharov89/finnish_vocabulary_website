@@ -334,8 +334,10 @@ function sendSelectedLevels(levels) {
             if (subs) {
                 subs.innerHTML = data.subtopics_html;
                 bindSubcategoryExpandButtons();  // re-bind on fresh HTML
+                bindSubtopicCardsClick();        // make the new cards clickable
             }
         }
+
     });
 }
 
@@ -519,7 +521,33 @@ function bindFlashcards() {
     });
 }
 
-// ----- Init on page load -----
+
+
+
+// ----- Make subtopic cards clickable (except arrow & child links) -----
+function bindSubtopicCardsClick() {
+    document.querySelectorAll('#subtopics-section .category-card').forEach(card => {
+        // overwrite any previous onclick to avoid duplicate bindings
+        card.onclick = (e) => {
+            // 1) If click is on the arrow -> let arrow handler do its thing
+            if (e.target.closest('.subcat-toggle')) {
+                return;
+            }
+            // 2) If click is on a child subcategory link -> let the <a> work normally
+            if (e.target.closest('.subcat')) {
+                return;
+            }
+
+            // 3) Otherwise, clicking anywhere in the card navigates to that category
+            const link = card.querySelector('.category-link');
+            if (link) {
+                window.location.href = link.href;
+            }
+        };
+    });
+}
+
+
 document.addEventListener('DOMContentLoaded', function() {
     initLevelPills();
     initSubtopicsDefault();
@@ -528,8 +556,10 @@ document.addEventListener('DOMContentLoaded', function() {
     bindCategoryViewSwitcher();
     bindLevelsSummaryToggle();
     bindSubcategoryExpandButtons();
-    bindFlashcards();  // in case initial view is flashcards
+    bindSubtopicCardsClick();  // 🔹 make initial subtopic cards clickable
+    bindFlashcards();          // in case initial view is flashcards
 });
+
 </script>
 
 
