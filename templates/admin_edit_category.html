@@ -4,8 +4,8 @@
 
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
-    {% for category, message in messages %}
-      <div class="flash {{ category }}">{{ message }}</div>
+    {% for category_name, message in messages %}
+      <div class="flash {{ category_name }}">{{ message }}</div>
     {% endfor %}
   {% endif %}
 {% endwith %}
@@ -15,25 +15,48 @@
 <div class="admin-add-word-container">
 
     <!-- ✏️ Edit Category Info -->
-    <form method="POST" action="{{ url_for('admin_edit_category', category_id=category['id']) }}" class="admin-add-word-form">
+    <form method="POST"
+          action="{{ url_for('admin_edit_category', category_id=category['id']) }}"
+          class="admin-add-word-form">
         <input type="hidden" name="action" value="update_category">
 
         <p>
             <label>Category Name:</label><br>
-            <input type="text" name="name" value="{{ category['name'] }}" required class="admin-input">
+            <input type="text"
+                   name="name"
+                   value="{{ category['name'] }}"
+                   required
+                   class="admin-input">
         </p>
 
-            <p>
-       <label>Parent Category</label> <br>
-        <input type="text" id="categoryInput" autocomplete="off" placeholder="Type to search…">
-        <input type="hidden" name="parent_id" id="categoryId">
+        <!-- Current parent + autocomplete to change parent -->
+        <p>
+            <label>Current Parent:</label><br>
+            {% if parent_category %}
+                <a href="{{ url_for('admin_edit_category', category_id=parent_category.id) }}"
+                class="admin-btn-small">
+                    {{ parent_category.name }}
+                </a>
+            {% else %}
+                <em>No parent (top-level category)</em>
+            {% endif %}
+        </p>
 
-        <div id="suggestions" class="autocomplete-list"></div>
 
-    </p>
+        <p>
+            <label>Change Parent Category</label><br>
+            <input type="text"
+                   id="categoryInput"
+                   autocomplete="off"
+                   placeholder="Type to search…"
+                   value="{{ parent_category.name if parent_category else '' }}">
+            <input type="hidden"
+                   name="parent_id"
+                   id="categoryId"
+                   value="{{ parent_category.id if parent_category else '' }}">
 
-    <ul id="category_suggestions" class="autocomplete-list"></ul>
-
+            <div id="suggestions" class="autocomplete-list"></div>
+        </p>
 
         <p>
             <button type="submit" class="admin-btn">Update Category</button>
@@ -41,9 +64,27 @@
     </form>
 
     <p>
-    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+        <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
     </p>
 
+    <hr>
+
+    <h3>Subcategories of this Category</h3>
+
+    {% if subcategories %}
+        <div class="admin-subcat-list">
+            {% for sc in subcategories %}
+                <p>
+                    <a href="{{ url_for('admin_edit_category', category_id=sc.id) }}"
+                    class="admin-btn-small">
+                        {{ sc.name }}
+                    </a>
+                </p>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p><em>No subcategories for this category.</em></p>
+    {% endif %}
 
     <hr>
 
@@ -52,18 +93,20 @@
 
     {% if category_words %}
         <table class="admin-table">
-           
             <tbody>
             {% for w in category_words %}
                 <tr>
                     <td>
-                        <a href="{{ url_for('show_word', word_name=w['word']) }}" target="_blank">{{ w['word'] }}</a>
+                        <a href="{{ url_for('show_word', word_name=w['word']) }}"
+                           target="_blank">{{ w['word'] }}</a>
                     </td>
                     <td>
-                        <form method="POST" 
-                            action="{{ url_for('admin_remove_word_from_category', category_id=category['id'], word_id=w['id']) }}" 
-                            style="display:inline;"
-                            onsubmit="return confirm('Are you sure you want to remove this word from the category?');">
+                        <form method="POST"
+                              action="{{ url_for('admin_remove_word_from_category',
+                                                 category_id=category['id'],
+                                                 word_id=w['id']) }}"
+                              style="display:inline;"
+                              onsubmit="return confirm('Are you sure you want to remove this word from the category?');">
                             <button type="submit" class="admin-btn-small delete-btn">Remove</button>
                         </form>
                     </td>
@@ -77,16 +120,24 @@
 
     <hr>
 
-    <a href="{{ url_for('admin_category_meanings', category_id=category['id']) }}" class="admin-btn-small">
-    View / Edit Main Meanings
+    <a href="{{ url_for('admin_category_meanings', category_id=category['id']) }}"
+       class="admin-btn-small">
+        View / Edit Main Meanings
     </a>
 
+    <hr>
 
     <!-- 🔍 Add Existing Word -->
     <h3>Add Existing Word</h3>
-    <form method="GET" action="{{ url_for('admin_edit_category', category_id=category['id']) }}" class="admin-add-word-form">
+    <form method="GET"
+          action="{{ url_for('admin_edit_category', category_id=category['id']) }}"
+          class="admin-add-word-form">
         <p>
-            <input type="text" name="word_query" class="admin-input" placeholder="Search for a word..." value="{{ search_query }}">
+            <input type="text"
+                   name="word_query"
+                   class="admin-input"
+                   placeholder="Search for a word..."
+                   value="{{ search_query }}">
             <button type="submit" class="admin-btn">Search</button>
         </p>
     </form>
@@ -95,12 +146,15 @@
         <ul>
         {% for w in search_results %}
             <li>
-                <a href="{{ url_for('show_word', word_name=w['word']) }}" target="_blank">{{ w['word'] }}</a>
+                <a href="{{ url_for('show_word', word_name=w['word']) }}"
+                   target="_blank">{{ w['word'] }}</a>
             </li>
         {% endfor %}
         </ul>
 
-        <form method="POST" action="{{ url_for('admin_edit_category', category_id=category['id']) }}" class="admin-add-word-form">
+        <form method="POST"
+              action="{{ url_for('admin_edit_category', category_id=category['id']) }}"
+              class="admin-add-word-form">
             <input type="hidden" name="action" value="add_existing">
             <p>
                 <label>Select a word to add:</label><br>
@@ -118,12 +172,13 @@
         <p><em>No results found for “{{ search_query }}”.</em></p>
     {% endif %}
 
-
     <hr>
 
     <!-- 🆕 Add New Word to this Category -->
     <h3>Add New Word to this Category</h3>
-    <form method="POST" action="{{ url_for('admin_edit_category', category_id=category['id']) }}" class="admin-add-word-form">
+    <form method="POST"
+          action="{{ url_for('admin_edit_category', category_id=category['id']) }}"
+          class="admin-add-word-form">
         <input type="hidden" name="action" value="add_new_word">
 
         <p>
@@ -131,11 +186,10 @@
             <input type="text" name="new_word" required class="admin-input">
         </p>
 
-            <!-- Level -->
+        <!-- Level -->
         <p>
             <label>Level:</label><br>
             <select name="level" class="admin-select">
-    
                 {% for level in levels %}
                     <option value="{{ level.id }}">{{ level.name }}</option>
                 {% endfor %}
@@ -153,34 +207,55 @@
                 <p>Part of Speech:</p>
                 <select name="pos_id_1" required class="admin-select">
                     {% for pos in pos_list %}
-                    <option value="{{ pos['id'] }}">{{ pos['name'] }}</option>
+                        <option value="{{ pos['id'] }}">{{ pos['name'] }}</option>
                     {% endfor %}
                 </select>
 
                 <p>Translations:</p>
                 <div id="translations-1" class="translations-group">
-                    <input type="text" name="translations_1[]" class="admin-input" placeholder="Enter translation">
+                    <input type="text"
+                           name="translations_1[]"
+                           class="admin-input"
+                           placeholder="Enter translation">
                 </div>
-                <button type="button" class="admin-btn" onclick="addTranslation(1)">+ Add Translation</button>
+                <button type="button"
+                        class="admin-btn"
+                        onclick="addTranslation(1)">+ Add Translation</button>
 
                 <p>Examples:</p>
                 <div id="examples-1" class="examples-group">
                     <div class="example-pair">
-                        <input type="text" name="examples_1[]" class="admin-input" placeholder="Enter example">
-                        <input type="text" name="examples_trans_1[]" class="admin-input" placeholder="Enter example translation">
+                        <input type="text"
+                               name="examples_1[]"
+                               class="admin-input"
+                               placeholder="Enter example">
+                        <input type="text"
+                               name="examples_trans_1[]"
+                               class="admin-input"
+                               placeholder="Enter example translation">
                     </div>
                 </div>
-                <button type="button" class="admin-btn" onclick="addExample(1)">+ Add Example</button>
+                <button type="button"
+                        class="admin-btn"
+                        onclick="addExample(1)">+ Add Example</button>
 
                 <p>Definition (optional):</p>
-                <input type="text" name="definition_1" class="admin-input" placeholder="Enter definition">
+                <input type="text"
+                       name="definition_1"
+                       class="admin-input"
+                       placeholder="Enter definition">
 
                 <p>Notes:</p>
-                <input type="text" name="meaning_notes[]" class="admin-input" placeholder="Enter notes">
+                <input type="text"
+                       name="meaning_notes[]"
+                       class="admin-input"
+                       placeholder="Enter notes">
             </div>
         </div>
 
-        <button type="button" onclick="addMeaning()" class="admin-btn">+ Add Meaning</button>
+        <button type="button"
+                onclick="addMeaning()"
+                class="admin-btn">+ Add Meaning</button>
 
         <p>
             <button type="submit" class="admin-btn">Add Word</button>
@@ -188,8 +263,10 @@
     </form>
 </div>
 
-<form method="POST" action="{{ url_for('admin_delete_category', category_id=category['id']) }}" onsubmit="return confirm('Are you sure you want to delete this category? This cannot be undone.');">
-    <button type="submit" class="admin-btn delete-btn"> Delete Category</button>
+<form method="POST"
+      action="{{ url_for('admin_delete_category', category_id=category['id']) }}"
+      onsubmit="return confirm('Are you sure you want to delete this category? This cannot be undone.');">
+    <button type="submit" class="admin-btn delete-btn">Delete Category</button>
 </form>
 
 <p>
@@ -250,37 +327,56 @@
 
             <p>Translations:</p>
             <div id="translations-${meaningCount}" class="translations-group">
-                <input type="text" name="translations_${meaningCount}[]" class="admin-input" placeholder="Enter translation">
+                <input type="text"
+                       name="translations_${meaningCount}[]"
+                       class="admin-input"
+                       placeholder="Enter translation">
             </div>
-            <button type="button" class="admin-btn" onclick="addTranslation(${meaningCount})">+ Add Translation</button>
+            <button type="button"
+                    class="admin-btn"
+                    onclick="addTranslation(${meaningCount})">+ Add Translation</button>
 
             <p>Examples:</p>
             <div id="examples-${meaningCount}" class="examples-group">
                 <div class="example-pair">
-                    <input type="text" name="examples_${meaningCount}[]" class="admin-input" placeholder="Enter example">
-                    <input type="text" name="examples_trans_${meaningCount}[]" class="admin-input" placeholder="Enter example translation">
+                    <input type="text"
+                           name="examples_${meaningCount}[]"
+                           class="admin-input"
+                           placeholder="Enter example">
+                    <input type="text"
+                           name="examples_trans_${meaningCount}[]"
+                           class="admin-input"
+                           placeholder="Enter example translation">
                 </div>
             </div>
-            <button type="button" class="admin-btn" onclick="addExample(${meaningCount})">+ Add Example</button>
+            <button type="button"
+                    class="admin-btn"
+                    onclick="addExample(${meaningCount})">+ Add Example</button>
 
             <p>Definition (optional):</p>
-            <input type="text" name="definition_${meaningCount}" class="admin-input" placeholder="Enter definition">
+            <input type="text"
+                   name="definition_${meaningCount}"
+                   class="admin-input"
+                   placeholder="Enter definition">
 
             <p>Notes:</p>
-            <input type="text" name="meaning_notes[]" class="admin-input" placeholder="Enter notes">
+            <input type="text"
+                   name="meaning_notes[]"
+                   class="admin-input"
+                   placeholder="Enter notes">
         `;
         container.appendChild(div);
-    }
+    };
 
     window.addTranslation = addTranslation;
     window.addExample = addExample;
 })();
+</script>
 
-
-
+<script>
 const categories = [
     {% for c in all_categories %}
-        { id: {{ c.id }}, name: "{{ c.name }}" },
+        { id: {{ c.id }}, name: {{ c.name|tojson }} },
     {% endfor %}
 ];
 
@@ -292,7 +388,6 @@ function showSuggestions(value) {
     list.innerHTML = "";
     list.style.display = "block";
 
-    // prefix-only matching, but show all if empty
     const filtered = categories.filter(c =>
         value === "" || c.name.toLowerCase().startsWith(value.toLowerCase())
     );
@@ -310,14 +405,24 @@ function showSuggestions(value) {
 
         list.appendChild(item);
     });
+
+    if (filtered.length === 0) {
+        const item = document.createElement("div");
+        item.className = "autocomplete-item empty";
+        item.textContent = "No matches";
+        list.appendChild(item);
+    }
 }
 
 input.addEventListener("input", () => {
+    if (input.value.trim() === "") {
+        idField.value = "";
+    }
     showSuggestions(input.value);
 });
 
 input.addEventListener("focus", () => {
-    showSuggestions(input.value); // shows all on focus if empty
+    showSuggestions(input.value);
 });
 
 document.addEventListener("click", (e) => {
@@ -327,6 +432,4 @@ document.addEventListener("click", (e) => {
 });
 </script>
 
-
 {% endblock %}
-
