@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
             </a>
 
             <a href="{{ url_for('words_table') }}"
-               class="{% if request.endpoint in ['words_table', 'words_cards', 'words_flashcards'] %}active{% endif %}">
+                class="{% if request.endpoint in ['words_table', 'words_cards', 'words_flashcards', 'show_word'] %}active{% endif %}">
                 Words
             </a>
 
