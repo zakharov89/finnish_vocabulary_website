@@ -1,16 +1,60 @@
 {% extends "base.html" %}
-
 {% block content %}
 
 
-<p>This Finnish vocabulary site is designed to help learners explore Finnish words, their meanings, translations, examples, and relationships such as synonyms or words with the same root.</p>
 
-<p>It is a personal project to create a structured and interactive way to learn Finnish, with features like:</p>
+<p>
+This website is a personal project created to make learning Finnish vocabulary clearer,
+better structured, and more enjoyable. It aims to combine dictionary-quality information
+with interactive tools for studying words in meaningful ways.
+</p>
+
+<h3>What the site offers</h3>
 <ul>
-    <li>Word meanings and multiple translations</li>
-    <li>Examples with translations</li>
-    <li>Categories and subcategories for organized learning</li>
-    <li>Relations between words and meanings</li>
+    <li><strong>Word meanings</strong> with multiple translations</li>
+    <li><strong>Example sentences</strong> with English translations</li>
+    <li><strong>Topic categories</strong> and subcategories that organize vocabulary</li>
+    <li><strong>Level filtering</strong> to focus on easier or more advanced vocabulary</li>
+    <li><strong>Interactive views</strong>: table, card view, and flashcards</li>
+    <li><strong>Word and meaning relations</strong> such as synonyms or shared roots</li>
 </ul>
+
+<h3>The level system</h3>
+<p>
+Every word is assigned a difficulty level from <strong>1 to 5</strong> (plus “+” for unranked or special items).
+These levels are not official CEFR levels — they are a personal heuristic to help structure learning:
+</p>
+<ul>
+    <li><strong>Level 1:</strong> Very common, essential beginner vocabulary</li>
+    <li><strong>Level 2:</strong> Basic everyday words</li>
+    <li><strong>Level 3:</strong> Intermediate vocabulary</li>
+    <li><strong>Level 4:</strong> Less common or more specific words</li>
+    <li><strong>Level 5:</strong> Advanced, formal, or abstract vocabulary</li>
+    <li><strong>Level +:</strong> Words without a defined level yet</li>
+</ul>
+<p>
+You can filter any page by level, and this selection stays consistent as you navigate.
+</p>
+
+<h3>Data sources</h3>
+<p>
+Most basic definitions and translations originate from
+<strong>Wiktionary</strong>.  
+Wiktionary content is licensed under <em>CC BY-SA 3.0</em>, so this project may reuse and adapt it with attribution.
+
+</p>
+
+<h3>Why I built this</h3>
+<p>
+While learning Finnish, I often found it difficult to keep track of meanings,
+related words, and which topics I had already covered. This site brings everything
+into one unified system: a learner-friendly dictionary, a topic navigator,
+and a practice tool.
+</p>
+
+<p>
+This project continues to evolve, and features such as improved flashcards,
+more examples, and smarter search are planned for the future.
+</p>
 
 {% endblock %}
