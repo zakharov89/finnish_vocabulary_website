@@ -1677,3 +1677,17 @@ a.word-card:hover * {
         border-radius: 18px;
     }
 }
+
+/* Bigger flashcard text on small screens */
+@media (max-width: 600px) {
+    .flashcard {
+        height: 160px; /* optional: a bit taller so big text fits nicely */
+    }
+
+    .flashcard > .front,
+    .flashcard > .back,
+    .flashcard > .back .translation-badge {
+        font-size: 1.3rem;   /* or 1.8rem if you want really big */
+        line-height: 1.3;
+    }
+}
