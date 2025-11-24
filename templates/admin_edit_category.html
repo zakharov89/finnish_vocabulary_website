@@ -2,24 +2,6 @@
 
 {% block content %}
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-{% if messages %}
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-    const container = document.getElementById("toast-container");
-
-    {% for category_name, message in messages %}
-        const el = document.createElement("div");
-        el.className = "toast {{ category_name }}";
-        el.textContent = "{{ message }}";
-        container.appendChild(el);
-
-        setTimeout(() => el.remove(), 4000);
-    {% endfor %}
-});
-</script>
-{% endif %}
-{% endwith %}
 
 
 <h2>Edit Category: {{ category['name'] }}</h2>

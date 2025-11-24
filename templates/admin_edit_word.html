@@ -1,13 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="flash {{ category }}">{{ message }}</div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
 
 <div class="container mt-5">
     <h2>Edit Word: <a href="{{ url_for('show_word', word_name=word.word) }}" target="_blank">

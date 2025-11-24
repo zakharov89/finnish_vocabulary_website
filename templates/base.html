@@ -7,6 +7,27 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet">
 </head>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const container = document.getElementById("toast-container");
+    if (!container) return;
+
+    {% for category_name, message in messages %}
+        const el = document.createElement("div");
+        el.className = "toast {{ category_name }}";
+        el.textContent = {{ message|tojson }};
+        container.appendChild(el);
+
+        setTimeout(() => el.remove(), 4000);
+    {% endfor %}
+});
+</script>
+{% endif %}
+{% endwith %}
+
 <body>
     <div id="toast-container"></div>
     <header>
