@@ -258,6 +258,30 @@ input.addEventListener('input', async () => {
 document.addEventListener('click', e => {
     if (!input.contains(e.target)) list.innerHTML = '';
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+    const input = document.getElementById("search-input");
+    const radios = document.querySelectorAll("input[name='mode']");
+
+    function updatePlaceholder() {
+        const mode = document.querySelector("input[name='mode']:checked").value;
+
+        if (mode === "finnish") {
+            input.placeholder = "Search Finnish words…";
+        } else if (mode === "translation") {
+            input.placeholder = "Search translations…";
+        } else {
+            input.placeholder = "Search categories…";
+        }
+    }
+
+    radios.forEach(r => {
+        r.addEventListener("change", updatePlaceholder);
+    });
+
+    updatePlaceholder(); // Set on initial page load
+});
+
 </script>
 
 {% endblock %}
