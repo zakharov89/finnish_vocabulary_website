@@ -1169,17 +1169,6 @@ footer {
     color: #666;
 }
 
-.subcat-toggle {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1.2em;      
-    padding: 0 2px;     
-    margin-left: 4px;
-    line-height: 1;
-    color: #444;
-}
-
 .expand-btn {
     background: none;
     border: none;
@@ -1352,4 +1341,39 @@ footer {
 .autocomplete-item:hover,
 .autocomplete-item.active {
     background: #e8f0ff;
+}
+
+/* ============================================
+   SUBCATEGORY ARROWS — always large and clear
+============================================ */
+.subcat-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 28px;
+    height: 28px;
+
+    margin-right: 8px;
+
+    border-radius: 50%;
+    border: 1px solid #b9c4ff;
+    background: #f0f3ff;
+
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+
+    color: #1a2a7a;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.subcat-toggle:hover {
+    background: #e2e7ff;
+}
+
+.subcat-toggle.open {
+    background: #d3dcff;
 }

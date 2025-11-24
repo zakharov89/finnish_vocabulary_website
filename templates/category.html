@@ -2,11 +2,7 @@
 {% block content %}
 
 <style>
-/* ============================================
-   LEVELS SUMMARY PANEL — RESPONSIVE WIDTH
-============================================ */
-
-/* Mobile: full width (same as now) */
+/* Mobile: full width */
 .levels-summary-row {
     width: 100%;
     box-sizing: border-box;
@@ -16,7 +12,7 @@
     justify-content: space-between;
 
     padding: 6px 10px;
-    margin: 0 auto 10px auto;
+    margin: 0 0 10px 0;
 
     border-radius: 10px;
     background: #f5f7ff;
@@ -26,17 +22,15 @@
     gap: 8px;
 }
 
-/* Desktop: make it narrower + centered */
+/* Desktop: narrower + left-aligned */
 @media (min-width: 900px) {
     .levels-summary-row {
-        max-width: 520px;     /* narrow */
-        margin-left: 0;       /* align left */
-        margin-right: auto;   /* push to left */
+        max-width: 520px;     /* adjust if you want wider/narrower */
+        margin-left: 0;
+        margin-right: auto;
     }
 }
 
-
-/* Label styling */
 .levels-summary-label-wrap {
     display: flex;
     align-items: baseline;
@@ -54,11 +48,8 @@
     color: #1a237e;
 }
 
-/* ============================================
-   CHANGE LEVELS BUTTON
-============================================ */
+/* "Change levels ▾" button */
 #levels-change-link {
-    margin-left: 8px;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -85,8 +76,9 @@
 }
 
 /* ============================================
-   LEVELS SCROLL (unchanged)
+   LEVELS SCROLL ROW + SELECT ALL
 ============================================ */
+
 .levels-scroll {
     display: flex;
     gap: 6px;
@@ -119,10 +111,7 @@
         padding: 3px 10px;
     }
 }
-
-
 </style>
-
 
 
 <!-- ==========================
@@ -147,36 +136,30 @@
 ========================== -->
 <form id="levels-form" class="level-pill-form" style="margin-bottom: 12px; display:none;">
 
-    <!-- Scrollable row of level pills -->
     <div class="levels-scroll">
-        <!-- All numbered levels (1..5 or whatever exists) -->
         {% for level in levels if level.id != 0 %}
         <label class="level-pill"
                data-level-id="{{ level.id }}"
-               style="flex: 0 0 auto;">
+               style="flex:0 0 auto;">
             {{ level.id }}
         </label>
         {% endfor %}
 
-        <!-- Level 0 as "+" at the end -->
         {% for level in levels if level.id == 0 %}
         <label class="level-pill"
                data-level-id="0"
-               style="flex: 0 0 auto;">
+               style="flex:0 0 auto;">
             +
         </label>
         {% endfor %}
     </div>
 
-    <!-- Select All button -->
-    <button type="button" 
+    <button type="button"
             class="level-pill select-all-pill"
             id="select-all-btn">
         Select All
     </button>
-
 </form>
-
 
 <!-- ==========================
      CATEGORY TITLE
@@ -292,6 +275,8 @@ function updateLevelsSummary() {
     const pills = [...document.querySelectorAll('.level-pill[data-level-id]')];
     const selected = pills.filter(p => p.classList.contains('selected'));
 
+    if (!label) return;
+
     if (selected.length === 0)
         label.textContent = "No levels selected";
     else if (selected.length === pills.length)
@@ -329,9 +314,13 @@ function sendSelectedLevels(levels) {
     .then(data => {
         const container = document.getElementById('category-words-container');
         if (data.words_html) container.innerHTML = data.words_html;
+
         if (data.subtopics_html) {
             const subs = document.getElementById('subtopics-section');
-            if (subs) subs.innerHTML = data.subtopics_html;
+            if (subs) {
+                subs.innerHTML = data.subtopics_html;
+                bindSubcategoryExpandButtons();  // re-bind on fresh HTML
+            }
         }
     });
 }
@@ -454,8 +443,8 @@ function bindLevelsSummaryToggle() {
         link.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     };
 
-    // Initialize based on current display (default: closed)
-    updateToggleState(form.style.display === 'block');
+    // Start closed
+    updateToggleState(false);
 
     link.addEventListener('click', e => {
         e.preventDefault();
@@ -464,12 +453,45 @@ function bindLevelsSummaryToggle() {
     });
 }
 
+/* ============================================
+   Subcategory arrow binding
+   Expects:
+   <button class="subcat-toggle" data-cat-id="123">▶</button>
+   <div class="subcat-children" data-subcats-for="123" style="display:none;">...</div>
+============================================ */
+/* ============================================
+   Subcategory arrow binding
+   Expects:
+   <button class="subcat-toggle" data-cat-id="123">〉</button>
+   <div class="subcat-children" data-subcats-for="123" style="display:none;">...</div>
+============================================ */
+
+function bindSubcategoryExpandButtons() {
+    document.querySelectorAll('.subcat-toggle').forEach(toggle => {
+        toggle.addEventListener('click', () => {
+            const catId = toggle.dataset.catId;
+            const subcats = document.querySelector(`[data-subcats-for="${catId}"]`);
+            if (!subcats) return;
+
+            const isHidden =
+                subcats.style.display === 'none' ||
+                subcats.style.display === '';
+
+            subcats.style.display = isHidden ? 'block' : 'none';
+            toggle.textContent = isHidden ? '▲' : '▼';
+        });
+    });
+}
+
+
+
 document.addEventListener('DOMContentLoaded', function() {
     initLevelPills();
     bindSubtopicsPanelToggle();
     bindIncludeSubsCheckbox();
     bindCategoryViewSwitcher();
     bindLevelsSummaryToggle();
+    bindSubcategoryExpandButtons();  // initial HTML
 });
 </script>
 
