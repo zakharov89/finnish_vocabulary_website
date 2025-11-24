@@ -1411,3 +1411,86 @@ footer {
 .autocomplete-item:hover {
     background: #eef2ff;
 }
+
+/* --- Search field width control --- */
+.search-container {
+    max-width: 420px;   /* nicer width on desktop */
+    width: 100%;
+    margin: 0 auto;     /* center horizontally */
+}
+
+/* --- Search input styling --- */
+#search-input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #ccd4ff;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+/* --- Suggestions list --- */
+.suggestions-list {
+    background: white;
+    border: 1px solid #d0d7ff;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.suggestion-item {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.suggestion-item:hover {
+    background: #eef3ff;
+}
+
+
+/* ===========================================
+   NICER RADIO BUTTON GROUP (Search modes)
+   - Larger tappable area
+   - Blue pill outline when selected
+=========================================== */
+
+.search-modes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 12px 0;
+}
+
+/* hide the ugly browser dot */
+.search-modes input[type="radio"] {
+    display: none;
+}
+
+/* each selectable option */
+.search-modes label {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 1px solid #c7d3ff;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.9rem;
+    background: #fff;
+    transition: 0.2s;
+}
+
+/* when selected */
+.search-modes input[type="radio"]:checked + span {
+    background: #e9efff;
+    border-color: #6f8aff;
+    font-weight: 600;
+}
+
+/* keep mobile full-width */
+@media (max-width: 500px) {
+    .search-container {
+        max-width: 100%;
+        margin: 0;
+    }
+}

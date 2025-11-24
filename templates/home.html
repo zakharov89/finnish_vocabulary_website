@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h1>Learn Finnish Vocabulary</h1>
+<h3> Welcome to the world of Finnish words!</h3>
+
 <p style="margin-bottom: 1.2em; max-width: 520px;">
     Browse topics, filter by level, and practice words as cards or flashcards.
 </p>
@@ -33,15 +34,15 @@
     margin-bottom:1.5em;
 ">
     <a href="{{ url_for('categories') }}" class="apply-button">
-        📂 Browse topics
+        Browse topics
     </a>
 
     <a href="{{ url_for('words_table') }}" class="apply-button">
-        📚 Browse all words
+        Browse all words
     </a>
 
     <a href="{{ url_for('search') }}" class="apply-button">
-        🔍 Full search
+        Full search
     </a>
 </div>
 

@@ -1,127 +1,263 @@
 {% extends "base.html" %}
-
 {% block content %}
 
+<style>
+/* ==========================================
+   COMMON SEARCH LAYOUT (used by all styles)
+========================================== */
 
-<form method="get" action="{{ url_for('search') }}" autocomplete="off" style="margin-bottom:25px;">
+.search-wrapper {
+    max-width: 500px;
+    margin: 0 auto;
+}
 
-    <div class="search-container">
-        <input type="text" id="search-input" name="query" placeholder="Enter a word or category" value="{{ query }}">
-        <ul id="suggestions" class="suggestions-list"></ul>
-    </div>
-    <div style="height:10px"></div>
+/* Input + button in a row on desktop, stacked on mobile */
+.search-row {
+    display: flex;
+    gap: 8px;
+}
 
-    <div class="search-modes">
-        <label>
-            <input type="radio" name="mode" value="finnish" {% if mode == 'finnish' %}checked{% endif %}> Finnish Word
-        </label>
-        <label>
-            <input type="radio" name="mode" value="translation" {% if mode == 'translation' %}checked{% endif %}> Translation
-        </label>
-        <label>
-            <input type="radio" name="mode" value="category" {% if mode == 'category' %}checked{% endif %}> Category
-        </label>
-    </div>
+#search-input {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #ccd4ff;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
 
-  
+/* Search button */
+.search-btn {
+    padding: 0 18px;
+    border-radius: 8px;
+    background: #2a6ae9;
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+}
 
-    <div style="height:5px"></div>
-    <button type="submit">Search</button>
-</form>
+.search-btn:hover {
+    background: #1f55c7;
+}
+
+/* Autocomplete list */
+.suggestions-list {
+    background: white;
+    border: none;        /* no permanent border/line */
+    border-radius: 8px;
+    box-shadow: none;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    position: absolute;
+    width: 100%;
+    z-index: 20;
+    max-height: 210px;
+    overflow-y: auto;
+}
+
+/* Only show border/shadow if there are items */
+.suggestions-list:not(:empty) {
+    border: 1px solid #d0d7ff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.suggestion-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+.suggestion-item:hover {
+    background: #eef3ff;
+}
+
+/* Search modes container */
+.search-modes {
+    display: flex;
+    gap: 8px;
+    margin: 14px 0;
+    flex-wrap: wrap;
+}
+
+/* Hide default radio circles */
+.search-modes input[type="radio"] {
+    display: none;
+}
+
+/* Make whole label clickable */
+.search-modes label {
+    cursor: pointer;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Mobile: stack nicely */
+@media (max-width: 480px) {
+    .search-wrapper { max-width: 100%; }
+    .search-row { flex-direction: column; }
+    .search-btn { width: 100%; height: 42px; }
+}
 
 
-{% if query %}
-  <h3>Search Results for "{{ query }}" ({{ mode|capitalize }})</h3>
 
-  {% if results %}
-    <ul>
-      {% for item in results %}
-        {% if mode == 'category' %}
-          <li>
-            <a href="{{ url_for('show_category', category_name=item['name']) }}">
-              {{ item['name'] }}
-            </a>
-          </li>
 
-        {% elif mode == 'translation' %}
-          <li>
-            <a href="{{ url_for('show_word', word_name=item['word']) }}">
-              {{ item['translation_text'] }} – {{ item['word'] }}
-            </a>
-          </li>
+.search-modes label {
+    padding: 6px 14px;
+    border-radius: 18px;
+    border: 1px solid #d0d7e7;
+    background: #ffffff;
+    font-size: 0.9rem;
+    color: #444;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
 
-        {% else %} {# finnish #}
-          <li>
-            <a href="{{ url_for('show_word', word_name=item['word']) }}">
-              {{ item['word'] }}
-            </a>
-          </li>
-        {% endif %}
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p>No results found matching your search.</p>
-  {% endif %}
-{% endif %}
+/* Hover */
+.search-modes label:hover {
+    background: #f4f6ff;
+}
 
+/* Selected = whole oval colored */
+.search-modes label:has(input[type="radio"]:checked) {
+    background: #e4ebff;
+    border-color: #6f8aff;
+    color: #1a237e;
+    font-weight: 600;
+}
+*/
+
+</style>
+
+
+<div class="search-wrapper">
+
+    <form method="get" action="{{ url_for('search') }}" autocomplete="off">
+
+        <!-- Input + Button -->
+        <div class="search-row">
+            <div style="flex:1; position:relative;">
+                <input type="text" id="search-input"
+                       name="query"
+                       placeholder="Enter a word or category"
+                       value="{{ query }}">
+                <ul id="suggestions" class="suggestions-list"></ul>
+            </div>
+
+            <button type="submit" class="search-btn">Search</button>
+        </div>
+
+        <!-- Modes -->
+        <div class="search-modes">
+            <label>
+                <input type="radio" name="mode" value="finnish"
+                       {% if mode == 'finnish' %}checked{% endif %}>
+                <span>Finnish Word</span>
+            </label>
+
+            <label>
+                <input type="radio" name="mode" value="translation"
+                       {% if mode == 'translation' %}checked{% endif %}>
+                <span>Translation</span>
+            </label>
+
+            <label>
+                <input type="radio" name="mode" value="category"
+                       {% if mode == 'category' %}checked{% endif %}>
+                <span>Category</span>
+            </label>
+        </div>
+
+    </form>
+
+
+
+
+    {% if query %}
+      <h3>Results for “{{ query }}” ({{ mode|capitalize }})</h3>
+
+      {% if results %}
+        <ul>
+        {% for item in results %}
+          {% if mode == 'category' %}
+            <li>
+              <a href="{{ url_for('show_category', category_name=item['name']) }}">
+                {{ item['name'] }}
+              </a>
+            </li>
+
+          {% elif mode == 'translation' %}
+            <li>
+              <a href="{{ url_for('show_word', word_name=item['word']) }}">
+                {{ item['translation_text'] }} – {{ item['word'] }}
+              </a>
+            </li>
+
+          {% else %}
+            <li>
+              <a href="{{ url_for('show_word', word_name=item['word']) }}">
+                {{ item['word'] }}
+              </a>
+            </li>
+          {% endif %}
+        {% endfor %}
+        </ul>
+
+      {% else %}
+        <p>No results found.</p>
+      {% endif %}
+    {% endif %}
+
+</div>
 
 
 
 <script>
 const input = document.getElementById('search-input');
-const suggestionsList = document.getElementById('suggestions');
+const list = document.getElementById('suggestions');
 
-input.addEventListener('input', async function() {
-    const query = this.value;
+input.addEventListener('input', async () => {
+    const q = input.value;
     const mode = document.querySelector('input[name="mode"]:checked').value;
 
-    if (!query) {
-        suggestionsList.innerHTML = '';
+    if (!q) {
+        list.innerHTML = '';
         return;
     }
 
-    const response = await fetch(`/autocomplete?query=${encodeURIComponent(query)}&mode=${mode}`);
-    const suggestions = await response.json();
+    const res = await fetch(`/autocomplete?query=${encodeURIComponent(q)}&mode=${mode}`);
+    const items = await res.json();
 
-    suggestionsList.innerHTML = '';
-    suggestions.forEach(item => {
+    list.innerHTML = '';
+
+    items.forEach(item => {
         const li = document.createElement('li');
         li.classList.add('suggestion-item');
 
         if (mode === 'translation') {
-            // item = { word, translation }
             li.textContent = `${item.translation} – ${item.word}`;
-            li.addEventListener('click', () => {
-                suggestionsList.innerHTML = '';
-                window.location.href = `/word/${encodeURIComponent(item.word)}`;
-            });
+            li.onclick = () => window.location.href = `/word/${encodeURIComponent(item.word)}`;
 
         } else if (mode === 'category') {
-            // item = "CategoryName"
             li.textContent = item;
-            li.addEventListener('click', () => {
-                suggestionsList.innerHTML = '';
-                window.location.href = `/categories/${encodeURIComponent(item)}`;
-            });
+            li.onclick = () => window.location.href = `/categories/${encodeURIComponent(item)}`;
 
         } else {
-            // finnish mode, item = "koira"
             li.textContent = item;
-            li.addEventListener('click', () => {
-                suggestionsList.innerHTML = '';
-                window.location.href = `/word/${encodeURIComponent(item)}`;
-            });
+            li.onclick = () => window.location.href = `/word/${encodeURIComponent(item)}`;
         }
 
-        suggestionsList.appendChild(li);
+        list.appendChild(li);
     });
 });
 
-// Close suggestions when clicking outside
-document.addEventListener('click', function(e) {
-    if (!input.contains(e.target)) {
-        suggestionsList.innerHTML = '';
-    }
+// close on outside click
+document.addEventListener('click', e => {
+    if (!input.contains(e.target)) list.innerHTML = '';
 });
 </script>
+
 {% endblock %}
