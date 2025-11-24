@@ -121,6 +121,52 @@
         padding: 3px 10px;
     }
 }
+
+/* ===== SUBCATEGORY ARROWS – consistent, compact buttons ===== */
+
+.subcat-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 34px;
+    height: 34px;
+
+    margin-left: 4px;
+
+    border-radius: 50%;
+    border: 1px solid #b9c4ff;
+    background: #f0f3ff;
+
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+
+    color: #1a2a7a;
+    transition: background 0.15s ease, transform 0.15s ease;
+    flex-shrink: 0;
+}
+
+.subcat-toggle:hover {
+    background: #e2e7ff;
+}
+
+.subcat-toggle.open {
+    background: #d3dcff;
+}
+
+/* Mobile: EXTRA big */
+@media (max-width: 600px) {
+    .subcat-toggle {
+        width: 40px;
+        height: 40px;
+        font-size: 24px;
+    }
+}
+
+
 </style>
 
 

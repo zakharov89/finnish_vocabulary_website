@@ -171,13 +171,14 @@
 }
 
 /* ===== SUBCATEGORY ARROWS – big, clear ▲▼ ===== */
+
 .subcat-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
 
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
 
     margin-left: 4px;
 
@@ -185,7 +186,7 @@
     border: 1px solid #b9c4ff;
     background: #f0f3ff;
 
-    font-size: 16px;
+    font-size: 20px;
     font-weight: 700;
     line-height: 1;
     cursor: pointer;
@@ -203,6 +204,16 @@
 .subcat-toggle.open {
     background: #d3dcff;
 }
+
+/* Mobile: EXTRA big */
+@media (max-width: 600px) {
+    .subcat-toggle {
+        width: 40px;
+        height: 40px;
+        font-size: 24px;
+    }
+}
+
 
 /* ===== SUBCATEGORIES LIST ===== */
 
@@ -246,6 +257,19 @@
 /* Remove underline from the category title on hover */
 .category-link:hover {
     text-decoration: none !important;
+}
+
+.subcat:hover .subcat-name {
+    text-decoration: none !important;
+}
+
+/* Bigger subcategory toggle button on mobile */
+@media (max-width: 600px) {
+    .subcat-toggle {
+        width: 34px;
+        height: 34px;
+        font-size: 20px;
+    }
 }
 
 </style>
