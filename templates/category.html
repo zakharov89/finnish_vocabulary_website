@@ -324,7 +324,10 @@ function sendSelectedLevels(levels) {
     .then(resp => resp.json())
     .then(data => {
         const container = document.getElementById('category-words-container');
-        if (data.words_html) container.innerHTML = data.words_html;
+        if (data.words_html) {
+            container.innerHTML = data.words_html;
+            bindFlashcards();  // rebind flip on new flashcards
+        }
 
         if (data.subtopics_html) {
             const subs = document.getElementById('subtopics-section');
@@ -423,6 +426,7 @@ function bindIncludeSubsCheckbox() {
         .then(data => {
             if (data.words_html) {
                 wordsContainer.innerHTML = data.words_html;
+                bindFlashcards();
             }
         });
     });
@@ -456,6 +460,7 @@ function bindCategoryViewSwitcher() {
             .then(data => {
                 if (data.words_html) {
                     container.innerHTML = data.words_html;
+                    bindFlashcards();
                 }
             });
         });
@@ -505,6 +510,15 @@ function bindSubcategoryExpandButtons() {
     });
 }
 
+// ----- Flashcards: flip on click -----
+function bindFlashcards() {
+    document.querySelectorAll('#category-words-container .flashcard').forEach(card => {
+        card.onclick = () => {
+            card.classList.toggle('flipped');
+        };
+    });
+}
+
 // ----- Init on page load -----
 document.addEventListener('DOMContentLoaded', function() {
     initLevelPills();
@@ -514,6 +528,7 @@ document.addEventListener('DOMContentLoaded', function() {
     bindCategoryViewSwitcher();
     bindLevelsSummaryToggle();
     bindSubcategoryExpandButtons();
+    bindFlashcards();  // in case initial view is flashcards
 });
 </script>
 

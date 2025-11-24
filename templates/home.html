@@ -1,8 +1,165 @@
 {% extends "base.html" %}
-
 {% block content %}
 
+<h1>Learn Finnish Vocabulary</h1>
+<p style="margin-bottom: 1.2em; max-width: 520px;">
+    Browse topics, filter by level, and practice words as cards or flashcards.
+</p>
 
-Welcome!
+<div class="home-search-wrapper" style="max-width: 520px; position: relative; margin-bottom: 1.5em;">
+    <form id="home-search-form"
+          action="{{ url_for('search') }}"
+          method="get"
+          autocomplete="off">
+        <input type="text"
+               id="home-search-input"
+               name="q"
+               class="admin-input"
+               placeholder="Search words or topics…"
+               autocomplete="off"
+               autocorrect="off"
+               autocapitalize="off"
+               spellcheck="false"
+               style="width: 100%;">
+    </form>
+
+    <div id="home-search-suggestions" class="autocomplete-list" style="display:none;"></div>
+</div>
+
+<div style="
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:1.5em;
+">
+    <a href="{{ url_for('categories') }}" class="apply-button">
+        📂 Browse topics
+    </a>
+
+    <a href="{{ url_for('words_table') }}" class="apply-button">
+        📚 Browse all words
+    </a>
+
+    <a href="{{ url_for('search') }}" class="apply-button">
+        🔍 Full search
+    </a>
+</div>
+
+<div style="
+    padding:12px 16px;
+    border-radius:10px;
+    background:#f5f7ff;
+    border:1px solid #dde5ff;
+    max-width:520px;
+">
+    <h3 style="margin-top:0;">How this site works</h3>
+    <ol style="padding-left:1.3em; margin:0;">
+        <li>Choose your levels on the Words or Topics pages.</li>
+        <li>Browse topics and see words for your levels.</li>
+        <li>Practice using table, card, or flashcard views.</li>
+    </ol>
+</div>
+
+<script>
+// ===== Home page search autocomplete =====
+document.addEventListener("DOMContentLoaded", () => {
+    const input = document.getElementById("home-search-input");
+    const form = document.getElementById("home-search-form");
+    const box = document.getElementById("home-search-suggestions");
+
+    if (!input || !form || !box) return;
+
+    let lastQuery = "";
+    let debounceTimer = null;
+
+    function clearSuggestions() {
+        box.innerHTML = "";
+        box.style.display = "none";
+    }
+
+    function renderSuggestions(results) {
+        clearSuggestions();
+        if (!results || results.length === 0) return;
+
+        // Group by type
+        const words = results.filter(r => r.type === "word");
+        const cats = results.filter(r => r.type === "category");
+
+        const fragment = document.createDocumentFragment();
+
+        function addGroup(title, items) {
+            if (!items.length) return;
+            const header = document.createElement("div");
+            header.className = "autocomplete-header";
+            header.textContent = title;
+            fragment.appendChild(header);
+
+            items.forEach(item => {
+                const div = document.createElement("div");
+                div.className = "autocomplete-item";
+                div.textContent = item.label;
+
+                div.addEventListener("mousedown", (e) => {
+                    e.preventDefault(); // don't blur input before click
+                    window.location.href = item.url;
+                });
+
+                fragment.appendChild(div);
+            });
+        }
+
+        addGroup("Words", words);
+        addGroup("Topics", cats);
+
+        box.appendChild(fragment);
+        box.style.display = "block";
+    }
+
+    function fetchSuggestions(q) {
+        if (!q.trim()) {
+            clearSuggestions();
+            return;
+        }
+
+        lastQuery = q;
+
+        fetch(`/api/search_suggest?q=${encodeURIComponent(q)}`)
+            .then(resp => resp.json())
+            .then(data => {
+                // Simple guard: ignore if user already typed something else
+                if (input.value !== lastQuery) return;
+                renderSuggestions(data.results || []);
+            })
+            .catch(err => {
+                console.error("Autocomplete error:", err);
+            });
+    }
+
+    input.addEventListener("input", () => {
+        const q = input.value;
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => fetchSuggestions(q), 150);
+    });
+
+    input.addEventListener("focus", () => {
+        if (input.value.trim()) {
+            fetchSuggestions(input.value);
+        }
+    });
+
+    // Clicking outside closes suggestions
+    document.addEventListener("click", (e) => {
+        if (!box.contains(e.target) && e.target !== input) {
+            clearSuggestions();
+        }
+    });
+
+    // Press Enter -> go to full Search page (existing behaviour)
+    form.addEventListener("submit", (e) => {
+        // No special handling needed: it will go to /search?q=...
+        clearSuggestions();
+    });
+});
+</script>
 
 {% endblock %}

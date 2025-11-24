@@ -90,6 +90,7 @@ def about():
 
 @app.route('/search', methods=['GET'])
 def search():
+
     query = request.args.get('query', '').strip()
     mode = request.args.get('mode', 'finnish')
 
@@ -143,6 +144,58 @@ def search():
         results=results,
         mode=mode
     )
+
+@app.route("/api/search_suggest")
+def search_suggest():
+    q = request.args.get("q", "").strip()
+    if not q:
+        return jsonify({"results": []})
+
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    like = q + "%"
+
+    # 1) Words: search Finnish word and (optionally) translations
+    cur.execute("""
+        SELECT id, word
+        FROM words
+        WHERE word LIKE ?
+        ORDER BY word COLLATE NOCASE
+        LIMIT 10
+    """, (like,))
+    word_rows = cur.fetchall()
+
+    # 2) Categories: search category names
+    cur.execute("""
+        SELECT id, name
+        FROM categories
+        WHERE name LIKE ?
+        ORDER BY name COLLATE NOCASE
+        LIMIT 10
+    """, (like,))
+    cat_rows = cur.fetchall()
+
+    conn.close()
+
+    results = []
+
+    for w in word_rows:
+        results.append({
+            "type": "word",
+            "label": w["word"],
+            "url": url_for("show_word", word_name=w["word"])
+        })
+
+    for c in cat_rows:
+        results.append({
+            "type": "category",
+            "label": c["name"],
+            "url": url_for("show_category", category_name=c["name"])
+        })
+
+    return jsonify({"results": results})
 
 @app.route('/autocomplete', methods=['GET'])
 def autocomplete():
