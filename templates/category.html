@@ -273,7 +273,7 @@
 </form>
 
 <!-- ==========================
-     BACK LINK (moved from bottom)
+     BACK LINK + TITLE
 ========================== -->
 <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.6em;">
     {% if parent %}
@@ -295,12 +295,12 @@
      SUBTOPICS TOGGLE PANEL
 ========================== -->
 {% if subcategories %}
-<div class="subtopics-wrapper" style="margin-bottom:1.2em;">
+<div class="subtopics-wrapper" style="margin-bottom:0.6em;">  {# ⬅ slightly tighter #}
 
     <button type="button"
             id="toggle-subtopics"
             class="apply-button"
-            style="margin-bottom:8px;">
+            style="margin-bottom:6px;">
         Show subtopics
     </button>
 
@@ -310,23 +310,23 @@
     </div>
 
     <!-- INCLUDE SUBTOPICS CHECKBOX -->
-    <div class="include-subs-wrapper" style="margin-top:4px;">
-        <label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:0.9rem;">
-    <input type="checkbox"
-           id="include-subs-checkbox"
-           style="transform:scale(1.1);"
-           {% if include_subs %}checked{% endif %}>
-    <span>Include words from subtopics</span>
-</label>
-
+    <div class="include-subs-wrapper" style="margin-top:2px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:0.9rem;">
+            <input type="checkbox"
+                   id="include-subs-checkbox"
+                   style="transform:scale(1.1);"
+                   {% if include_subs %}checked{% endif %}>
+            <span>Include words from subtopics</span>
+        </label>
+    </div>
 </div>
 {% endif %}
 
 <!-- ==========================
-     VIEW SWITCHER
+     VIEW SWITCHER (visually grouped with words)
 ========================== -->
 <div class="view-switcher"
-     style="margin:10px 0; display:flex; gap:15px; flex-wrap:wrap;">
+     style="margin:14px 0 8px; display:flex; gap:15px; flex-wrap:wrap; border-top:1px solid #eee; padding-top:8px;">
     <a href="#" class="apply-button {% if view == 'table' %}active-view{% endif %}"
        data-view="table">Table View</a>
 
@@ -354,7 +354,7 @@
     {% endif %}
 </div>
 
-{# BREADCRUMB REMOVED FROM BOTTOM – now at top as back pill #}
+{# Back pill is now at the top, so no breadcrumb at bottom #}
 
 <!-- ==========================
      JAVASCRIPT
