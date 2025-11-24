@@ -35,7 +35,7 @@
 /* Desktop: narrower + left-aligned */
 @media (min-width: 900px) {
     .levels-summary-row {
-        max-width: 520px;     /* adjust if you want wider/narrower */
+        max-width: 520px;
         margin-left: 0;
         margin-right: auto;
     }
@@ -199,6 +199,29 @@
     text-decoration: none !important;
 }
 
+/* Simple back pill at the top */
+.back-link-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #f5f7ff;
+    border: 1px solid #dde5ff;
+    font-size: 0.8rem;
+    color: #1a3aa8;
+    text-decoration: none;
+}
+
+.back-link-pill::before {
+    content: "←";
+    font-size: 0.9em;
+}
+
+.back-link-pill:hover {
+    background: #eef2ff;
+    text-decoration: none;
+}
 </style>
 
 
@@ -250,9 +273,23 @@
 </form>
 
 <!-- ==========================
-     CATEGORY TITLE
+     BACK LINK (moved from bottom)
 ========================== -->
-<h2 style="margin-bottom:0.6em;">{{ category['name'] }}</h2>
+<div style="display:flex; align-items:center; gap:8px; margin-bottom:0.6em;">
+    {% if parent %}
+        <a href="{{ url_for('show_category', category_name=parent['name']) }}"
+           class="back-link-pill">
+            {{ parent['name'] }}
+        </a>
+    {% else %}
+        <a href="{{ url_for('categories') }}" class="back-link-pill">
+            All topics
+        </a>
+    {% endif %}
+
+    <h2 style="margin:0;">{{ category['name'] }}</h2>
+</div>
+
 
 <!-- ==========================
      SUBTOPICS TOGGLE PANEL
@@ -274,28 +311,14 @@
 
     <!-- INCLUDE SUBTOPICS CHECKBOX -->
     <div class="include-subs-wrapper" style="margin-top:4px;">
-        <label class="include-subs-box"
-               style="
-                   display:flex;
-                   flex-direction:column;
-                   gap:4px;
-                   padding:10px 14px;
-                   border-radius:10px;
-                   background:#f3f8ff;
-                   border:1px solid #d5e4ff;
-                   box-shadow:0 1px 4px rgba(0,60,150,0.04);
-                   max-width:250px;">
-            <span style="display:flex; align-items:center; gap:10px;">
-                <input type="checkbox"
-                       id="include-subs-checkbox"
-                       style="transform:scale(1.15);"
-                       {% if include_subs %}checked{% endif %}>
-                <span style="font-weight:600; font-size:0.9em;">
-                    Include words from subtopics
-                </span>
-            </span>
-        </label>
-    </div>
+        <label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:0.9rem;">
+    <input type="checkbox"
+           id="include-subs-checkbox"
+           style="transform:scale(1.1);"
+           {% if include_subs %}checked{% endif %}>
+    <span>Include words from subtopics</span>
+</label>
+
 </div>
 {% endif %}
 
@@ -331,20 +354,7 @@
     {% endif %}
 </div>
 
-<!-- ==========================
-     BREADCRUMB
-========================== -->
-{% if parent %}
-<p class="breadcrumb" style="margin-top:1.5em;">
-    <a href="{{ url_for('show_category', category_name=parent['name']) }}">
-        Back to {{ parent['name'] }}
-    </a>
-</p>
-{% else %}
-<p class="breadcrumb" style="margin-top:1.5em;">
-    <a href="{{ url_for('categories') }}">Back to all topics</a>
-</p>
-{% endif %}
+{# BREADCRUMB REMOVED FROM BOTTOM – now at top as back pill #}
 
 <!-- ==========================
      JAVASCRIPT
@@ -590,9 +600,14 @@ function bindSubcategoryExpandButtons() {
     });
 }
 
-
-
-
+// ----- Flashcards: flip on click -----
+function bindFlashcards() {
+    document.querySelectorAll('#category-words-container .flashcard').forEach(card => {
+        card.onclick = () => {
+            card.classList.toggle('flipped');
+        };
+    });
+}
 
 // ----- Make subtopic cards clickable (except arrow & child links) -----
 function bindSubtopicCardsClick() {
@@ -617,7 +632,6 @@ function bindSubtopicCardsClick() {
     });
 }
 
-
 document.addEventListener('DOMContentLoaded', function() {
     initLevelPills();
     initSubtopicsDefault();
@@ -626,11 +640,9 @@ document.addEventListener('DOMContentLoaded', function() {
     bindCategoryViewSwitcher();
     bindLevelsSummaryToggle();
     bindSubcategoryExpandButtons();
-    bindSubtopicCardsClick();  // 🔹 make initial subtopic cards clickable
+    bindSubtopicCardsClick();  // initial subtopic cards
     bindFlashcards();          // in case initial view is flashcards
 });
-
 </script>
-
 
 {% endblock %}

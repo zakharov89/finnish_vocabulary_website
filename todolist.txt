@@ -1,5 +1,4 @@
 
 - Add user identification, progress, some quizes etc
 
-- order of words in categories? e.g. for months important
-- different arrow for subcategories like examples
+- order of categories
