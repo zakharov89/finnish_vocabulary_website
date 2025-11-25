@@ -13,73 +13,99 @@
 </p>
 
 <form method="POST" action="{{ url_for('admin_category_meanings', category_id=category['id']) }}">
+
     <table class="admin-table" id="word-table">
-    <thead>
-        <tr>
-            <th style="width: 35px;"></th>  <!-- drag handle -->
-            <th>Word</th>
-            <th>Meaning choice</th>
-        </tr>
-    </thead>
+        <thead>
+            <tr>
+                <th style="width: 35px;"></th>  {# drag handle #}
+                <th>Word</th>
+                <th>Level</th>
+                <th>Meaning choice</th>
+                <th>Edit</th>
+            </tr>
+        </thead>
 
-    <tbody id="sortable-rows">
-    {% for word in words %}
-        <tr data-word-id="{{ word['word_id'] }}">
-            <!-- drag handle -->
-            <td class="drag-handle" style="cursor: grab;">☰</td>
+        <tbody id="sortable-rows">
+        {% for word in words %}
+            <tr data-word-id="{{ word['word_id'] }}">
+                {# drag handle #}
+                <td class="drag-handle" style="cursor: grab;">☰</td>
 
-            <td>
-                <a href="{{ url_for('show_word', word_name=word['word']) }}" target="_blank">
-                    {{ word['word'] }}
-                </a>
-            </td>
+                {# Word #}
+                <td>
+                    <a href="{{ url_for('show_word', word_name=word['word']) }}" target="_blank">
+                        {{ word['word'] }}
+                    </a>
+                </td>
 
-            <td>
-                {% if word.meanings %}
-                    <select name="rep_meaning_{{ word['word_id'] }}">
-                        <option value="">-- None --</option>
-                        {% for m in word.meanings %}
-                            <option value="{{ m['id'] }}"
-                                {% if word.get('meaning_id') == m['id'] %}selected{% endif %}>
-                                {{ m['meaning_number'] }}. {{ m['translations'] }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                {% else %}
-                    <em>No meanings available</em>
-                {% endif %}
-            </td>
+                {# Level badge #}
+                <td>
+                    {% if word.level %}
+                        <span class="level-badge level-{{ word.level }}">
+                            {{ word.level_name or ('Level ' ~ word.level) }}
+                        </span>
+                    {% else %}
+                        <span style="color:#888; font-size:0.85em;">–</span>
+                    {% endif %}
+                </td>
 
-            <!-- hidden field for sort order -->
-            <input type="hidden" name="sort_order_{{ word['word_id'] }}" value="{{ loop.index }}">
-        </tr>
-    {% endfor %}
-    </tbody>
-</table>
+                {# Meaning choice select #}
+                <td>
+                    {% if word.meanings %}
+                        <select name="rep_meaning_{{ word['word_id'] }}">
+                            <option value="">-- None --</option>
+                            {% for m in word.meanings %}
+                                <option value="{{ m['id'] }}"
+                                        {% if word.get('meaning_id') == m['id'] %}selected{% endif %}>
+                                    {{ m['meaning_number'] }}. {{ m['translations'] }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    {% else %}
+                        <em>No meanings available</em>
+                    {% endif %}
+                </td>
 
-<button type="submit" class="admin-btn">Save</button>
+                {# Edit button + hidden sort order #}
+                <td>
+                    {# adjust route name if yours is different #}
+                    <a href="{{ url_for('admin_edit_word', word_id=word['word_id']) }}"
+                       class="admin-btn-small"
+                       target="_blank">
+                        Edit
+                    </a>
 
-<!-- SortableJS -->
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+                    <input type="hidden"
+                           name="sort_order_{{ word['word_id'] }}"
+                           value="{{ loop.index }}">
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
 
-<script>
-    const tbody = document.getElementById('sortable-rows');
+    <button type="submit" class="admin-btn">Save</button>
 
-    new Sortable(tbody, {
-        handle: '.drag-handle',
-        animation: 150,
-        onSort: function () {
-            // Update hidden sort order fields
-            const rows = tbody.querySelectorAll('tr');
-            rows.forEach((row, idx) => {
-                const wordId = row.dataset.wordId;
-                const hidden = row.querySelector(`input[name="sort_order_${wordId}"]`);
-                if (hidden) hidden.value = idx + 1;
-            });
-        }
-    });
-</script>
+    {# SortableJS #}
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
+    <script>
+        const tbody = document.getElementById('sortable-rows');
+
+        new Sortable(tbody, {
+            handle: '.drag-handle',
+            animation: 150,
+            onSort: function () {
+                // Update hidden sort order fields
+                const rows = tbody.querySelectorAll('tr');
+                rows.forEach((row, idx) => {
+                    const wordId = row.dataset.wordId;
+                    const hidden = row.querySelector(`input[name="sort_order_${wordId}"]`);
+                    if (hidden) hidden.value = idx + 1;
+                });
+            }
+        });
+    </script>
 
 </form>
 

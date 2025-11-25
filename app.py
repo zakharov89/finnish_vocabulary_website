@@ -752,8 +752,6 @@ def get_descendant_category_ids(all_rows, root_id):
     dfs(root_id)
     return descendants
 
-from functools import lru_cache
-
 def get_categories_with_counts(cur, level_ids):
     """
     Returns parent_id -> [category dicts], each dict has:
@@ -2049,17 +2047,22 @@ def admin_category_meanings(category_id):
 
     # ------- GET MODE -------
     # Fetch words in category including sort_order
+    # Fetch words in category including sort_order + level info
     cur.execute("""
         SELECT wc.word_id,
-               w.word,
-               wc.meaning_id,
-               wc.sort_order
+            w.word,
+            w.level,
+            l.name AS level_name,
+            wc.meaning_id,
+            wc.sort_order
         FROM word_categories wc
-        JOIN words w ON wc.word_id = w.id
+        JOIN words w   ON wc.word_id = w.id
+        LEFT JOIN levels l ON w.level = l.id
         WHERE wc.category_id = ?
         ORDER BY wc.sort_order, w.word
     """, (category_id,))
     words = [dict(w) for w in cur.fetchall()]
+
 
     # Fetch meanings for each word
     for w in words:
