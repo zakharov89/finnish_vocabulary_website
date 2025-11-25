@@ -545,10 +545,7 @@ def get_words_from_db(selected_levels=None):
     levels = cur.fetchall()
     all_level_ids = [row["id"] for row in levels]
 
-    # 2) Decide selected_levels:
-    #    - if passed as argument, use it (after validation) and store in session
-    #    - else read from session, falling back to all levels (first time),
-    #      and allowing empty afterwards if user deselected all.
+    # 2) Decide selected_levels
     if selected_levels is not None:
         normalized = []
         for x in selected_levels:
@@ -558,16 +555,14 @@ def get_words_from_db(selected_levels=None):
                 continue
             if val in all_level_ids:
                 normalized.append(val)
-        # if nothing valid was passed, default to ALL
         if not normalized:
             normalized = all_level_ids
         selected_levels = normalized
         session["selected_levels"] = selected_levels
     else:
-        stored = session.get("selected_levels")  # no default
+        stored = session.get("selected_levels")
         normalized = []
         if stored is None:
-            # first time: all levels
             normalized = all_level_ids
         else:
             for x in stored:
@@ -577,17 +572,15 @@ def get_words_from_db(selected_levels=None):
                     continue
                 if val in all_level_ids:
                     normalized.append(val)
-            # Here we allow normalized to be [] (user may have deselected all)
         selected_levels = normalized
         session["selected_levels"] = selected_levels
 
     words = []
 
     if selected_levels:
-        # 3) Fetch words filtered by selected_levels (include level!)
         placeholders = ",".join("?" for _ in selected_levels)
         cur.execute(f"""
-            SELECT w.id, w.word, w.level
+            SELECT w.id, w.word, w.level, w.created_at
             FROM words w
             WHERE w.level IN ({placeholders})
             ORDER BY LOWER(w.word)
@@ -595,7 +588,6 @@ def get_words_from_db(selected_levels=None):
 
         words_raw = cur.fetchall()
 
-        # 4) Enrich each word with translations (your existing logic)
         for w in words_raw:
             cur.execute("""
                 SELECT DISTINCT t.translation_text
@@ -846,7 +838,6 @@ def get_categories_with_counts(cur, level_ids):
 
     return categories_dict
 
-
 @app.route('/categories')
 def categories():
     conn = sqlite3.connect("finnish.db")
@@ -1068,7 +1059,6 @@ def show_category(category_name):
         include_subs=include_subs,
     )
 
-
 @app.route('/categories/<category_name>/update_view', methods=['POST'])
 def category_update_view(category_name):
     data = request.get_json() or {}
@@ -1272,7 +1262,6 @@ def admin_dashboard():
         all_words=[w["word"] for w in all_words_full],
         all_categories=[c["name"] for c in all_categories_full],
     )
-
 
 @app.route('/admin/add_word', methods=['GET', 'POST'])
 @admin_required
@@ -1856,15 +1845,24 @@ def admin_edit_category(category_id):
                             (meaning_id, ex.strip(), ex_tr.strip() or None),
                         )
 
-            # Assign to category
+           
+            # Assign to category with sort_order = last + 1
             cur.execute(
-                "INSERT INTO word_categories (word_id, category_id) VALUES (?, ?)",
-                (word_id, category_id),
+                "SELECT COALESCE(MAX(sort_order), 0) FROM word_categories WHERE category_id = ?",
+                (category_id,),
             )
+            next_sort = cur.fetchone()[0] + 1
+
+            cur.execute(
+                "INSERT INTO word_categories (word_id, category_id, sort_order) VALUES (?, ?, ?)",
+                (word_id, category_id, next_sort),
+            )
+
             cur.execute(
                 "UPDATE categories SET updated_at = datetime('now') WHERE id = ?",
                 (category_id,),
             )
+
             conn.commit()
             conn.close()
             flash(f"New word '{word_text}' added and assigned to category.", "success")
@@ -1886,14 +1884,23 @@ def admin_edit_category(category_id):
                 conn.close()
                 return redirect(url_for("admin_edit_category", category_id=category_id))
 
+           # Assign existing word with sort_order = last + 1
             cur.execute(
-                "INSERT INTO word_categories (word_id, category_id) VALUES (?, ?)",
-                (existing_word_id, category_id),
+                "SELECT COALESCE(MAX(sort_order), 0) FROM word_categories WHERE category_id = ?",
+                (category_id,),
             )
+            next_sort = cur.fetchone()[0] + 1
+
+            cur.execute(
+                "INSERT INTO word_categories (word_id, category_id, sort_order) VALUES (?, ?, ?)",
+                (existing_word_id, category_id, next_sort),
+            )
+
             cur.execute(
                 "UPDATE categories SET updated_at = datetime('now') WHERE id = ?",
                 (category_id,),
             )
+
             conn.commit()
             conn.close()
             flash("Word added to category.", "success")
@@ -1936,7 +1943,7 @@ def admin_edit_category(category_id):
     )
     subcategories = cur.fetchall()
 
-    # 👉 NEW: fetch all words for autocomplete in "Add Existing Word"
+    #  NEW: fetch all words for autocomplete in "Add Existing Word"
     cur.execute("SELECT id, word FROM words ORDER BY word")
     all_words = cur.fetchall()
 
@@ -1952,7 +1959,7 @@ def admin_edit_category(category_id):
         search_results=search_results,
         levels=levels,
         subcategories=subcategories,
-        all_words=all_words,   # 👉 pass to template
+        all_words=all_words,   # pass to template
     )
 
 @app.route("/admin/categories/<int:category_id>/remove_word/<int:word_id>", methods=["POST"])
@@ -2180,8 +2187,6 @@ def admin_order_categories():
         "admin_order_categories.html",
         category_blocks=category_blocks,
     )
-
-
 
 @app.route("/admin/set_main_meaning", methods=["POST"])
 @admin_required
