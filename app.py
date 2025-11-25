@@ -1955,7 +1955,6 @@ def admin_edit_category(category_id):
         all_words=all_words,   # 👉 pass to template
     )
 
-
 @app.route("/admin/categories/<int:category_id>/remove_word/<int:word_id>", methods=["POST"])
 @admin_required
 def admin_remove_word_from_category(category_id, word_id):
@@ -2100,52 +2099,89 @@ def admin_order_categories():
     cur = conn.cursor()
 
     if request.method == "POST":
-        # Update sort_order for each category that has a value in the form
-        cur.execute("SELECT id FROM categories")
-        ids = [row["id"] for row in cur.fetchall()]
+        # Read all blocks: order_block_root, order_block_12, ...
+        updates = []
 
-        for cat_id in ids:
-            key = f"order_{cat_id}"
-            if key in request.form:
-                raw = request.form[key].strip()
-                if raw == "":
-                    # you can choose to treat empty as 0
-                    sort_val = 0
-                else:
-                    try:
-                        sort_val = int(raw)
-                    except ValueError:
-                        sort_val = 0
-                cur.execute(
-                    "UPDATE categories SET sort_order = ? WHERE id = ?",
-                    (sort_val, cat_id),
-                )
+        for key in request.form.keys():
+            if not key.startswith("order_block_"):
+                continue
+
+            cat_ids = request.form.getlist(key)
+            pos = 1
+            for cat_id_str in cat_ids:
+                try:
+                    cat_id = int(cat_id_str)
+                except (TypeError, ValueError):
+                    continue
+                updates.append((pos, cat_id))
+                pos += 1
+
+        # Apply new sort_order values
+        for sort_order, cat_id in updates:
+            cur.execute(
+                "UPDATE categories SET sort_order = ? WHERE id = ?",
+                (sort_order, cat_id)
+            )
 
         conn.commit()
         conn.close()
         flash("Category order updated.", "success")
         return redirect(url_for("admin_order_categories"))
 
-    # GET: show all categories with parent info, ordered by parent then sort_order
-    cur.execute("""
-        SELECT
-            c.id,
-            c.name,
-            c.parent_id,
-            COALESCE(c.sort_order, 0) AS sort_order,
-            p.name AS parent_name
-        FROM categories c
-        LEFT JOIN categories p ON c.parent_id = p.id
-        ORDER BY
-            CASE WHEN p.name IS NULL THEN 0 ELSE 1 END,
-            parent_name,
-            sort_order,
-            c.name
-    """)
-    categories = cur.fetchall()
-    conn.close()
+    # ---------- GET: build blocks by parent ----------
 
-    return render_template("admin_order_categories.html", categories=categories)
+    cur.execute("""
+        SELECT id, name, parent_id, sort_order
+        FROM categories
+        ORDER BY COALESCE(parent_id, -1),
+                 COALESCE(sort_order, 9999),
+                 LOWER(name)
+    """)
+    rows = cur.fetchall()
+
+    by_parent = {}
+    for row in rows:
+        parent_id = row["parent_id"]
+        if parent_id == 0:
+            parent_id = None
+
+        cat = {
+            "id": row["id"],
+            "name": row["name"],
+            "parent_id": parent_id,
+            "sort_order": row["sort_order"],
+        }
+        by_parent.setdefault(parent_id, []).append(cat)
+
+    # Top-level categories (parent None)
+    top_level = by_parent.get(None, [])
+
+    # Build blocks: one for top-level, then one for each top-level parent’s children
+    category_blocks = []
+
+    if top_level:
+        category_blocks.append({
+            "parent": None,
+            "children": top_level,
+            "block_id": "root",
+        })
+
+    for parent in top_level:
+        children = by_parent.get(parent["id"])
+        if children:
+            category_blocks.append({
+                "parent": parent,
+                "children": children,
+                "block_id": str(parent["id"]),
+            })
+
+    conn.close()
+    return render_template(
+        "admin_order_categories.html",
+        category_blocks=category_blocks,
+    )
+
+
 
 @app.route("/admin/set_main_meaning", methods=["POST"])
 @admin_required

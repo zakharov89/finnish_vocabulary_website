@@ -1,53 +1,89 @@
 {% extends "base.html" %}
-
 {% block content %}
 
 <h2>Order Categories</h2>
 
-<p style="max-width: 600px;">
-    You can set a numeric order for each category. Lower numbers appear first
-    within the same parent. If two categories have the same number, they are
-    sorted by name.
+<p>
+    <a href="{{ url_for('admin_dashboard') }}"
+       class="admin-btn-small"
+       style="margin-bottom:15px; display:inline-block;">
+         Back to Dashboard
+    </a>
 </p>
 
-<form method="post" action="{{ url_for('admin_order_categories') }}">
-    <table class="admin-table" style="width:100%; border-collapse:collapse; margin-top: 10px;">
-        <thead>
-            <tr>
-                <th style="text-align:left; padding:8px;">Category</th>
-                <th style="text-align:left; padding:8px;">Parent</th>
-                <th style="text-align:left; padding:8px; width:90px;">Order</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for c in categories %}
-            <tr>
-                <td style="padding:8px;">
-                    {{ c["name"] }}
-                </td>
-                <td style="padding:8px; color:#666;">
-                    {% if c["parent_name"] %}
-                        {{ c["parent_name"] }}
-                    {% else %}
-                        <em>Top level</em>
-                    {% endif %}
-                </td>
-                <td style="padding:8px;">
-                    <input type="number"
-                           name="order_{{ c['id'] }}"
-                           value="{{ c['sort_order'] }}"
-                           class="admin-input"
-                           style="max-width:70px;">
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<p>
+    Drag categories up or down <strong>within each block</strong>.
+    You can’t move them into a different parent here — only reorder siblings.
+</p>
 
-    <p style="margin-top:15px;">
-        <button type="submit" class="admin-btn">Save Order</button>
-        <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+<form method="POST" action="{{ url_for('admin_order_categories') }}">
+    <button type="submit" class="admin-btn">Save order</button>
+    {% for block in category_blocks %}
+        <h3 style="margin-top:1.4em;">
+            {% if block.parent is none %}
+                Top-level categories
+            {% else %}
+                Subcategories of "{{ block.parent.name }}"
+            {% endif %}
+        </h3>
+
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th style="width:35px;"></th>  {# drag handle #}
+                    <th>Category</th>
+                    <th style="width:80px; text-align:center;">Pos.</th>
+                </tr>
+            </thead>
+            <tbody id="sortable-{{ block.block_id }}"
+                   data-block-id="{{ block.block_id }}">
+                {% for cat in block.children %}
+                <tr data-cat-id="{{ cat.id }}">
+                    <td class="drag-handle" style="cursor:grab;">☰</td>
+                    <td>{{ cat.name }}</td>
+                    <td class="position-cell" style="text-align:center;">
+                        {{ loop.index }}
+                    </td>
+
+                    {# Hidden list defining order within this block #}
+                    <input type="hidden"
+                           name="order_block_{{ block.block_id }}[]"
+                           value="{{ cat.id }}">
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endfor %}
+
+    <button type="submit" class="admin-btn">Save order</button>
+
+    <p style="margin-top:20px;">
+        <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">
+            Back to Dashboard
+        </a>
     </p>
+
 </form>
+
+<!-- SortableJS -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('tbody[data-block-id]').forEach(function(tbody) {
+        new Sortable(tbody, {
+            handle: '.drag-handle',
+            animation: 150,
+            onSort: function () {
+                const rows = tbody.querySelectorAll('tr');
+                rows.forEach(function(row, idx) {
+                    const posCell = row.querySelector('.position-cell');
+                    if (posCell) posCell.textContent = idx + 1;
+                });
+            }
+        });
+    });
+});
+</script>
 
 {% endblock %}
