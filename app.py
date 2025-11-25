@@ -760,20 +760,27 @@ def get_descendant_category_ids(all_rows, root_id):
     dfs(root_id)
     return descendants
 
+from functools import lru_cache
+
 def get_categories_with_counts(cur, level_ids):
     """
     Returns parent_id -> [category dicts], each dict has:
         id, name, parent_id, sort_order, count
-    where `count` = number of *distinct* words in this topic
-    AND all its descendants, filtered by the given level_ids.
-    No double-counting if the same word appears in multiple subtopics.
+
+    `count` = number of *distinct* words in this topic AND all its descendants,
+    filtered by the given level_ids. No double-counting if the same word appears
+    in multiple subtopics.
     """
 
     # 1) Load all categories
     cur.execute("""
-        SELECT id, name, parent_id, sort_order
+        SELECT
+            id,
+            name,
+            parent_id,
+            COALESCE(sort_order, 0) AS sort_order
         FROM categories
-        ORDER BY sort_order, name
+        ORDER BY parent_id, sort_order, name
     """)
     rows = cur.fetchall()
 
@@ -782,20 +789,22 @@ def get_categories_with_counts(cur, level_ids):
 
     for row in rows:
         cat = dict(row)
-        cat["count"] = 0
+        cat["count"] = 0    # we'll compute this below
         cid = cat["id"]
         by_id[cid] = cat
+
         parent_id = cat["parent_id"]
         children_by_parent.setdefault(parent_id, []).append(cid)
 
-    # 2) Build direct word sets per category (by cat_id -> set(word_id))
+    # 2) Direct word sets per category: cat_id -> set(word_id)
     words_by_cat = {}
 
     if level_ids:
         placeholders = ",".join("?" * len(level_ids))
         cur.execute(f"""
-            SELECT wc.category_id AS category_id,
-                   w.id           AS word_id
+            SELECT
+                wc.category_id AS category_id,
+                w.id           AS word_id
             FROM word_categories wc
             JOIN words w ON w.id = wc.word_id
             WHERE w.level IN ({placeholders})
@@ -806,12 +815,10 @@ def get_categories_with_counts(cur, level_ids):
             wid = row["word_id"]
             words_by_cat.setdefault(cid, set()).add(wid)
 
-    # 3) Recursively gather sets up the tree (with caching)
+    # 3) Recursively gather word sets up the tree (with caching)
     @lru_cache(maxsize=None)
     def gather_words(cat_id):
-        # Start with direct words
         merged = set(words_by_cat.get(cat_id, set()))
-        # Add words from all descendants
         for child_id in children_by_parent.get(cat_id, []):
             merged |= gather_words(child_id)
         return merged
@@ -827,18 +834,18 @@ def get_categories_with_counts(cur, level_ids):
         parent = cat["parent_id"]
         categories_dict.setdefault(parent, []).append(cat)
 
-   # 6) Sort children: non-empty first, then sort_order, then name
+    # 6) Sort children: non-empty first, then sort_order, then name
     for parent_id, children in categories_dict.items():
         children.sort(
             key=lambda c: (
-                c["count"] == 0,           # False (non-empty) comes before True (empty)
-                c.get("sort_order", 0),    # then your manual order if you ever use it
-                c["name"].lower(),         # then alphabetical
+                c["count"] == 0,        # non-empty (False) before empty (True)
+                c.get("sort_order", 0),
+                c["name"].lower(),
             )
         )
 
-
     return categories_dict
+
 
 @app.route('/categories')
 def categories():
@@ -893,6 +900,7 @@ def filter_categories():
 def show_category(category_name):
     # view = table / cards / flashcards
     view = request.args.get("view", "table")
+
     # include_subs: "1" (default) or "0"
     include_subs_arg = request.args.get("include_subs", "1")
     include_subs = (include_subs_arg != "0")
@@ -901,8 +909,19 @@ def show_category(category_name):
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Load all categories rows (for descendants & breadcrumb)
-    cur.execute("SELECT id, name, parent_id FROM categories ORDER BY name")
+    # --- Load all categories (with sort_order) ---
+    #   sort top-level and children by sort_order, then name
+    cur.execute("""
+        SELECT
+            id,
+            name,
+            parent_id,
+            COALESCE(sort_order, 0) AS sort_order
+        FROM categories
+        ORDER BY parent_id,
+                 sort_order,
+                 name
+    """)
     all_rows = cur.fetchall()
 
     # Find current topic
@@ -913,7 +932,7 @@ def show_category(category_name):
         return f"Topic '{category_name}' not found."
     category_id = category["id"]
 
-    # --- Fetch all levels ---
+    # --- Fetch all levels (once) ---
     cur.execute("SELECT id, name FROM levels ORDER BY id")
     levels = cur.fetchall()
     all_level_ids = [lvl["id"] for lvl in levels]
@@ -932,41 +951,19 @@ def show_category(category_name):
                 continue
             if val in all_level_ids:
                 selected_levels.append(val)
+
     session["selected_levels"] = selected_levels
 
     # ---- Build topic tree WITH counts (per selected levels) ----
     effective_levels = selected_levels if selected_levels else all_level_ids
     categories_dict = get_categories_with_counts(cur, effective_levels)
-
-    # Direct subtopics of this topic (now each has 'count')
+    # Direct subtopics of this topic (each has 'count' and should already be ordered
+    # by sort_order inside get_categories_with_counts)
     subcategories = categories_dict.get(category_id, [])
 
-    # --- Fetch all levels ---
-    cur.execute("SELECT id, name FROM levels ORDER BY id")
-    levels = cur.fetchall()
-    all_level_ids = [lvl["id"] for lvl in levels]
-    levels_dict = {lvl["id"]: lvl["name"] for lvl in levels}
-
-    # --- Normalize selected levels from session ---
-    stored = session.get("selected_levels")  # no default
-    selected_levels = []
-
-    if stored is None:
-        selected_levels = all_level_ids.copy()
-    else:
-        for x in stored:
-            try:
-                val = int(x)
-            except (TypeError, ValueError):
-                continue
-            if val in all_level_ids:
-                selected_levels.append(val)
-
-    session["selected_levels"] = selected_levels
-
+    # ----- Words for this category (+ optional subcategories) -----
     words_with_translations = []
 
-    # Determine which categories to pull words from
     if include_subs:
         descendants = get_descendant_category_ids(all_rows, category_id)
         category_ids_for_words = [category_id] + descendants
@@ -977,7 +974,6 @@ def show_category(category_name):
         placeholders_levels = ",".join("?" for _ in selected_levels)
         placeholders_cats = ",".join("?" for _ in category_ids_for_words)
 
-        # Deduplicate words across categories with GROUP BY and MIN()
         sql = f"""
             SELECT
                 w.id               AS word_id,
@@ -985,7 +981,7 @@ def show_category(category_name):
                 w.level            AS level,
                 MIN(wc.meaning_id) AS meaning_id,
 
-                -- which category "wins" for this word: parent (0) or a subcategory (1)
+                -- parent category first, then subcategories
                 MIN(
                     CASE
                         WHEN wc.category_id = ? THEN 0
@@ -993,7 +989,7 @@ def show_category(category_name):
                     END
                 ) AS cat_priority,
 
-                -- smallest category sort order among the categories this word is in
+                -- smallest category sort_order among categories this word is in
                 MIN(c.sort_order)  AS cat_sort_order,
 
                 -- smallest word sort_order among those categories
@@ -1008,12 +1004,9 @@ def show_category(category_name):
             ORDER BY
                 cat_priority,       -- parent words first, then subcategories
                 cat_sort_order,     -- order of subcategories under the parent
-                word_sort_order,    -- your manual order within each category
+                word_sort_order,    -- manual order within each category
                 LOWER(w.word)       -- tie-breaker
         """
-
-        # first parameter is for the CASE ... wc.category_id = ?
-        params = [category_id] + category_ids_for_words + selected_levels
 
         params = [category_id] + category_ids_for_words + selected_levels
         cur.execute(sql, params)
@@ -1074,6 +1067,7 @@ def show_category(category_name):
         view=view,
         include_subs=include_subs,
     )
+
 
 @app.route('/categories/<category_name>/update_view', methods=['POST'])
 def category_update_view(category_name):
@@ -2097,6 +2091,61 @@ def admin_category_meanings(category_id):
         category=dict(category),
         words=words
     )
+
+@app.route("/admin/categories/order", methods=["GET", "POST"])
+@admin_required
+def admin_order_categories():
+    conn = sqlite3.connect("finnish.db")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    if request.method == "POST":
+        # Update sort_order for each category that has a value in the form
+        cur.execute("SELECT id FROM categories")
+        ids = [row["id"] for row in cur.fetchall()]
+
+        for cat_id in ids:
+            key = f"order_{cat_id}"
+            if key in request.form:
+                raw = request.form[key].strip()
+                if raw == "":
+                    # you can choose to treat empty as 0
+                    sort_val = 0
+                else:
+                    try:
+                        sort_val = int(raw)
+                    except ValueError:
+                        sort_val = 0
+                cur.execute(
+                    "UPDATE categories SET sort_order = ? WHERE id = ?",
+                    (sort_val, cat_id),
+                )
+
+        conn.commit()
+        conn.close()
+        flash("Category order updated.", "success")
+        return redirect(url_for("admin_order_categories"))
+
+    # GET: show all categories with parent info, ordered by parent then sort_order
+    cur.execute("""
+        SELECT
+            c.id,
+            c.name,
+            c.parent_id,
+            COALESCE(c.sort_order, 0) AS sort_order,
+            p.name AS parent_name
+        FROM categories c
+        LEFT JOIN categories p ON c.parent_id = p.id
+        ORDER BY
+            CASE WHEN p.name IS NULL THEN 0 ELSE 1 END,
+            parent_name,
+            sort_order,
+            c.name
+    """)
+    categories = cur.fetchall()
+    conn.close()
+
+    return render_template("admin_order_categories.html", categories=categories)
 
 @app.route("/admin/set_main_meaning", methods=["POST"])
 @admin_required

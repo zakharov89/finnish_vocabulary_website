@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>Order Categories</h2>
+
+<p style="max-width: 600px;">
+    You can set a numeric order for each category. Lower numbers appear first
+    within the same parent. If two categories have the same number, they are
+    sorted by name.
+</p>
+
+<form method="post" action="{{ url_for('admin_order_categories') }}">
+    <table class="admin-table" style="width:100%; border-collapse:collapse; margin-top: 10px;">
+        <thead>
+            <tr>
+                <th style="text-align:left; padding:8px;">Category</th>
+                <th style="text-align:left; padding:8px;">Parent</th>
+                <th style="text-align:left; padding:8px; width:90px;">Order</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in categories %}
+            <tr>
+                <td style="padding:8px;">
+                    {{ c["name"] }}
+                </td>
+                <td style="padding:8px; color:#666;">
+                    {% if c["parent_name"] %}
+                        {{ c["parent_name"] }}
+                    {% else %}
+                        <em>Top level</em>
+                    {% endif %}
+                </td>
+                <td style="padding:8px;">
+                    <input type="number"
+                           name="order_{{ c['id'] }}"
+                           value="{{ c['sort_order'] }}"
+                           class="admin-input"
+                           style="max-width:70px;">
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <p style="margin-top:15px;">
+        <button type="submit" class="admin-btn">Save Order</button>
+        <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+    </p>
+</form>
+
+{% endblock %}

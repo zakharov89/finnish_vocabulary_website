@@ -2,3 +2,4 @@
 - Add user identification, progress, some quizes etc
 
 - order of categories
+- examples have the word selected in bold
