@@ -6,3 +6,4 @@
 - what to do with long words on flashcards?
 - add turn on levels in words table?
 - save part of speech and level when adding words to category
+- add the number of words
