@@ -1,9 +1,5 @@
 {% extends "base.html" %}
-
 {% block content %}
-
-
-
 
 <h2>Edit Category: {{ category['name'] }}</h2>
 
@@ -21,12 +17,13 @@
                    name="name"
                    value="{{ category['name'] }}"
                    required
-                   class="admin-input">
+                   class="admin-input"
+                   autocomplete="off">
         </p>
 
         <!-- Current parent + autocomplete to change parent -->
         <p>
-            <label>Current Parent:</label><br>
+            <label>Current Parent of {{ category['name'] }}:</label><br>
             {% if parent_category %}
                 <a href="{{ url_for('admin_edit_category', category_id=parent_category.id) }}#top"
                    class="admin-btn-small">
@@ -64,7 +61,7 @@
     <hr>
 
     <!-- 🌳 Subcategories of this category -->
-    <h3>Subcategories of this Category</h3>
+    <h3>Subcategories of {{ category['name'] }}</h3>
 
     {% if subcategories %}
         <div class="admin-subcat-list">
@@ -84,7 +81,7 @@
     <hr>
 
     <!-- 📋 Words in Category -->
-    <h3 id="words-section">Words in this Category</h3>
+    <h3 id="words-section">Words in {{ category['name'] }}</h3>
 
     {% if category_words %}
         <table class="admin-table">
@@ -99,29 +96,30 @@
             <tbody>
             {% for w in category_words %}
             <tr>
-            <td>
-                <a href="{{ url_for('show_word', word_name=w['word']) }}"
-                target="_blank">{{ w['word'] }}</a>
-            </td>
+                <td>
+                    <a href="{{ url_for('show_word', word_name=w['word']) }}"
+                       target="_blank">{{ w['word'] }}</a>
+                </td>
 
-            <!-- ⭐ NEW: Edit column -->
-            <td>
-                <a href="{{ url_for('admin_edit_word', word_id=w['id']) }}"
-                class="admin-btn-small">
-                    Edit
-                </a>
-            </td>
+                <!-- Edit column -->
+                <td>
+                    <a href="{{ url_for('admin_edit_word', word_id=w['id']) }}"
+                       class="admin-btn-small">
+                        Edit
+                    </a>
+                </td>
 
-            <td>
-                <form method="POST"
-                    action="{{ url_for('admin_remove_word_from_category', category_id=category['id'], word_id=w['id']) }}"
-                    style="display:inline;"
-                    onsubmit="return confirm('Are you sure you want to remove this word?');">
-                    <button type="submit" class="admin-btn-small delete-btn">Remove</button>
-                </form>
-            </td>
-        </tr>
-
+                <td>
+                    <form method="POST"
+                          action="{{ url_for('admin_remove_word_from_category',
+                                             category_id=category['id'],
+                                             word_id=w['id']) }}"
+                          style="display:inline;"
+                          onsubmit="return confirm('Are you sure you want to remove this word?');">
+                        <button type="submit" class="admin-btn-small delete-btn">Remove</button>
+                    </form>
+                </td>
+            </tr>
             {% endfor %}
             </tbody>
         </table>
@@ -139,7 +137,7 @@
     <hr>
 
     <!-- 🔍 Add Existing Word -->
-    <h3 id="add-existing-word">Add Existing Word</h3>
+    <h3 id="add-existing-word">Add Existing Word to {{ category['name'] }}</h3>
     <form method="GET"
           action="{{ url_for('admin_edit_category', category_id=category['id']) }}#add-existing-word"
           class="admin-add-word-form"
@@ -196,16 +194,21 @@
     <hr>
 
     <!-- 🆕 Add New Word to this Category -->
-    <h3>Add New Word to this Category</h3>
+    <h3>Add New Word to {{ category['name'] }}</h3>
     <form method="POST"
           action="{{ url_for('admin_edit_category', category_id=category['id']) }}#add-new-word"
           class="admin-add-word-form"
-          id="add-new-word">
+          id="add-new-word"
+          autocomplete="off">
         <input type="hidden" name="action" value="add_new_word">
 
         <p>
             <label>Word:</label><br>
-            <input type="text" name="new_word" required class="admin-input">
+            <input type="text"
+                   name="new_word"
+                   required
+                   class="admin-input"
+                   autocomplete="off">
         </p>
 
         <!-- Level -->
@@ -238,40 +241,55 @@
                     <input type="text"
                            name="translations_1[]"
                            class="admin-input"
-                           placeholder="Enter translation">
+                           placeholder="Enter translation"
+                           autocomplete="off">
                 </div>
                 <button type="button"
                         class="admin-btn"
                         onclick="addTranslation(1)">+ Add Translation</button>
 
-                <p>Examples:</p>
-                <div id="examples-1" class="examples-group">
-                    <div class="example-pair">
-                        <input type="text"
-                               name="examples_1[]"
-                               class="admin-input"
-                               placeholder="Enter example">
-                        <input type="text"
-                               name="examples_trans_1[]"
-                               class="admin-input"
-                               placeholder="Enter example translation">
+                <!-- Toggle for extra fields -->
+                <p style="margin-top:10px;">
+                    <button type="button"
+                            class="admin-btn-small toggle-meaning-extra">
+                        More fields (examples, definition &amp; notes)
+                    </button>
+                </p>
+
+                <div class="meaning-extra" style="display:none; margin-top:6px;">
+                    <p>Examples:</p>
+                    <div id="examples-1" class="examples-group">
+                        <div class="example-pair">
+                            <input type="text"
+                                   name="examples_1[]"
+                                   class="admin-input"
+                                   placeholder="Enter example"
+                                   autocomplete="off">
+                            <input type="text"
+                                   name="examples_trans_1[]"
+                                   class="admin-input"
+                                   placeholder="Enter example translation"
+                                   autocomplete="off">
+                        </div>
                     </div>
+                    <button type="button"
+                            class="admin-btn"
+                            onclick="addExample(1)">+ Add Example</button>
+
+                    <p>Definition (optional):</p>
+                    <input type="text"
+                           name="definition_1"
+                           class="admin-input"
+                           placeholder="Enter definition"
+                           autocomplete="off">
+
+                    <p>Notes:</p>
+                    <input type="text"
+                           name="meaning_notes[]"
+                           class="admin-input"
+                           placeholder="Enter notes"
+                           autocomplete="off">
                 </div>
-                <button type="button"
-                        class="admin-btn"
-                        onclick="addExample(1)">+ Add Example</button>
-
-                <p>Definition (optional):</p>
-                <input type="text"
-                       name="definition_1"
-                       class="admin-input"
-                       placeholder="Enter definition">
-
-                <p>Notes:</p>
-                <input type="text"
-                       name="meaning_notes[]"
-                       class="admin-input"
-                       placeholder="Enter notes">
             </div>
         </div>
 
@@ -308,6 +326,7 @@
         input.name = `translations_${num}[]`;
         input.className = 'admin-input';
         input.placeholder = 'Translation';
+        input.autocomplete = 'off';
         wrapper.appendChild(input);
         container.appendChild(wrapper);
     }
@@ -316,19 +335,43 @@
         const container = document.getElementById(`examples-${num}`);
         const wrapper = document.createElement('div');
         wrapper.className = 'example-pair';
+
         const text = document.createElement('input');
         text.type = 'text';
         text.name = `examples_${num}[]`;
         text.className = 'admin-input';
         text.placeholder = 'Example';
+        text.autocomplete = 'off';
+
         const trans = document.createElement('input');
         trans.type = 'text';
         trans.name = `examples_trans_${num}[]`;
         trans.className = 'admin-input';
         trans.placeholder = 'Translation';
+        trans.autocomplete = 'off';
+
         wrapper.appendChild(text);
         wrapper.appendChild(trans);
         container.appendChild(wrapper);
+    }
+
+    // Bind toggles for "More fields..." on each meaning block
+    function bindMeaningToggles() {
+        document.querySelectorAll('.meaning-block').forEach(block => {
+            const btn = block.querySelector('.toggle-meaning-extra');
+            const extra = block.querySelector('.meaning-extra');
+            if (!btn || !extra) return;
+            if (btn.dataset.bound === '1') return;
+            btn.dataset.bound = '1';
+
+            btn.addEventListener('click', () => {
+                const hidden = extra.style.display === 'none' || extra.style.display === '';
+                extra.style.display = hidden ? 'block' : 'none';
+                btn.textContent = hidden
+                    ? 'Hide examples / definition / notes'
+                    : 'More fields (examples, definition & notes)';
+            });
+        });
     }
 
     window.addMeaning = function() {
@@ -352,46 +395,63 @@
                 <input type="text"
                        name="translations_${meaningCount}[]"
                        class="admin-input"
-                       placeholder="Enter translation">
+                       placeholder="Enter translation"
+                       autocomplete="off">
             </div>
             <button type="button"
                     class="admin-btn"
                     onclick="addTranslation(${meaningCount})">+ Add Translation</button>
 
-            <p>Examples:</p>
-            <div id="examples-${meaningCount}" class="examples-group">
-                <div class="example-pair">
-                    <input type="text"
-                           name="examples_${meaningCount}[]"
-                           class="admin-input"
-                           placeholder="Enter example">
-                    <input type="text"
-                           name="examples_trans_${meaningCount}[]"
-                           class="admin-input"
-                           placeholder="Enter example translation">
+            <p style="margin-top:10px;">
+                <button type="button"
+                        class="admin-btn-small toggle-meaning-extra">
+                    More fields (examples, definition &amp; notes)
+                </button>
+            </p>
+
+            <div class="meaning-extra" style="display:none; margin-top:6px;">
+                <p>Examples:</p>
+                <div id="examples-${meaningCount}" class="examples-group">
+                    <div class="example-pair">
+                        <input type="text"
+                               name="examples_${meaningCount}[]"
+                               class="admin-input"
+                               placeholder="Enter example"
+                               autocomplete="off">
+                        <input type="text"
+                               name="examples_trans_${meaningCount}[]"
+                               class="admin-input"
+                               placeholder="Enter example translation"
+                               autocomplete="off">
+                    </div>
                 </div>
+                <button type="button"
+                        class="admin-btn"
+                        onclick="addExample(${meaningCount})">+ Add Example</button>
+
+                <p>Definition (optional):</p>
+                <input type="text"
+                       name="definition_${meaningCount}"
+                       class="admin-input"
+                       placeholder="Enter definition"
+                       autocomplete="off">
+
+                <p>Notes:</p>
+                <input type="text"
+                       name="meaning_notes[]"
+                       class="admin-input"
+                       placeholder="Enter notes"
+                       autocomplete="off">
             </div>
-            <button type="button"
-                    class="admin-btn"
-                    onclick="addExample(${meaningCount})">+ Add Example</button>
-
-            <p>Definition (optional):</p>
-            <input type="text"
-                   name="definition_${meaningCount}"
-                   class="admin-input"
-                   placeholder="Enter definition">
-
-            <p>Notes:</p>
-            <input type="text"
-                   name="meaning_notes[]"
-                   class="admin-input"
-                   placeholder="Enter notes">
         `;
         container.appendChild(div);
+        bindMeaningToggles();
     };
 
     window.addTranslation = addTranslation;
     window.addExample = addExample;
+
+    document.addEventListener('DOMContentLoaded', bindMeaningToggles);
 })();
 </script>
 
@@ -508,7 +568,7 @@ function showWordSuggestions(value) {
             wordInput.value = w.word;
             wordSuggestions.style.display = "none";
             if (wordSearchForm) {
-                wordSearchForm.submit();   // 🔁 reload to same page + #add-existing-word
+                wordSearchForm.submit();
             }
         });
 

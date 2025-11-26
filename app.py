@@ -950,86 +950,92 @@ def show_category(category_name):
     # by sort_order inside get_categories_with_counts)
     subcategories = categories_dict.get(category_id, [])
 
+    # ----- Build ordered list of category_ids for words -----
+
+    def build_ordered_category_ids(root_id, categories_dict, include_subs):
+        """
+        Return [root, child1, child1_sub1, ..., child2, ...] in a stable order
+        using preorder (parent before its children), relying on categories_dict
+        ordering.
+        """
+        ordered = [root_id]
+        if not include_subs:
+            return ordered
+
+        def add_children(parent_id):
+            for child in categories_dict.get(parent_id, []):
+                child_id = child["id"]
+                ordered.append(child_id)
+                # recursively include that child's children in order
+                add_children(child_id)
+
+        add_children(root_id)
+        return ordered
+
+    ordered_category_ids = build_ordered_category_ids(category_id, categories_dict, include_subs)
+
     # ----- Words for this category (+ optional subcategories) -----
     words_with_translations = []
 
-    if include_subs:
-        descendants = get_descendant_category_ids(all_rows, category_id)
-        category_ids_for_words = [category_id] + descendants
-    else:
-        category_ids_for_words = [category_id]
+    if selected_levels and ordered_category_ids:
+        # placeholders for levels (same for every query)
+        level_placeholders = ",".join("?" for _ in selected_levels)
+        seen_word_ids = set()
 
-    if selected_levels and category_ids_for_words:
-        placeholders_levels = ",".join("?" for _ in selected_levels)
-        placeholders_cats = ",".join("?" for _ in category_ids_for_words)
+        for cat_id in ordered_category_ids:
+            # fetch words for THIS category only
+            sql = f"""
+                SELECT
+                    w.id        AS word_id,
+                    w.word      AS word,
+                    w.level     AS level,
+                    wc.meaning_id AS meaning_id
+                FROM words w
+                JOIN word_categories wc ON w.id = wc.word_id
+                WHERE wc.category_id = ?
+                  AND w.level IN ({level_placeholders})
+                ORDER BY
+                    wc.sort_order,
+                    LOWER(w.word)
+            """
+            params = [cat_id] + selected_levels
+            cur.execute(sql, params)
+            rows = cur.fetchall()
 
-        sql = f"""
-            SELECT
-                w.id               AS word_id,
-                w.word             AS word,
-                w.level            AS level,
-                MIN(wc.meaning_id) AS meaning_id,
+            for w in rows:
+                word_id = w["word_id"]
+                if word_id in seen_word_ids:
+                    continue
+                seen_word_ids.add(word_id)
 
-                -- parent category first, then subcategories
-                MIN(
-                    CASE
-                        WHEN wc.category_id = ? THEN 0
-                        ELSE 1
-                    END
-                ) AS cat_priority,
+                meaning_id = w["meaning_id"]
 
-                -- smallest category sort_order among categories this word is in
-                MIN(c.sort_order)  AS cat_sort_order,
+                if meaning_id:
+                    cur.execute("""
+                        SELECT translation_text
+                        FROM translations
+                        WHERE meaning_id = ?
+                        ORDER BY translation_number
+                        LIMIT 5
+                    """, (meaning_id,))
+                else:
+                    cur.execute("""
+                        SELECT t.translation_text
+                        FROM meanings m
+                        JOIN translations t ON t.meaning_id = m.id
+                        WHERE m.word_id = ?
+                        ORDER BY m.meaning_number, t.translation_number
+                        LIMIT 5
+                    """, (word_id,))
 
-                -- smallest word sort_order among those categories
-                MIN(wc.sort_order) AS word_sort_order
+                translations = [row["translation_text"] for row in cur.fetchall()]
 
-            FROM words w
-            JOIN word_categories wc ON w.id = wc.word_id
-            JOIN categories c       ON c.id = wc.category_id
-            WHERE wc.category_id IN ({placeholders_cats})
-              AND w.level      IN ({placeholders_levels})
-            GROUP BY w.id, w.word, w.level
-            ORDER BY
-                cat_priority,       -- parent words first, then subcategories
-                cat_sort_order,     -- order of subcategories under the parent
-                word_sort_order,    -- manual order within each category
-                LOWER(w.word)       -- tie-breaker
-        """
-
-        params = [category_id] + category_ids_for_words + selected_levels
-        cur.execute(sql, params)
-        words = cur.fetchall()
-
-        for w in words:
-            meaning_id = w["meaning_id"]
-
-            if meaning_id:
-                cur.execute("""
-                    SELECT translation_text
-                    FROM translations
-                    WHERE meaning_id = ?
-                    ORDER BY translation_number
-                    LIMIT 5
-                """, (meaning_id,))
-            else:
-                cur.execute("""
-                    SELECT t.translation_text
-                    FROM meanings m
-                    JOIN translations t ON t.meaning_id = m.id
-                    WHERE m.word_id = ?
-                    ORDER BY m.meaning_number, t.translation_number
-                    LIMIT 5
-                """, (w["word_id"],))
-
-            translations = [row["translation_text"] for row in cur.fetchall()]
-
-            words_with_translations.append({
-                "id": w["word_id"],
-                "word": w["word"],
-                "level": w["level"],
-                "translations": translations
-            })
+                words_with_translations.append({
+                    "id": word_id,
+                    "word": w["word"],
+                    "level": w["level"],
+                    "translations": translations
+                })
     else:
         words_with_translations = []
 
@@ -1084,104 +1090,87 @@ def category_update_view(category_name):
     levels, selected_levels = resolve_selected_levels(cur)
 
     # 3) Get categories with counts for these levels
-    categories_dict = get_categories_with_counts(cur, selected_levels)
+    categories_dict = get_categories_with_counts(cur, selected_levels or [lvl["id"] for lvl in levels])
 
     # Subtopics for this category (with up-to-date counts)
     subcategories = categories_dict.get(category_id, [])
 
-    # 4) Build list of category_ids used for word fetching
-    category_ids = [category_id]
+    # 4) Build ordered list of category_ids (parent, then its subtree in order)
 
-    if include_subs:
-        # collect descendant category ids as well
-        # build children map from categories_dict
-        children_map = {}
-        for parent_id, childs in categories_dict.items():
-            for c in childs:
-                children_map.setdefault(parent_id, []).append(c["id"])
+    def build_ordered_category_ids(root_id, categories_dict, include_subs):
+        ordered = [root_id]
+        if not include_subs:
+            return ordered
 
-        from collections import deque
-        queue = deque([category_id])
-        seen = set([category_id])
+        def add_children(parent_id):
+            for child in categories_dict.get(parent_id, []):
+                child_id = child["id"]
+                ordered.append(child_id)
+                add_children(child_id)
 
-        while queue:
-            cid = queue.popleft()
-            for child_id in children_map.get(cid, []):
-                if child_id not in seen:
-                    seen.add(child_id)
-                    queue.append(child_id)
+        add_children(root_id)
+        return ordered
 
-        category_ids = list(seen)
+    ordered_category_ids = build_ordered_category_ids(category_id, categories_dict, include_subs)
 
-    # 5) Fetch words for these category_ids and levels
+    # 5) Fetch words for these category_ids and levels in that order
     words_with_translations = []
 
-    if selected_levels and category_ids:
+    if selected_levels and ordered_category_ids:
         level_placeholders = ",".join("?" for _ in selected_levels)
-        cat_placeholders = ",".join("?" for _ in category_ids)
+        seen_word_ids = set()
 
-        sql = f"""
-            SELECT
-                w.id               AS word_id,
-                w.word             AS word,
-                w.level            AS level,
-                MIN(wc.meaning_id) AS meaning_id,
+        for cat_id in ordered_category_ids:
+            sql = f"""
+                SELECT
+                    w.id        AS word_id,
+                    w.word      AS word,
+                    w.level     AS level,
+                    wc.meaning_id AS meaning_id
+                FROM words w
+                JOIN word_categories wc ON w.id = wc.word_id
+                WHERE wc.category_id = ?
+                  AND w.level IN ({level_placeholders})
+                ORDER BY
+                    wc.sort_order,
+                    LOWER(w.word)
+            """
+            params = [cat_id] + selected_levels
+            cur.execute(sql, params)
+            rows = cur.fetchall()
 
-                MIN(
-                    CASE
-                        WHEN wc.category_id = ? THEN 0
-                        ELSE 1
-                    END
-                ) AS cat_priority,
-                MIN(c.sort_order)  AS cat_sort_order,
-                MIN(wc.sort_order) AS word_sort_order
+            for w in rows:
+                word_id = w["word_id"]
+                if word_id in seen_word_ids:
+                    continue
+                seen_word_ids.add(word_id)
 
-            FROM words w
-            JOIN word_categories wc ON w.id = wc.word_id
-            JOIN categories c       ON c.id = wc.category_id
-            WHERE wc.category_id IN ({cat_placeholders})
-              AND w.level      IN ({level_placeholders})
-            GROUP BY w.id, w.word, w.level
-            ORDER BY
-                cat_priority,
-                cat_sort_order,
-                word_sort_order,
-                LOWER(w.word)
-        """
+                meaning_id = w["meaning_id"]
+                if meaning_id:
+                    cur.execute("""
+                        SELECT translation_text
+                        FROM translations
+                        WHERE meaning_id = ?
+                        ORDER BY translation_number
+                        LIMIT 5
+                    """, (meaning_id,))
+                else:
+                    cur.execute("""
+                        SELECT t.translation_text
+                        FROM meanings m
+                        JOIN translations t ON t.meaning_id = m.id
+                        WHERE m.word_id = ?
+                        ORDER BY m.meaning_number, t.translation_number
+                        LIMIT 5
+                    """, (word_id,))
+                translations = [row["translation_text"] for row in cur.fetchall()]
 
-        # first ? is for CASE WHEN wc.category_id = ?
-        params = [category_id] + category_ids + selected_levels
-        cur.execute(sql, params)
-        words = cur.fetchall()
-
-
-        for w in words:
-            meaning_id = w["meaning_id"]
-            if meaning_id:
-                cur.execute("""
-                    SELECT translation_text
-                    FROM translations
-                    WHERE meaning_id = ?
-                    ORDER BY translation_number
-                    LIMIT 5
-                """, (meaning_id,))
-            else:
-                cur.execute("""
-                    SELECT t.translation_text
-                    FROM meanings m
-                    JOIN translations t ON t.meaning_id = m.id
-                    WHERE m.word_id = ?
-                    ORDER BY m.meaning_number, t.translation_number
-                    LIMIT 5
-                """, (w["word_id"],))
-            translations = [row["translation_text"] for row in cur.fetchall()]
-
-            words_with_translations.append({
-                "id": w["word_id"],
-                "word": w["word"],
-                "level": w["level"],
-                "translations": translations,
-            })
+                words_with_translations.append({
+                    "id": word_id,
+                    "word": w["word"],
+                    "level": w["level"],
+                    "translations": translations,
+                })
 
     conn.close()
 
@@ -2059,7 +2048,16 @@ def admin_category_meanings(category_id):
         JOIN words w   ON wc.word_id = w.id
         LEFT JOIN levels l ON w.level = l.id
         WHERE wc.category_id = ?
-        ORDER BY wc.sort_order, w.word
+        ORDER BY 
+                CASE 
+                    WHEN level = 1 THEN 1
+                    WHEN level = 2 THEN 2
+                    WHEN level = 3 THEN 3
+                    WHEN level = 4 THEN 4
+                    WHEN level = 5 THEN 5
+                    ELSE 6   -- this puts "+" at the end
+                END,
+        wc.sort_order, w.word
     """, (category_id,))
     words = [dict(w) for w in cur.fetchall()]
 
