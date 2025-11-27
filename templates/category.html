@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 
+
 <style>
 /* Desktop: show subtopics by default */
 @media (min-width: 800px) {
@@ -400,7 +401,7 @@ function sendSelectedLevels(levels) {
         body: JSON.stringify({ levels })
     })
     .then(() => {
-        return fetch('{{ url_for("category_update_view", category_name=category["name"]) }}', {
+        return fetch('{{ url_for("category_update_view", category_id=category["id"]) }}', {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({
@@ -504,7 +505,7 @@ function bindIncludeSubsCheckbox() {
     cb.addEventListener('change', () => {
         currentIncludeSubs = cb.checked ? 1 : 0;
 
-        fetch('{{ url_for("category_update_view", category_name=category["name"]) }}', {
+        fetch('{{ url_for("category_update_view", category_id=category["id"]) }}', {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({
@@ -538,7 +539,7 @@ function bindCategoryViewSwitcher() {
             buttons.forEach(b => b.classList.remove('active-view'));
             btn.classList.add('active-view');
 
-            fetch('{{ url_for("category_update_view", category_name=category["name"]) }}', {
+            fetch('{{ url_for("category_update_view", category_id=category["id"]) }}', {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({

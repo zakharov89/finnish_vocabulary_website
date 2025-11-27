@@ -38,15 +38,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 Home
             </a>
 
-            <a href="{{ url_for('words_table') }}"
-                class="{% if request.endpoint in ['words_table', 'words_cards', 'words_flashcards', 'show_word'] %}active{% endif %}">
-                Words
-            </a>
-
+           
             <a href="{{ url_for('categories') }}"
                class="{% if request.endpoint in ['categories', 'show_category'] %}active{% endif %}">
                 Topics
             </a>
+
+            <a href="{{ url_for('words_table') }}"
+                class="{% if request.endpoint in ['words_table', 'words_cards', 'words_flashcards', 'show_word'] %}active{% endif %}">
+                Dictionary
+            </a>
+
 
             <a href="{{ url_for('search') }}"
                class="{% if request.endpoint == 'search' %}active{% endif %}">

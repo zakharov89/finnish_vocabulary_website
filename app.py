@@ -1063,8 +1063,8 @@ def show_category(category_name):
         include_subs=include_subs,
     )
 
-@app.route('/categories/<category_name>/update_view', methods=['POST'])
-def category_update_view(category_name):
+@app.route('/categories/<int:category_id>/update_view', methods=['POST'])
+def category_update_view(category_id):
     data = request.get_json() or {}
     view = data.get("view", "table")
     include_subs = data.get("include_subs", 0)
@@ -1077,43 +1077,48 @@ def category_update_view(category_name):
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # 1) Find the current category
-    cur.execute("SELECT id, name, parent_id FROM categories WHERE name = ?", (category_name,))
+    # 1) Find the current category BY ID
+    cur.execute("SELECT id, name, parent_id FROM categories WHERE id = ?", (category_id,))
     category = cur.fetchone()
     if not category:
         conn.close()
         return jsonify({"words_html": "", "subtopics_html": ""})
 
-    category_id = category["id"]
-
-    # 2) Resolve levels from session (reuse your helper)
+    # 2) Resolve levels from session
     levels, selected_levels = resolve_selected_levels(cur)
+    all_level_ids = [lvl["id"] for lvl in levels]
+    if selected_levels is None:
+        selected_levels = all_level_ids
+    else:
+        selected_levels = [
+            int(x) for x in selected_levels
+            if isinstance(x, (int, str)) and str(x).isdigit() and int(x) in all_level_ids
+        ]
 
-    # 3) Get categories with counts for these levels
-    categories_dict = get_categories_with_counts(cur, selected_levels or [lvl["id"] for lvl in levels])
+    # 3) Get categories with counts
+    categories_dict = get_categories_with_counts(cur, selected_levels or [])
 
-    # Subtopics for this category (with up-to-date counts)
+    # Subtopics for this category
     subcategories = categories_dict.get(category_id, [])
 
-    # 4) Build ordered list of category_ids (parent, then its subtree in order)
-
-    def build_ordered_category_ids(root_id, categories_dict, include_subs):
+    # 4) Build ordered list of category_ids (parent + subtree)
+    def build_ordered_category_ids(root_id, categories_dict, include_subs_flag):
         ordered = [root_id]
-        if not include_subs:
+        if not include_subs_flag:
             return ordered
 
         def add_children(parent_id):
             for child in categories_dict.get(parent_id, []):
-                child_id = child["id"]
-                ordered.append(child_id)
-                add_children(child_id)
+                cid = child["id"]
+                ordered.append(cid)
+                add_children(cid)
 
         add_children(root_id)
         return ordered
 
     ordered_category_ids = build_ordered_category_ids(category_id, categories_dict, include_subs)
 
-    # 5) Fetch words for these category_ids and levels in that order
+    # 5) Fetch words in that order
     words_with_translations = []
 
     if selected_levels and ordered_category_ids:
@@ -1123,9 +1128,9 @@ def category_update_view(category_name):
         for cat_id in ordered_category_ids:
             sql = f"""
                 SELECT
-                    w.id        AS word_id,
-                    w.word      AS word,
-                    w.level     AS level,
+                    w.id         AS word_id,
+                    w.word       AS word,
+                    w.level      AS level,
                     wc.meaning_id AS meaning_id
                 FROM words w
                 JOIN word_categories wc ON w.id = wc.word_id
@@ -1140,10 +1145,10 @@ def category_update_view(category_name):
             rows = cur.fetchall()
 
             for w in rows:
-                word_id = w["word_id"]
-                if word_id in seen_word_ids:
+                wid = w["word_id"]
+                if wid in seen_word_ids:
                     continue
-                seen_word_ids.add(word_id)
+                seen_word_ids.add(wid)
 
                 meaning_id = w["meaning_id"]
                 if meaning_id:
@@ -1162,11 +1167,11 @@ def category_update_view(category_name):
                         WHERE m.word_id = ?
                         ORDER BY m.meaning_number, t.translation_number
                         LIMIT 5
-                    """, (word_id,))
+                    """, (wid,))
                 translations = [row["translation_text"] for row in cur.fetchall()]
 
                 words_with_translations.append({
-                    "id": word_id,
+                    "id": wid,
                     "word": w["word"],
                     "level": w["level"],
                     "translations": translations,
