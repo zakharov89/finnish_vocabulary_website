@@ -601,23 +601,23 @@ def get_words_from_db(selected_levels=None):
             total_count = len(all_translations)
 
             max_display = 3
-            max_total_len = 40
+            # max_total_len = 40
 
             display_translations = []
-            current_len = 0
+            # current_len = 0
 
             for t in all_translations:
                 if not display_translations:
                     display_translations.append(t)
-                    current_len += len(t)
+                    # current_len += len(t)
                 else:
                     if len(display_translations) >= max_display:
                         break
-                    projected_len = current_len + 2 + len(t)  # ", "
-                    if projected_len > max_total_len:
-                        break
+                    # projected_len = current_len + 2 + len(t)  # ", "
+                    # if projected_len > max_total_len:
+                        # break
                     display_translations.append(t)
-                    current_len = projected_len
+                    # current_len = projected_len
 
             words.append({
                 "id": w["id"],
@@ -971,7 +971,7 @@ def show_category(category_name):
 
         add_children(root_id)
         return ordered
-
+    
     ordered_category_ids = build_ordered_category_ids(category_id, categories_dict, include_subs)
 
     # ----- Words for this category (+ optional subcategories) -----
@@ -1016,7 +1016,7 @@ def show_category(category_name):
                         FROM translations
                         WHERE meaning_id = ?
                         ORDER BY translation_number
-                        LIMIT 5
+                        LIMIT 3
                     """, (meaning_id,))
                 else:
                     cur.execute("""
@@ -1025,7 +1025,7 @@ def show_category(category_name):
                         JOIN translations t ON t.meaning_id = m.id
                         WHERE m.word_id = ?
                         ORDER BY m.meaning_number, t.translation_number
-                        LIMIT 5
+                        LIMIT 3
                     """, (word_id,))
 
                 translations = [row["translation_text"] for row in cur.fetchall()]
@@ -1157,7 +1157,7 @@ def category_update_view(category_id):
                         FROM translations
                         WHERE meaning_id = ?
                         ORDER BY translation_number
-                        LIMIT 5
+                        LIMIT 3
                     """, (meaning_id,))
                 else:
                     cur.execute("""
@@ -1166,7 +1166,7 @@ def category_update_view(category_id):
                         JOIN translations t ON t.meaning_id = m.id
                         WHERE m.word_id = ?
                         ORDER BY m.meaning_number, t.translation_number
-                        LIMIT 5
+                        LIMIT 3
                     """, (wid,))
                 translations = [row["translation_text"] for row in cur.fetchall()]
 

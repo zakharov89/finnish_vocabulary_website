@@ -6,7 +6,7 @@
             onclick="showAllOriginals()">
         Show all original words
     </button>
-     
+
     <button type="button"
             class="flashcard-control-btn show-btn"
             onclick="showAllTranslations()">
@@ -18,11 +18,8 @@
 <div class="flashcard-grid">
     {% for w in words if w.translations %}
 
-        {# ---- Length-based classes for front & back ---- #}
+        {# ---- FRONT: word, with length-based classes ---- #}
         {% set front_len = w.word|length %}
-        {% set back_text = w.translations[0] %}
-        {% set back_len = back_text|length %}
-
         {% set front_class = "flashcard-text" %}
         {% if front_len > 17 %}
             {% set front_class = front_class + " flashcard-text--very-long" %}
@@ -30,10 +27,15 @@
             {% set front_class = front_class + " flashcard-text--long" %}
         {% endif %}
 
+        {# ---- BACK: up to 3 translations, uniform size based on longest ---- #}
+        {% set trans_list = w.translations[:3] %}
+        {% set lengths = trans_list | map('length') %}
+        {% set max_len = lengths | max %}
+
         {% set back_class = "flashcard-text" %}
-        {% if back_len > 17 %}
+        {% if max_len > 17 %}
             {% set back_class = back_class + " flashcard-text--very-long" %}
-        {% elif back_len > 12 %}
+        {% elif max_len > 12 %}
             {% set back_class = back_class + " flashcard-text--long" %}
         {% endif %}
 
@@ -43,10 +45,15 @@
                     {{ w.word }}
                 </span>
             </div>
+
             <div class="back">
-                <span class="translation-badge {{ back_class }}">
-                    {{ back_text }}
-                </span>
+                {% for t in trans_list %}
+                    <div class="translation-line">
+                        <span class="translation-badge {{ back_class }}">
+                            {{ t }}
+                        </span>
+                    </div>
+                {% endfor %}
             </div>
         </div>
     {% endfor %}
