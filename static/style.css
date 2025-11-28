@@ -920,28 +920,7 @@ footer {
     transform: rotateY(360deg);
 }
 
-/* BACK TRANSLATION — plain text, no pill */
-.flashcard > .back .translation-badge {
-    background: none !important;
-    border-radius: 0 !important;
-    padding: 0 !important;
-    box-shadow: none !important;
 
-    display: block;
-    width: 100%;
-    max-width: 90%;
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #fff;
-    text-align: center;
-}
-
-.flashcard > .front,
-.flashcard > .back {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    hyphens: auto;
-}
 
 .flashcard .front,
 .flashcard .back .translation-badge {
@@ -1690,4 +1669,55 @@ a.word-card:hover * {
         font-size: 1.3rem;   /* or 1.8rem if you want really big */
         line-height: 1.3;
     }
+}
+
+/* Base flashcard text: one line, big */
+.flashcard .flashcard-text {
+    display: inline-block;
+    white-space: nowrap;    /* stay on one line */
+    word-wrap: normal;
+    overflow-wrap: normal;
+    hyphens: manual;
+
+    font-weight: 600;
+    font-size: 1.5rem;      /* base size */
+}
+
+/* Long words → a bit smaller */
+.flashcard .flashcard-text--long {
+    font-size: 1.3rem;
+}
+
+/* Very long words → smaller */
+.flashcard .flashcard-text--very-long {
+    font-size: 1.1rem;
+}
+
+/* Flashcard text base (front + back) */
+.flashcard .flashcard-text {
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    overflow-wrap: normal;
+    hyphens: manual;
+
+    font-weight: 600;
+    font-size: 1.6rem;  /* base size */
+}
+
+/* Long text (front or back) */
+.flashcard .flashcard-text.flashcard-text--long {
+    font-size: 1.3rem;
+}
+
+/* Very long text (front or back) */
+.flashcard .flashcard-text.flashcard-text--very-long {
+    font-size: 1.0rem;
+}
+
+.flashcard-text {
+    white-space: normal;        /* allow wrapping, BUT with rules below */
+    overflow-wrap: normal;      /* do NOT break long words */
+    word-break: normal;         /* allow breaking only at spaces */
+    hyphens: none;              /* avoid hyphenation */
 }

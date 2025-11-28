@@ -1,36 +1,54 @@
 <div class="flashcards-toolbar"
      style="margin: 6px 0 10px 0; display:flex; gap:8px; flex-wrap:wrap;">
 
-
-    
     <button type="button"
             class="flashcard-control-btn hide-btn"
             onclick="showAllOriginals()">
-
         Show all original words
     </button>
      
     <button type="button"
             class="flashcard-control-btn show-btn"
             onclick="showAllTranslations()">
-
         Show all translations
     </button>
 
 </div>
 
 <div class="flashcard-grid">
-    {% for w in words if w.word|length <= 30 and w.translations %}
-    <div class="flashcard">
-        <div class="front">
-            {{ w.word }}
-        </div>
-        <div class="back">
-            <div class="translation-badge">
-                {{ w.translations[0] }}
+    {% for w in words if w.translations %}
+
+        {# ---- Length-based classes for front & back ---- #}
+        {% set front_len = w.word|length %}
+        {% set back_text = w.translations[0] %}
+        {% set back_len = back_text|length %}
+
+        {% set front_class = "flashcard-text" %}
+        {% if front_len > 17 %}
+            {% set front_class = front_class + " flashcard-text--very-long" %}
+        {% elif front_len > 12 %}
+            {% set front_class = front_class + " flashcard-text--long" %}
+        {% endif %}
+
+        {% set back_class = "flashcard-text" %}
+        {% if back_len > 17 %}
+            {% set back_class = back_class + " flashcard-text--very-long" %}
+        {% elif back_len > 12 %}
+            {% set back_class = back_class + " flashcard-text--long" %}
+        {% endif %}
+
+        <div class="flashcard">
+            <div class="front">
+                <span class="{{ front_class }}">
+                    {{ w.word }}
+                </span>
+            </div>
+            <div class="back">
+                <span class="translation-badge {{ back_class }}">
+                    {{ back_text }}
+                </span>
             </div>
         </div>
-    </div>
     {% endfor %}
 </div>
 

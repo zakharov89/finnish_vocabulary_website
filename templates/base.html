@@ -180,8 +180,44 @@ document.addEventListener("DOMContentLoaded", () => {
 
 </style>
 
-    <script>
-    // ============ FLASHCARDS — shared for ALL pages ============
+<script>
+    // Auto-fit flashcard text to one line
+    function autoFitFlashcardText() {
+        const root = getFlashcardRoot();
+        if (!root) return;
+
+        const cards = root.querySelectorAll('.flashcard');
+
+        cards.forEach(card => {
+            // Fit front and back independently
+            ['.front .flashcard-text', '.back .flashcard-text'].forEach(sel => {
+                const el = card.querySelector(sel);
+                if (!el) return;
+
+                // Reset any old size
+                el.style.fontSize = '';
+
+                // Base font size from CSS
+                const computed = window.getComputedStyle(el);
+                let size = parseFloat(computed.fontSize) || 32;
+                const minSize = 10;  // you can go down to 8 if you really want
+
+                // The container that defines the visual width
+                const container = el.parentElement;
+                const containerWidth = container.clientWidth;
+                if (containerWidth <= 0) return;
+
+                // Ensure we test with no wrapping
+                el.style.whiteSpace = 'nowrap';
+
+                // Shrink until the text fits within the container
+                while (el.scrollWidth > containerWidth && size > minSize) {
+                    size -= 0.5;  // smaller step = smoother but more loops
+                    el.style.fontSize = size + 'px';
+                }
+            });
+        });
+    }
 
     // Find whichever flashcard container exists on the current page
     function getFlashcardRoot() {
@@ -196,22 +232,23 @@ document.addEventListener("DOMContentLoaded", () => {
         return null;
     }
 
-    // Flip individual cards on click
     function bindFlashcards() {
         const root = getFlashcardRoot();
         if (!root) return;
 
         root.querySelectorAll('.flashcard').forEach(card => {
-            if (card.dataset.bound === '1') return; // avoid double binding
+            if (card.dataset.bound === '1') return;
             card.dataset.bound = '1';
 
             card.addEventListener('click', () => {
                 card.classList.toggle('flipped');
             });
         });
+
+        // After cards exist and layout is done, fit text
+        autoFitFlashcardText();
     }
 
-    // Always show translations on ALL cards
     function showAllTranslations() {
         const root = getFlashcardRoot();
         if (!root) return;
@@ -221,7 +258,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Always show original words on ALL cards
     function showAllOriginals() {
         const root = getFlashcardRoot();
         if (!root) return;
@@ -231,16 +267,20 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Run once on every page load
     document.addEventListener('DOMContentLoaded', () => {
         bindFlashcards();
     });
 
-    // Expose to other scripts (AJAX pages, etc.)
-    window.bindFlashcards       = bindFlashcards;
-    window.showAllTranslations  = showAllTranslations;
-    window.showAllOriginals     = showAllOriginals;
-    </script>
+    // Refitting on resize helps on mobile rotation
+    window.addEventListener('resize', () => {
+        autoFitFlashcardText();
+    });
+
+    window.bindFlashcards      = bindFlashcards;
+    window.showAllTranslations = showAllTranslations;
+    window.showAllOriginals    = showAllOriginals;
+</script>
+
 </body>
 </html>
 
