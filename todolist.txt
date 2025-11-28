@@ -1,15 +1,11 @@
 
 - Add user identification, progress, some quizes etc
-
-
 - examples have the word selected in bold
-- what to do with long words on flashcards?
 - add turn on levels, part of speech in words table?
 - save part of speech and level when adding words to category
 - add the number of words
 - in categories allow ordering alphabetically (button?)
-- add determiners? monta. or hide other?
 - add quiz mode?
-- group better
-- links to words in examples and definitions
-- level selection problems
+- group better?
+- links to words in examples and definitions?
+- random 10/... flashcards

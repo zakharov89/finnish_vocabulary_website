@@ -18,7 +18,7 @@
 <div class="flashcard-grid">
     {% for w in words if w.translations %}
 
-        {# ---- FRONT: word, with length-based classes ---- #}
+        {# ---------- FRONT: the word ---------- #}
         {% set front_len = w.word|length %}
         {% set front_class = "flashcard-text" %}
         {% if front_len > 17 %}
@@ -27,15 +27,14 @@
             {% set front_class = front_class + " flashcard-text--long" %}
         {% endif %}
 
-        {# ---- BACK: up to 3 translations, uniform size based on longest ---- #}
-        {% set trans_list = w.translations[:3] %}
-        {% set lengths = trans_list | map('length') %}
-        {% set max_len = lengths | max %}
+        {# ---------- BACK: only the FIRST translation ---------- #}
+        {% set back_text = w.translations[0] %}
+        {% set back_len = back_text|length %}
 
         {% set back_class = "flashcard-text" %}
-        {% if max_len > 17 %}
+        {% if back_len > 17 %}
             {% set back_class = back_class + " flashcard-text--very-long" %}
-        {% elif max_len > 12 %}
+        {% elif back_len > 12 %}
             {% set back_class = back_class + " flashcard-text--long" %}
         {% endif %}
 
@@ -47,15 +46,12 @@
             </div>
 
             <div class="back">
-                {% for t in trans_list %}
-                    <div class="translation-line">
-                        <span class="translation-badge {{ back_class }}">
-                            {{ t }}
-                        </span>
-                    </div>
-                {% endfor %}
+                <span class="translation-badge {{ back_class }}">
+                    {{ back_text }}
+                </span>
             </div>
         </div>
+
     {% endfor %}
 </div>
 

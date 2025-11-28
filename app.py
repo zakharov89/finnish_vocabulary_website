@@ -294,7 +294,7 @@ def show_word(word_name):
         LEFT JOIN translations t    ON t.meaning_id = m.id
         LEFT JOIN examples e        ON e.meaning_id = m.id
         WHERE m.word_id = ?
-        ORDER BY p.name ASC, m.meaning_number ASC
+        ORDER BY p.name ASC, m.meaning_number ASC, t.translation_number ASC
     """, (word_id,))
     rows = cur.fetchall()
 
