@@ -4,16 +4,21 @@
 
 <h2>Admin Dashboard</h2>
 
-<div class="admin-summary">
-    <p>Total words: {{ total_words }}</p>
-    <p>Total categories: {{ total_categories }}</p>
-</div>
 
 <!-- Add New Word -->
 <h4>Add New Word</h4>
 <p>
     <a href="{{ url_for('admin_add_word') }}" class="admin-btn">Add Word</a>
 </p>
+
+
+<!-- Add New Category -->
+<h4>Add New Category</h4>
+<p>
+    <a href="{{ url_for('admin_add_category') }}" class="admin-btn">Add Category</a>
+</p>
+
+
 
 <!-- Search Word -->
 <h4>Search Word</h4>
@@ -38,27 +43,6 @@
     <button type="submit" class="admin-btn" style="margin-top: 6px;">Search</button>
 </form>
 
-<!-- Last 10 Added Words -->
-<h4>Last 10 Added Words</h4>
-<ul>
-    {% for w in recent_words %}
-        <li>
-            {{ w['word'] }} –
-            <a href="{{ url_for('admin_edit_word', word_id=w['id']) }}">Edit</a>
-        </li>
-    {% endfor %}
-</ul>
-
-<a href="{{ url_for('admin_list_words') }}" class="admin-btn-small">View All Words</a>
-
-<hr>
-
-<!-- Add New Category -->
-<h4>Add New Category</h4>
-<p>
-    <a href="{{ url_for('admin_add_category') }}" class="admin-btn">Add Category</a>
-</p>
-
 <!-- Search Category -->
 <h4>Search Category</h4>
 <form method="get"
@@ -81,6 +65,22 @@
 
     <button type="submit" class="admin-btn" style="margin-top: 6px;">Search</button>
 </form>
+
+
+<!-- Last 10 Added Words -->
+<h4>Last 10 Added Words</h4>
+<ul>
+    {% for w in recent_words %}
+        <li>
+            {{ w['word'] }} –
+            <a href="{{ url_for('admin_edit_word', word_id=w['id']) }}">Edit</a>
+        </li>
+    {% endfor %}
+</ul>
+
+<a href="{{ url_for('admin_list_words') }}" class="admin-btn-small">View All Words</a>
+
+<hr>
 
 <!-- Last 10 Added Categories -->
 <h4>Last 10 Added Categories</h4>
@@ -132,6 +132,12 @@
 <form method="get" action="{{ url_for('logout') }}">
     <button type="submit" class="admin-btn">Logout</button>
 </form>
+
+<div class="admin-summary">
+    <p>Total words: {{ total_words }}</p>
+    <p>Total categories: {{ total_categories }}</p>
+</div>
+
 
 <script>
 // === Data from backend ===

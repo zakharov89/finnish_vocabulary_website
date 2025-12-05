@@ -3,6 +3,10 @@
 
 <h2>Edit Category: {{ category['name'] }}</h2>
 
+ <p>
+        <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+ </p>
+
 <div class="admin-add-word-container">
 
     <!-- ✏️ Edit Category Info -->
@@ -54,9 +58,7 @@
         </p>
     </form>
 
-    <p>
-        <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
-    </p>
+   
 
     <hr>
 
@@ -104,7 +106,7 @@
                 <!-- Edit column -->
                 <td>
                     <a href="{{ url_for('admin_edit_word', word_id=w['id']) }}"
-                       class="admin-btn-small">
+                       class="admin-btn-small" target="_blank">
                         Edit
                     </a>
                 </td>

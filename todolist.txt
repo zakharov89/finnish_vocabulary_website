@@ -1,11 +1,34 @@
 
-- Add user identification, progress, some quizes etc
+- add user identification and progress
 - examples have the word selected in bold
 - add turn on levels, part of speech in words table?
-- save part of speech and level when adding words to category
 - add the number of words
 - in categories allow ordering alphabetically (button?)
 - add quiz mode?
 - group better?
 - links to words in examples and definitions?
-- random 10/... flashcards
+- random groups of flashcards
+- allowing to select more than one meaning for a category?
+- add some grammar, like verb types etc.
+- order inside a category should be saved from the beginning
+- links to wikipedia/wiktionary?
+- how many translations in the table? show all translations button?
+- better adjustment of font size?
+- notes: why " instead of NULL 
+- say which word we are removing
+- reorder words in categories more logically and maybe consider new subkohta categories, e.g. Family.
+- sorting in search
+- go through categories and update selected meanings and order
+- add some grammar, at least for verbs. make it look nice
+- how to deal with different meanings which have the same English translation?
+- adjusting order of categories on a word page?
+- improved admin interface for adding and removing words to/from categories
+- make messages more clear in the admin interface (mention the word)
+- change place/design of Show details, show examples? only arrow?
+- some secondary categories not appearing?
+- make category assignment and deletion easier
+
+words to place:
+way thing world group problem place case system government number point fact lot right job word business issue 
+side kind power game line end member law community name president team  idea  kid information others level door
+war  history result research force education
