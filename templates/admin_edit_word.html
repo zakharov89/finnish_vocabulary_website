@@ -1,80 +1,183 @@
 {% extends "base.html" %}
 {% block content %}
 
-
 <div class="container mt-5">
     <h2>Edit Word: <a href="{{ url_for('show_word', word_name=word.word) }}" target="_blank">
         {{ word.word }}
     </a></h2>
-    
 
     <!-- Update Word Form -->
     <form method="POST" class="mb-3">
         <div class="mb-3">
-            <input type="text" class="admin-input" name="word" id="word" value="{{ word.word }}" required placeholder="Enter word"> 
+            <input type="text"
+                   class="admin-input"
+                   name="word"
+                   id="word"
+                   value="{{ word.word }}"
+                   required
+                   placeholder="Enter word">
         </div>
-       
-        
-   
 
-    <!-- Level -->
-    <p>
-        <label>Level:</label><br>
-        <select name="level" class="admin-select">
-            {% for level in levels %}
-                <option value="{{ level.id }}" {% if word['level'] == level.id %}selected{% endif %}>
-                    {{ level.name }}
-                </option>
-            {% endfor %}
-        </select>
-    </p>
-    
-    <button type="submit" class="admin-btn">Update Word</button>
-    </form>
-    <p>
-    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
-    </p>
+        <!-- Level -->
+        <p>
+            <label>Level:</label><br>
+            <select name="level" class="admin-select">
+                {% for level in levels %}
+                    <option value="{{ level.id }}"
+                        {% if word['level'] == level.id %}selected{% endif %}>
+                        {{ level.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </p>
 
-    
-    <hr>
-    <h3>Meanings</h3>
+        <!-- Categories -->
+        <h3>Categories</h3>
+        <div id="category-selector">
+            <input type="text"
+                   id="category-input"
+                   class="admin-input"
+                   placeholder="Start typing a category name..."
+                   list="category-datalist">
 
-    {% for pos_name, meanings in meanings_by_pos.items() %}
-    <h4>{{ pos_name }}</h4>
-    <div class="list-group mb-3">
-        {% for meaning in meanings %}
-        <div class="meaning-block">
-            <em>Translations:</em> <strong>{{ meaning.translations | join(", ") }}</strong><br>
-            <em>Examples:</em>
-            <ul class="examples">
-            {% for ex, ex_tr in meaning.examples %}
-                <li>{{ ex }} {% if ex_tr %} — {{ ex_tr }}{% endif %}</li>
-            {% endfor %}
-            </ul>
-            <em>Finnish definition:</em> {{ meaning.definition }}<br>
-            <em>Notes:</em> {{ meaning.notes }}
-            <div class="mt-2 d-flex gap-2">
-            <a href="{{ url_for('admin_edit_meaning', meaning_id=meaning.id) }}" class="admin-btn btn-warning">Edit Meaning</a>
-            </div>
+            <datalist id="category-datalist">
+                {% for cat in categories %}
+                    <option value="{{ cat['name'] }}"></option>
+                {% endfor %}
+            </datalist>
+
+            <div id="selected-categories" class="selected-categories"></div>
         </div>
-        {% endfor %}
-    </div>
-    {% endfor %}
 
-    <p>
-        <a href="{{ url_for('admin_add_meaning', word_id=word.id) }}" class="admin-btn">Add Meaning</a>
-    </p>
-
-    <!-- Delete Word -->
-    <form method="POST" action="{{ url_for('admin_delete_word', word_id=word.id) }}" 
-          onsubmit="return confirm('Are you sure you want to delete this word and all its meanings?');" class="mb-4">
-        <button type="submit" class="admin-btn delete-btn">Delete Word</button>
+        <button type="submit" class="admin-btn" style="margin-top: 15px;">
+            Update Word
+        </button>
     </form>
-
 
     <p>
         <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
     </p>
 
+    <hr>
+    <h3>Meanings</h3>
+
+    {% for pos_name, meanings in meanings_by_pos.items() %}
+        <h4>{{ pos_name }}</h4>
+        <div class="list-group mb-3">
+            {% for meaning in meanings %}
+                <div class="meaning-block">
+                    <em>Translations:</em>
+                    <strong>{{ meaning.translations | join(", ") }}</strong><br>
+
+                    <em>Examples:</em>
+                    <ul class="examples">
+                        {% for ex, ex_tr in meaning.examples %}
+                            <li>{{ ex }}{% if ex_tr %} — {{ ex_tr }}{% endif %}</li>
+                        {% endfor %}
+                    </ul>
+
+                    <em>Finnish definition:</em> {{ meaning.definition }}<br>
+                    <em>Notes:</em> {{ meaning.notes }}
+
+                    <div class="mt-2 d-flex gap-2">
+                        <a href="{{ url_for('admin_edit_meaning', meaning_id=meaning.id) }}"
+                           class="admin-btn btn-warning">
+                            Edit Meaning
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endfor %}
+
+    <p>
+        <a href="{{ url_for('admin_add_meaning', word_id=word.id) }}" class="admin-btn">
+            Add Meaning
+        </a>
+    </p>
+
+    <!-- Delete Word -->
+    <form method="POST"
+          action="{{ url_for('admin_delete_word', word_id=word.id) }}"
+          onsubmit="return confirm('Are you sure you want to delete this word and all its meanings?');"
+          class="mb-4">
+        <button type="submit" class="admin-btn delete-btn">Delete Word</button>
+    </form>
+
+    <p>
+        <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+    </p>
 </div>
+
+<script>
+(function() {
+    // Categories from backend: [{id: .., name: ..}, ...]
+    const categoriesData = {{ categories|tojson }};
+    const wordCategoryIds = {{ word_category_ids|tojson }};  // [1, 5, 7, ...]
+
+    const categoryInput = document.getElementById("category-input");
+    const selectedContainer = document.getElementById("selected-categories");
+    const selectedIds = new Set();
+
+    function addCategoryByObject(cat) {
+        if (!cat || selectedIds.has(cat.id)) return;
+
+        selectedIds.add(cat.id);
+
+        const pill = document.createElement("span");
+        pill.className = "selected-category-pill";
+        pill.textContent = cat.name;
+
+        // hidden input for form submission
+        const hidden = document.createElement("input");
+        hidden.type = "hidden";
+        hidden.name = "category_ids";
+        hidden.value = cat.id;
+        pill.appendChild(hidden);
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "remove-category-btn";
+        removeBtn.textContent = "×";
+        removeBtn.onclick = () => {
+            selectedIds.delete(cat.id);
+            pill.remove();
+        };
+
+        pill.appendChild(removeBtn);
+        selectedContainer.appendChild(pill);
+    }
+
+    function addCategoryByName(name) {
+        name = name.trim();
+        if (!name) return;
+        const cat = categoriesData.find(c => c.name === name);
+        if (!cat) return;
+        addCategoryByObject(cat);
+    }
+
+    // Pre-fill existing categories
+    wordCategoryIds.forEach(cid => {
+        const cat = categoriesData.find(c => c.id === cid);
+        if (cat) {
+            addCategoryByObject(cat);
+        }
+    });
+
+    categoryInput.addEventListener("change", () => {
+        addCategoryByName(categoryInput.value);
+        categoryInput.value = "";
+    });
+
+    categoryInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            addCategoryByName(categoryInput.value);
+            categoryInput.value = "";
+        }
+    });
+
+})();
+</script>
+
 {% endblock %}

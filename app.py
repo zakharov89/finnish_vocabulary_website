@@ -1262,10 +1262,17 @@ def admin_add_word():
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
+    # Levels
     cur.execute("SELECT id, name FROM levels ORDER BY id")
     levels = cur.fetchall()
 
-    # Fetch parts of speech for the form
+    # Categories (for checkboxes)
+    # Categories (for autocomplete)
+    cur.execute("SELECT id, name FROM categories ORDER BY name")
+    categories = [dict(row) for row in cur.fetchall()]
+
+
+    # Parts of speech for the form
     cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
     pos_list = [dict(pos) for pos in cur.fetchall()]
 
@@ -1273,33 +1280,49 @@ def admin_add_word():
         word_text = request.form.get('word', '').strip()
         if not word_text:
             flash("Word cannot be empty.", "error")
+
         else:
             # Check if the word already exists
             cur.execute("SELECT id FROM words WHERE word = ?", (word_text,))
             if cur.fetchone():
                 flash(f"Word '{word_text}' already exists.", "warning")
+                # Just re-render form with all needed data
                 conn.close()
-                return render_template('admin_add_word.html', pos_list=pos_list, levels=levels)
+                return render_template(
+                    'admin_add_word.html',
+                    pos_list=pos_list,
+                    levels=levels,
+                    categories=categories
+                )
+
             level = int(request.form.get("level", 0))
 
             # Insert the word
             cur.execute(
-            "INSERT INTO words (word, level, created_at, updated_at) VALUES (?, ?, datetime('now'), datetime('now'))",
-            (word_text, level)
-        )
-
-            conn.commit()
+                "INSERT INTO words (word, level, created_at, updated_at) "
+                "VALUES (?, ?, datetime('now'), datetime('now'))",
+                (word_text, level)
+            )
             word_id = cur.lastrowid
+
+            # --- Insert categories for this word ---
+            selected_categories = request.form.getlist("category_ids")
+            for cid in selected_categories:
+                cid = cid.strip()
+                if cid:
+                    cur.execute(
+                        "INSERT INTO word_categories (word_id, category_id) VALUES (?, ?)",
+                        (word_id, int(cid))
+                    )
 
             # Insert meanings
             meaning_numbers = request.form.getlist('meaning_number[]')
-            for idx, m_num in enumerate(meaning_numbers):
+            for m_num in meaning_numbers:
                 m_num_int = int(m_num)
 
                 # POS per meaning
                 pos_id = request.form.get(f"pos_id_{m_num}")
                 pos_id = int(pos_id) if pos_id else None
-
 
                 notes = request.form.get(f"meaning_notes_{m_num}", "").strip() or None
                 definition = request.form.get(f"definition_{m_num}", "").strip() or None
@@ -1310,7 +1333,6 @@ def admin_add_word():
                     "VALUES (?, ?, ?, ?, ?)",
                     (word_id, m_num_int, notes, definition, pos_id)
                 )
-                conn.commit()
                 meaning_id = cur.lastrowid
 
                 # Insert translations
@@ -1336,14 +1358,19 @@ def admin_add_word():
                             "VALUES (?, ?, ?)",
                             (meaning_id, ex_text, ex_trans)
                         )
-                conn.commit()
 
-            flash(f"Word '{word_text}' added successfully!", "success")
+            conn.commit()
             conn.close()
+            flash(f"Word '{word_text}' added successfully!", "success")
             return redirect(url_for('admin_dashboard'))
 
     conn.close()
-    return render_template('admin_add_word.html', pos_list=pos_list, levels=levels)
+    return render_template(
+        'admin_add_word.html',
+        pos_list=pos_list,
+        levels=levels,
+        categories=categories
+    )
 
 @app.route('/admin/edit_word/<int:word_id>', methods=['GET', 'POST'])
 @admin_required
@@ -1354,28 +1381,39 @@ def admin_edit_word(word_id):
 
     # Fetch the word
     cur.execute("SELECT * FROM words WHERE id = ?", (word_id,))
-    word = cur.fetchone()
-    if not word:
+    word_row = cur.fetchone()
+    if not word_row:
         flash("Word not found.", "error")
         conn.close()
         return redirect(url_for('admin_dashboard'))
-    word = dict(word)
+    word = dict(word_row)
 
     # Fetch levels
     cur.execute("SELECT id, name FROM levels ORDER BY id")
     levels = cur.fetchall()
 
-    # Fetch POS list
+    # Fetch POS list (you don't actually use it in this template but fine to keep)
     cur.execute("SELECT id, name FROM parts_of_speech ORDER BY name")
     pos_list = [dict(p) for p in cur.fetchall()]
 
+    # Fetch all categories
+    cur.execute("SELECT id, name FROM categories ORDER BY name")
+    categories = [dict(row) for row in cur.fetchall()]
+
+    # Fetch category IDs currently assigned to this word
+    cur.execute("SELECT category_id FROM word_categories WHERE word_id = ?", (word_id,))
+    word_category_ids = [row["category_id"] for row in cur.fetchall()]
+
     # Fetch meanings with POS
-    cur.execute("SELECT m.*, p.name as pos_name FROM meanings m "
-                "LEFT JOIN parts_of_speech p ON m.pos_id = p.id "
-                "WHERE m.word_id=? ORDER BY p.name, m.meaning_number", (word_id,))
+    cur.execute("""
+        SELECT m.*, p.name as pos_name
+        FROM meanings m
+        LEFT JOIN parts_of_speech p ON m.pos_id = p.id
+        WHERE m.word_id = ?
+        ORDER BY p.name, m.meaning_number
+    """, (word_id,))
     meanings_rows = cur.fetchall()
 
-    # Group meanings by POS
     meanings_by_pos = {}
     for m in meanings_rows:
         pos_name = m['pos_name'] or 'Other'
@@ -1384,11 +1422,20 @@ def admin_edit_word(word_id):
         meaning_id = m['id']
 
         # Translations
-        cur.execute("SELECT translation_text FROM translations WHERE meaning_id=? ORDER BY translation_number", (meaning_id,))
+        cur.execute("""
+            SELECT translation_text
+            FROM translations
+            WHERE meaning_id = ?
+            ORDER BY translation_number
+        """, (meaning_id,))
         translations = [t['translation_text'] for t in cur.fetchall()]
 
         # Examples
-        cur.execute("SELECT example_text, example_translation_text FROM examples WHERE meaning_id=?", (meaning_id,))
+        cur.execute("""
+            SELECT example_text, example_translation_text
+            FROM examples
+            WHERE meaning_id = ?
+        """, (meaning_id,))
         examples = [(e['example_text'], e['example_translation_text']) for e in cur.fetchall()]
 
         meanings_by_pos[pos_name].append({
@@ -1400,26 +1447,51 @@ def admin_edit_word(word_id):
             'examples': examples
         })
 
-    # Handle POST (update word only)
+    # Handle POST (update word + level + categories)
     if request.method == 'POST':
         new_word = request.form.get('word', '').strip()
         level_id = int(request.form.get("level", 0))
-        
+
         # Check for duplicates
-        cur.execute("SELECT id FROM words WHERE word=? AND id != ?", (new_word, word_id))
+        cur.execute("SELECT id FROM words WHERE word = ? AND id != ?", (new_word, word_id))
         if cur.fetchone():
             flash(f"The word '{new_word}' already exists.", "error")
             conn.close()
             return redirect(url_for('admin_edit_word', word_id=word_id))
 
-        cur.execute("UPDATE words SET word = ?, level = ?, updated_at = datetime('now') WHERE id = ?", (new_word, level_id, word_id))
+        # Update word + level
+        cur.execute("""
+            UPDATE words
+            SET word = ?, level = ?, updated_at = datetime('now')
+            WHERE id = ?
+        """, (new_word, level_id, word_id))
+
+        # Update categories: clear then insert
+        cur.execute("DELETE FROM word_categories WHERE word_id = ?", (word_id,))
+        selected_categories = request.form.getlist("category_ids")
+        for cid in selected_categories:
+            cid = cid.strip()
+            if cid:
+                cur.execute(
+                    "INSERT INTO word_categories (word_id, category_id) VALUES (?, ?)",
+                    (word_id, int(cid))
+                )
+
         conn.commit()
-        flash(f"Word '{new_word}' updated successfully!", "success")
         conn.close()
+        flash(f"Word '{new_word}' updated successfully!", "success")
         return redirect(url_for('admin_edit_word', word_id=word_id))
 
     conn.close()
-    return render_template('admin_edit_word.html', word=word, levels=levels, meanings_by_pos=meanings_by_pos, pos_list=pos_list)
+    return render_template(
+        'admin_edit_word.html',
+        word=word,
+        levels=levels,
+        meanings_by_pos=meanings_by_pos,
+        pos_list=pos_list,
+        categories=categories,
+        word_category_ids=word_category_ids
+    )
 
 @app.route('/admin/edit_meaning/<int:meaning_id>', methods=['GET', 'POST'])
 @admin_required
