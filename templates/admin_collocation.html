@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Collocation admin</h1>
+
+{# ---- Collocation header + edit form ---- #}
+<form method="POST" style="margin-bottom:1em; padding:8px 10px; border:1px solid #ddd; border-radius:6px;">
+    <input type="hidden" name="action" value="update_collocation">
+
+    <p style="margin:0 0 0.4em 0;">
+        <strong>Main word:</strong>
+        <a href="{{ url_for('show_word', word_name=collocation.main_word) }}" target="_blank">
+            {{ collocation.main_word }}
+        </a>
+    </p>
+
+    <p style="margin:0 0 0.4em 0;">
+        <strong>Other lemma:</strong>
+        {% if collocation.other_lemma %}
+            <a href="{{ url_for('show_word', word_name=collocation.other_lemma) }}" target="_blank">
+                {{ collocation.other_lemma }}
+            </a>
+            <span style="font-size:0.85rem; color:#666;">
+                (stored other_form: {{ collocation.other_form }})
+            </span>
+        {% else %}
+            {{ collocation.other_form }}
+        {% endif %}
+    </p>
+
+    <p style="margin:0 0 0.4em 0;">
+        <label for="surface_form"><strong>Display form (surface):</strong></label><br>
+        <input type="text"
+               id="surface_form"
+               name="surface_form"
+               value="{{ collocation.surface_form or '' }}"
+               style="width:100%; max-width:400px;">
+        <br>
+        <span style="font-size:0.85rem; color:#555;">
+            Example: <code>Hyvää yötä</code>. Leave empty to auto-build from lemmas.
+        </span>
+    </p>
+
+    <p style="margin:0 0 0.4em 0; font-size:0.9rem;">
+        <strong>Direction:</strong> {{ collocation.direction }}
+        &nbsp;•&nbsp;
+        <strong>Freq:</strong> {{ collocation.freq or "?" }}
+        &nbsp;•&nbsp;
+        <strong>PMI:</strong> {{ "%.2f"|format(collocation.pmi or 0) }}
+        &nbsp;•&nbsp;
+        <strong>Source:</strong> {{ collocation.source }}
+    </p>
+
+    <p style="margin:0 0 0.4em 0;">
+        <label>
+            <input type="checkbox" name="show_in_app"
+                   {% if collocation.show_in_app %}checked{% endif %}>
+            Show this collocation in app
+        </label>
+        <br>
+        <label>
+            <input type="checkbox" name="show_examples"
+                   {% if collocation.show_examples %}checked{% endif %}>
+            Show an example sentence in app
+        </label>
+        <br>
+        <span style="font-size:0.85rem; color:#555;">
+            For things like <em>Hyvää yötä</em> you can uncheck "Show examples".
+        </span>
+    </p>
+
+    <button type="submit">Save collocation</button>
+</form>
+
+{# ---- Examples table ---- #}
+<h2>Examples</h2>
+
+{% if examples %}
+    <table style="width:100%; border-collapse:collapse; font-size:0.95rem;">
+        <thead>
+            <tr style="border-bottom:1px solid #ccc;">
+                <th style="text-align:left; padding:4px;">Primary</th>
+                <th style="text-align:left; padding:4px;">Example</th>
+                <th style="text-align:left; padding:4px;">Translation</th>
+                <th style="text-align:left; padding:4px;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ex in examples %}
+                <tr style="border-bottom:1px solid #eee; {% if ex.is_primary %}background:#f5f7ff;{% endif %}">
+                    <td style="padding:4px; vertical-align:top;">
+                        {% if ex.is_primary %}
+                            <span style="color:#1a237e; font-weight:bold;">★ primary</span>
+                        {% else %}
+                            <form method="POST" style="display:inline;">
+                                <input type="hidden" name="action" value="make_primary">
+                                <input type="hidden" name="example_id" value="{{ ex.id }}">
+                                <button type="submit" style="font-size:0.8rem;">
+                                    Make primary
+                                </button>
+                            </form>
+                        {% endif %}
+                    </td>
+
+                    <td style="padding:4px; vertical-align:top;">
+                        <form method="POST" style="margin:0;">
+                            <input type="hidden" name="action" value="update_example">
+                            <input type="hidden" name="example_id" value="{{ ex.id }}">
+                            <textarea name="example_text" rows="2" style="width:100%;">{{ ex.example_text }}</textarea>
+                    </td>
+
+                    <td style="padding:4px; vertical-align:top;">
+                            <textarea name="example_translation" rows="2" style="width:100%;">{{ ex.example_translation or '' }}</textarea>
+                    </td>
+
+                    <td style="padding:4px; vertical-align:top; white-space:nowrap;">
+                            <button type="submit" style="font-size:0.8rem;">Save</button>
+                        </form>
+
+                        <form method="POST" style="display:inline;"
+                              onsubmit="return confirm('Delete this example?');">
+                            <input type="hidden" name="action" value="delete_example">
+                            <input type="hidden" name="example_id" value="{{ ex.id }}">
+                            <button type="submit" style="font-size:0.8rem; color:#b00020;">
+                                Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No examples yet for this collocation.</p>
+{% endif %}
+
+<p style="margin-top:1.5em;">
+    <a href="{{ url_for('admin_collocation_list') }}">
+        Back to collocation list
+    </a>
+    &nbsp;|&nbsp;
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+</p>
+
+{% endblock %}
