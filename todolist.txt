@@ -27,6 +27,7 @@
 - change place/design of Show details, show examples? only arrow?
 - some secondary categories not appearing?
 - make category assignment and deletion easier
+- which words go with which in texts?
 
 words to place:
 way thing world group problem place case system government number point fact lot right job word business issue 

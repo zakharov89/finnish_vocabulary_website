@@ -217,6 +217,67 @@
 
 {% endif %}
 
+
+{% if collocations %}
+    <div style="margin-top:2em;">
+
+        <button type="button" class="expand-btn"
+            data-label-show="Show common phrases"
+            data-label-hide="Hide common phrases">
+        <span class="chevron">▶</span>
+        <span class="label">Show common phrases</span>
+        </button>
+
+        <div class="expand-content" style="display:none; margin-top:8px;">
+
+            <p style="margin-top:0; font-size:0.9rem; color:#555;">
+                Common combinations with <strong>{{ word_name }}</strong> and examples.
+            </p>
+
+            <div style="margin-top:0.5em;">
+                {% for c in collocations %}
+                    <div style="margin-bottom:0.8em; padding:6px 8px; border-left:3px solid #ddd;">
+                        {# Main collocation phrase #}
+                        <div>
+                            {% if c.surface_form %}
+                                <strong>{{ c.surface_form }}</strong>
+                            {% else %}
+                                {% if c.direction == 'L' %}
+                                    <strong>{{ c.other_form }} {{ word_name }}</strong>
+                                {% else %}
+                                    <strong>{{ word_name }} {{ c.other_form }}</strong>
+                                {% endif %}
+                            {% endif %}
+
+                            {% if c.other_lemma %}
+                                <span style="font-size:0.85rem; color:#666;">
+                                    
+                                    (<a href="{{ url_for('show_word', word_name=c.other_lemma) }}">{{ c.other_lemma }}</a>)
+                                    
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        {# Example sentence #}
+                        {% if c.example_text %}
+                            <div style="font-size:0.9rem; margin-top:3px;">
+                                {{ c.example_text }}
+                                {% if c.example_translation %}
+                                    <br>
+                                    <em>{{ c.example_translation }}</em>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+
+        </div>
+    </div>
+{% endif %}
+
+
+
 {# ---- EXPAND TOGGLE JS (shared for all buttons) ---- #}
 
 <script>

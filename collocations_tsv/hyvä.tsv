@@ -1,0 +1,51 @@
+word	other_form	surface_form	direction	freq	pmi	example_sentence
+hyvä	olla	olkaa hyvä	L	250151	1.4159	Sivummalle , olkaa hyvä .
+hyvä	olla	Hyvä on	R	156531	0.9471	Hyvä on .
+hyvä	yö	Hyvää yötä	R	31828	4.2202	Hyvää yötä , Henry .
+hyvä	tehdä	Teen parhaani	L	19111	1.1754	Teen parhaani , tunnet säännöt .
+hyvä	ystävä	hyviä ystäviä	R	18405	3.1638	Meistä on tullut tosi hyviä ystäviä .
+hyvä	näyttää	näytän hyvältä	L	18391	2.6288	Sinä valitsit minut näytän hyvältä en ole eronnut äiti .
+hyvä	työ	Hyvää työtä	R	15761	2.7106	Hyvää työtä , Hyvää työtä !
+hyvä	luoja	Hyvä luoja	R	13986	3.3808	Hyvä luoja , se tapahtui !
+hyvä	uutinen	hyviä uutisia	R	10967	4.1945	Vielä lisää hyviä uutisia .
+hyvä	idea	Hyvä idea	R	10665	4.1169	Hyvä idea .
+hyvä	mies	hyvä mies	R	10639	1.7783	Richie oli hyvä mies .
+hyvä	kuulostaa	kuulostamaan hyvältä	L	10430	3.5696	Se sai raportin kuulostamaan hyvältä .
+hyvä	herra	hyvät herrat	R	10144	2.2243	Ongelmia , hyvät herrat ?
+hyvä	huomen	Hyvää huomenta	R	9285	4.6368	Hyvää huomenta , Gracie .
+hyvä	nainen	Hyvät naiset	R	9252	2.3863	Hyvät naiset herrat hra John Merrick .
+hyvä	oikein	oikein hyvää	L	8370	2.5672	Teet oikein hyvää työtä .
+hyvä	niin	niin hyviä	L	8223	0.5462	Emme ole niin hyviä tuttuja .
+hyvä	todella	Todella hyvää	L	8056	2.3447	Todella hyvää Bureaulta .
+hyvä	ilta	Hyvää iltaa	R	7671	2.7951	Hyvää iltaa , naiset herrat !
+hyvä	ajatus	hyvä ajatus	R	7670	3.6494	Se on aina hyvä ajatus .
+hyvä	jumala	hyvä Jumala	R	7572	3.0020	hyvä Jumala !
+hyvä	päivä	hyvät päivän	R	7494	1.9135	Olosuhteet ovat hyvät päivän kuluttua , Maan asema on sopiva .
+hyvä	juttu	hyvä juttu	R	7407	2.4194	Tämä voi olla hyvä juttu .
+hyvä	poika	Hyvä poika	R	7014	1.8225	Hyvä poika .
+hyvä	asia	Hyvä asia	R	6958	1.4458	Hyvä asia on , ettet laskuta tuntien mukaan .
+hyvä	tuntua	Tuntuu hyvältä	L	6945	2.7344	Tuntuu hyvältä .
+hyvä	tosi	tosi hyviä	L	6704	2.7298	Meistä on tullut tosi hyviä ystäviä .
+hyvä	aika	Aika hyvältä	L	6683	1.1519	Aika hyvältä , itseasiassa .
+hyvä	joulu	Hyvää joulua	R	5901	4.2504	Hyvää joulua , Ted .
+hyvä	saada	saa hyvän	L	5559	0.1667	Katsotaan , hän saa hyvän koulutuksen ,
+hyvä	ihan	Ihan hyvä	L	5541	2.1111	Ihan hyvä .
+hyvä	ihminen	hyvä ihminen	R	5347	1.5733	Olet hyvä ihminen , kuulehan ...
+hyvä	syntymäpäivä	Hyvää syntymäpäivää	R	4656	4.3183	Hyvää syntymäpäivää , Donna .
+hyvä	syy	hyvä syy	R	4628	2.3228	Hänellä on nyt minun laillani hyvä syy vaihtaa puolta .
+hyvä	aika	hyvää aikaa	R	4538	0.7648	me aiomme viettää helvetin hyvää aikaa .
+hyvä	kovin	kovin hyvä	L	4303	3.2731	Hänellä ei kyllä ollut kovin hyvä vuosi .
+hyvä	kaveri	hyvää kaverit	R	4187	2.1593	kaverit sanoo se on hyvää kaverit sanoo se on huippua kaikki sanoo se on ihan rock ' n roll
+hyvä	maailma	maailman parhaaksi	L	4167	2.1499	Tiiviillä työllä Hän voi olla valmis maailman parhaaksi asuntovaunun parkkeeraajaksi .
+hyvä	paikka	Hyvät paikat	R	4102	1.5087	Hyvät paikat vaihtopenkin takaa .
+hyvä	kaikki	kaikessa hyvässä	L	3903	0.0441	Hän seisoo kaikessa hyvässä
+hyvä	tyyppi	hyvä tyyppi	R	3563	2.6051	Olet hyvä tyyppi .
+hyvä	tyttö	Hyvä tyttö	R	3512	1.5112	Hyvä tyttö , iske sitä !
+hyvä	tapa	paras tapa	R	3506	1.9963	Oletko varma , tämä on paras tapa ?
+hyvä	yhtä	yhtä hyviä	L	3312	2.5353	Olemme yhtä hyviä he .
+hyvä	puoli	hyvien puolella	R	3299	1.8072	Oletko sinä yhtäkkiä muka hyvien puolella ?
+hyvä	näyttää	Hyvältä näyttää	R	3238	0.8919	Hyvältä näyttää , leidit .
+hyvä	jokin	jotain hyvää	L	3212	0.3369	Minä tein jotain hyvää kuumaa suklaata .
+hyvä	päiväjatko	Hyvää päivänjatkoa	R	3068	5.2762	Hyvää päivänjatkoa .
+hyvä	kysymys	Hyvä kysymys	R	2995	2.3756	Hyvä kysymys !
+hyvä	yksi	Yksi parhaista	L	2969	0.7802	Yksi parhaista .

@@ -3,7 +3,7 @@ import sqlite3
 import os
 from dotenv import load_dotenv
 from functools import lru_cache, wraps
-
+import re
 
 load_dotenv()
 
@@ -14,6 +14,15 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev_key")
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 
+
+PUNCT_FIX_RE = re.compile(r"\s+([,.;:!?])")
+def fix_punctuation(text: str | None) -> str | None:
+    if not text:
+        return text
+    # remove spaces before , . ; : ! ?
+    text = PUNCT_FIX_RE.sub(r"\1", text)
+    # optionally fix space before closing quotes, etc. later if needed
+    return text
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -389,7 +398,7 @@ def show_word(word_name):
             "target_word": r["target_word"]
         })
 
-        # ============================================================
+    # ============================================================
     # MEANING RELATIONS (only outgoing)
     # ============================================================
     meaning_ids = [m["id"] for plist in meanings_by_pos.values() for m in plist]
@@ -425,11 +434,9 @@ def show_word(word_name):
         target_num  = r["target_meaning_number"]
         target_tr   = r["target_translation"]
 
-        # ensure structure: meaning_relations[meaning1_id][relation_type] = [entries...]
         meaning_relations.setdefault(m1, {})
         group = meaning_relations[m1].setdefault(rt, [])
 
-        # find or create entry for (target_word, target_num)
         entry = None
         for e in group:
             if e["target_word"] == target_word and e["target_number"] == target_num:
@@ -444,9 +451,52 @@ def show_word(word_name):
             }
             group.append(entry)
 
-        # add translation if present and not duplicate
         if target_tr and target_tr not in entry["translations"]:
             entry["translations"].append(target_tr)
+
+        # ============================================================
+    # COLLOCATIONS FOR THIS WORD
+    # ============================================================
+    cur.execute("""
+        SELECT
+            wc.id              AS colloc_id,
+            wc.other_form      AS other_form,
+            wc.surface_form    AS surface_form,
+            wc.direction       AS direction,
+            wc.freq            AS freq,
+            wc.pmi             AS pmi,
+            w2.word            AS other_lemma,
+            ce.example_text    AS example_text,
+            ce.example_translation_text AS example_translation
+        FROM word_collocations wc
+        LEFT JOIN words w2
+               ON wc.other_word_id = w2.id
+        LEFT JOIN corpus_examples ce
+               ON ce.collocation_id = wc.id
+              AND ce.is_primary = 1
+        WHERE wc.word_id = ?
+        ORDER BY wc.freq DESC, wc.pmi DESC
+        LIMIT 50
+    """, (word_id,))
+    colloc_rows = cur.fetchall()
+
+    collocations = []
+    for r in colloc_rows:
+        surface_form_clean = fix_punctuation(r["surface_form"])
+        example_text_clean = fix_punctuation(r["example_text"])
+        example_translation_clean = fix_punctuation(r["example_translation"])
+
+        collocations.append({
+            "id": r["colloc_id"],
+            "other_form": r["other_form"],
+            "surface_form": surface_form_clean,
+            "direction": r["direction"],
+            "freq": r["freq"],
+            "pmi": r["pmi"],
+            "other_lemma": r["other_lemma"],
+            "example_text": example_text_clean,
+            "example_translation": example_translation_clean,
+        })
 
 
     conn.close()
@@ -459,7 +509,8 @@ def show_word(word_name):
         word_relations=word_relations,
         meaning_relations=meaning_relations,
         word_level_id=word_level_id,
-        word_level_name=word_level_name
+        word_level_name=word_level_name,
+        collocations=collocations,      # 👈 NEW
     )
 
 def handle_level_post(default_redirect):
