@@ -36,16 +36,16 @@
         <div class="meaning" style="margin-top:1.5em;">
 
             {# POS label #}
-                    <div style="
-            display:inline-block;
-            margin-bottom:0.4em;
-            padding:2px 8px;
-            border-radius:999px;
-            font-size:0.85rem;
-            background:#eef2ff;
-            color:#1a237e;">
-            {{ pos_name }}
-        </div>
+            <div style="
+                display:inline-block;
+                margin-bottom:0.4em;
+                padding:2px 8px;
+                border-radius:999px;
+                font-size:0.85rem;
+                background:#eef2ff;
+                color:#1a237e;">
+                {{ pos_name }}
+            </div>
 
             {% for meaning in meanings %}
             <div class="meaning-block">
@@ -63,7 +63,8 @@
                     <button type="button" class="expand-btn"
                             data-label-show="Show details"
                             data-label-hide="Hide details"
-                            style="margin-top:6px;">
+                            style="margin-top:6px;"
+                            onclick="return toggleExpand(this);">
                         <span class="chevron">▶</span>
                         <span class="label">Show details</span>
                     </button>
@@ -83,7 +84,8 @@
                     <button type="button" class="expand-btn"
                             data-label-show="Show examples"
                             data-label-hide="Hide examples"
-                            style="margin-top:6px;">
+                            style="margin-top:6px;"
+                            onclick="return toggleExpand(this);">
                         <span class="chevron">▶</span>
                         <span class="label">Show examples</span>
                     </button>
@@ -105,7 +107,8 @@
                     <button type="button" class="expand-btn"
                             data-label-show="Show relations"
                             data-label-hide="Hide relations"
-                            style="margin-top:6px;">
+                            style="margin-top:6px;"
+                            onclick="return toggleExpand(this);">
                         <span class="chevron">▶</span>
                         <span class="label">Show relations</span>
                     </button>
@@ -123,7 +126,7 @@
                                     {% set tr_list = t.translations or [] %}
                                     {% set shown_tr = tr_list[:2] %}
                                     <a href="{{ url_for('show_word', word_name=t.target_word) }}"
-                                    class="relation-chip">
+                                       class="relation-chip">
                                         {{ t.target_word }}
                                         {% if shown_tr %}
                                             ({{ shown_tr | join(", ") }})
@@ -144,7 +147,7 @@
                                         {% set tr_list = t.translations or [] %}
                                         {% set shown_tr = tr_list[:2] %}
                                         <a href="{{ url_for('show_word', word_name=t.target_word) }}"
-                                        class="relation-chip">
+                                           class="relation-chip">
                                             {{ t.target_word }}
                                             {% if shown_tr %}
                                                 ({{ shown_tr | join(", ") }})
@@ -170,7 +173,8 @@
     <div style="margin-top:1.8em;">
         <button type="button" class="expand-btn"
                 data-label-show="Show related words"
-                data-label-hide="Hide related words">
+                data-label-hide="Hide related words"
+                onclick="return toggleExpand(this);">
             <span class="chevron">▶</span>
             <span class="label">Show related words</span>
         </button>
@@ -222,22 +226,20 @@
     <div style="margin-top:2em;">
 
         <button type="button" class="expand-btn"
-            data-label-show="Show common phrases"
-            data-label-hide="Hide common phrases">
-        <span class="chevron">▶</span>
-        <span class="label">Show common phrases</span>
+                data-label-show="Show common phrases"
+                data-label-hide="Hide common phrases"
+                onclick="return toggleExpand(this);">
+            <span class="chevron">▶</span>
+            <span class="label">Show common phrases</span>
         </button>
 
         <div class="expand-content" style="display:none; margin-top:8px;">
 
-            <p style="margin-top:0; font-size:0.9rem; color:#555;">
-                Common combinations with <strong>{{ word_name }}</strong> and examples.
-            </p>
-
             <div style="margin-top:0.5em;">
                 {% for c in collocations %}
                     <div style="margin-bottom:0.8em; padding:6px 8px; border-left:3px solid #ddd;">
-                        {# Main collocation phrase #}
+
+                        {# --- Main collocation phrase --- #}
                         <div>
                             {% if c.surface_form %}
                                 <strong>{{ c.surface_form }}</strong>
@@ -251,14 +253,19 @@
 
                             {% if c.other_lemma %}
                                 <span style="font-size:0.85rem; color:#666;">
-                                    
                                     (<a href="{{ url_for('show_word', word_name=c.other_lemma) }}">{{ c.other_lemma }}</a>)
-                                    
                                 </span>
                             {% endif %}
                         </div>
 
-                        {# Example sentence #}
+                        {# --- Collocation translation --- #}
+                        {% if c.translation %}
+                            <div style="font-size:0.9rem; margin-top:2px; color:#444;">
+                                <em>{{ c.translation }}</em>
+                            </div>
+                        {% endif %}
+
+                        {# --- Example sentence --- #}
                         {% if c.example_text %}
                             <div style="font-size:0.9rem; margin-top:3px;">
                                 {{ c.example_text }}
@@ -268,6 +275,7 @@
                                 {% endif %}
                             </div>
                         {% endif %}
+
                     </div>
                 {% endfor %}
             </div>
@@ -279,28 +287,51 @@
 
 
 {# ---- EXPAND TOGGLE JS (shared for all buttons) ---- #}
-
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.expand-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const content = btn.nextElementSibling;
-            if (!content) return;
+function toggleExpand(btn) {
+    try {
+        // Find the corresponding content block
+        let content = btn.nextElementSibling;
 
-            const hidden = content.style.display === 'none' || content.style.display === '';
-            content.style.display = hidden ? 'block' : 'none';
+        if (!content || !content.classList.contains('expand-content')) {
+            let sibling = btn.nextSibling;
+            content = null;
 
-            btn.classList.toggle('expanded', hidden);
-
-            const labelSpan = btn.querySelector('.label');
-            if (labelSpan) {
-                labelSpan.textContent = hidden
-                    ? btn.dataset.labelHide
-                    : btn.dataset.labelShow;
+            while (sibling) {
+                if (sibling.nodeType === 1 && sibling.classList.contains('expand-content')) {
+                    content = sibling;
+                    break;
+                }
+                sibling = sibling.nextSibling;
             }
-        });
-    });
-});
+        }
+
+        if (!content) {
+            return false;
+        }
+
+        // Determine current visibility
+        const style = window.getComputedStyle(content);
+        const currentlyHidden = (style.display === 'none' || style.display === '');
+
+        // Toggle display
+        content.style.display = currentlyHidden ? 'block' : 'none';
+
+        // Update button state / label
+        btn.classList.toggle('expanded', currentlyHidden);
+
+        const labelSpan = btn.querySelector('.label');
+        if (labelSpan) {
+            const showText = btn.dataset.labelShow || 'Show';
+            const hideText = btn.dataset.labelHide || 'Hide';
+            labelSpan.textContent = currentlyHidden ? hideText : showText;
+        }
+    } catch (e) {
+        // Fail silently in production
+        console && console.error && console.error('toggleExpand error', e);
+    }
+    return false; // prevent any default action
+}
 </script>
 
 {% endblock %}

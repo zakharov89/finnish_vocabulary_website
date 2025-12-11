@@ -264,15 +264,6 @@ def autocomplete():
 
 @app.route('/word/<word_name>')
 def show_word(word_name):
-    import re
-
-    def fix_punctuation(text):
-        """Remove extra spaces before punctuation and trim."""
-        if not text:
-            return text
-        text = re.sub(r"\s+([.,!?;:])", r"\1", text)
-        return text.strip()
-
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -427,9 +418,9 @@ def show_word(word_name):
             JOIN meanings m2       ON mr.meaning2_id = m2.id
             JOIN words   w2        ON m2.word_id = w2.id
             LEFT JOIN translations t2 ON t2.meaning_id = m2.id
-            WHERE mr.meaning1_id IN ({placeholders})
+            WHERE mr.meaning1_id IN ({})
             ORDER BY rt.name, w2.word, m2.meaning_number, t2.translation_number
-        """.format(placeholders=",".join("?" * len(meaning_ids))), meaning_ids)
+        """.format(",".join("?" * len(meaning_ids))), meaning_ids)
 
         meaning_rel_rows = cur.fetchall()
     else:
@@ -466,6 +457,9 @@ def show_word(word_name):
     # ============================================================
     # COLLOCATIONS FOR THIS WORD (respect show_in_app / show_examples)
     # ============================================================
+
+
+
     cur.execute("""
         SELECT
             wc.id              AS colloc_id,
@@ -475,6 +469,7 @@ def show_word(word_name):
             wc.freq            AS freq,
             wc.pmi             AS pmi,
             wc.show_examples   AS show_examples,
+            wc.collocation_translation     AS colloc_translation,    
             w2.word            AS other_lemma,
             ce.example_text    AS example_text,
             ce.example_translation_text AS example_translation
@@ -484,9 +479,9 @@ def show_word(word_name):
         LEFT JOIN corpus_examples ce
                ON ce.collocation_id = wc.id
               AND ce.is_primary = 1
-              AND wc.show_examples = 1       -- only attach example if allowed
+              AND ce.hidden = 0
         WHERE wc.word_id = ?
-          AND wc.show_in_app = 1             -- only visible collocations
+          AND wc.show_in_app = 1
         ORDER BY wc.freq DESC, wc.pmi DESC
         LIMIT 50
     """, (word_id,))
@@ -495,8 +490,14 @@ def show_word(word_name):
     collocations = []
     for r in colloc_rows:
         surface_form_clean = fix_punctuation(r["surface_form"])
-        example_text_clean = fix_punctuation(r["example_text"])
-        example_translation_clean = fix_punctuation(r["example_translation"])
+        show_examples_flag = r["show_examples"]
+
+        if show_examples_flag:
+            example_text_clean = fix_punctuation(r["example_text"])
+            example_translation_clean = fix_punctuation(r["example_translation"])
+        else:
+            example_text_clean = None
+            example_translation_clean = None
 
         collocations.append({
             "id": r["colloc_id"],
@@ -506,7 +507,7 @@ def show_word(word_name):
             "freq": r["freq"],
             "pmi": r["pmi"],
             "other_lemma": r["other_lemma"],
-            "show_examples": bool(r["show_examples"]),
+            "translation": r["colloc_translation"],
             "example_text": example_text_clean,
             "example_translation": example_translation_clean,
         })
@@ -522,9 +523,8 @@ def show_word(word_name):
         meaning_relations=meaning_relations,
         word_level_id=word_level_id,
         word_level_name=word_level_name,
-        collocations=collocations,      # 👈 NEW / UPDATED
+        collocations=collocations,
     )
-
 
 def handle_level_post(default_redirect):
     if request.method == "POST":
@@ -2818,102 +2818,94 @@ def admin_meaning_relations_list():
 
 
 @app.route("/admin/collocation/<int:colloc_id>", methods=["GET", "POST"])
-# @admin_required  # <- keep your existing admin/auth decorator here if you have one
+@admin_required
 def admin_collocation(colloc_id):
-    def fix_punctuation(text: str | None):
-        """Remove extra spaces before punctuation, trim ends."""
-        if not text:
-            return text
-        # remove space(s) before , . ! ? ; :
-        text = re.sub(r"\s+([.,!?;:])", r"\1", text)
-        return text.strip()
-
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # ---------- HANDLE POST ----------
+    # ---------- Handle POST actions ----------
     if request.method == "POST":
         action = request.form.get("action")
 
-        # 1) Update collocation header: surface_form + flags
         if action == "update_collocation":
-            surface_form = (request.form.get("surface_form") or "").strip()
-            surface_form = fix_punctuation(surface_form)
-
-            show_in_app = 1 if request.form.get("show_in_app") == "on" else 0
-            show_examples = 1 if request.form.get("show_examples") == "on" else 0
+            surface_form   = request.form.get("surface_form", "").strip()
+            show_in_app    = 1 if request.form.get("show_in_app") else 0
+            show_examples  = 1 if request.form.get("show_examples") else 0
+            translation    = request.form.get("colloc_translation", "").strip()
 
             cur.execute("""
                 UPDATE word_collocations
-                SET surface_form = ?, show_in_app = ?, show_examples = ?
+                SET surface_form   = ?,
+                    show_in_app    = ?,
+                    show_examples  = ?,
+                    collocation_translation = ?
                 WHERE id = ?
-            """, (surface_form, show_in_app, show_examples, colloc_id))
+            """, (surface_form or None, show_in_app, show_examples, translation or None, colloc_id))
             conn.commit()
 
-        # 2) Make example primary
-        elif action == "make_primary":
-            ex_id = request.form.get("example_id", type=int)
-            if ex_id:
-                # clear primary for this collocation
-                cur.execute("""
-                    UPDATE corpus_examples
-                    SET is_primary = 0
-                    WHERE collocation_id = ?
-                """, (colloc_id,))
-                # set chosen primary
-                cur.execute("""
-                    UPDATE corpus_examples
-                    SET is_primary = 1
-                    WHERE id = ? AND collocation_id = ?
-                """, (ex_id, colloc_id))
-                conn.commit()
-
-        # 3) Update example text / translation
         elif action == "update_example":
-            ex_id = request.form.get("example_id", type=int)
-            if ex_id:
-                new_text = fix_punctuation(request.form.get("example_text") or "")
-                new_tr   = (request.form.get("example_translation") or "").strip()
+            example_id          = request.form.get("example_id")
+            example_text        = request.form.get("example_text", "").strip()
+            example_translation = request.form.get("example_translation", "").strip()
 
-                cur.execute("""
-                    UPDATE corpus_examples
-                    SET example_text = ?, example_translation_text = ?
-                    WHERE id = ? AND collocation_id = ?
-                """, (new_text, new_tr, ex_id, colloc_id))
-                conn.commit()
+            cur.execute("""
+                UPDATE corpus_examples
+                SET example_text = ?,
+                    example_translation_text = ?
+                WHERE id = ?
+                  AND collocation_id = ?
+            """, (example_text, example_translation or None, example_id, colloc_id))
+            conn.commit()
 
-        # 4) Delete example
         elif action == "delete_example":
-            ex_id = request.form.get("example_id", type=int)
-            if ex_id:
-                cur.execute("""
-                    DELETE FROM corpus_examples
-                    WHERE id = ? AND collocation_id = ?
-                """, (ex_id, colloc_id))
-                conn.commit()
+            example_id = request.form.get("example_id")
+            cur.execute("""
+                DELETE FROM corpus_examples
+                WHERE id = ?
+                  AND collocation_id = ?
+            """, (example_id, colloc_id))
+            conn.commit()
 
-        conn.close()
-        return redirect(url_for("admin_collocation", colloc_id=colloc_id))
+        elif action == "make_primary":
+            example_id = request.form.get("example_id")
+            # reset all to non-primary
+            cur.execute("""
+                UPDATE corpus_examples
+                SET is_primary = 0
+                WHERE collocation_id = ?
+            """, (colloc_id,))
+            # set chosen one to primary
+            cur.execute("""
+                UPDATE corpus_examples
+                SET is_primary = 1
+                WHERE id = ?
+                  AND collocation_id = ?
+            """, (example_id, colloc_id))
+            conn.commit()
 
-    # ---------- GET: FETCH COLLOCATION ----------
+        # After handling POST, just fall through and re-select data
+        # (no redirect needed if you're okay with resubmitting on refresh)
+
+    # ---------- Fetch collocation ----------
     cur.execute("""
         SELECT
-            wc.id              AS id,
+            wc.id              AS colloc_id,
             wc.word_id         AS word_id,
+            w.word             AS main_word,
             wc.other_word_id   AS other_word_id,
             wc.other_form      AS other_form,
             wc.surface_form    AS surface_form,
             wc.direction       AS direction,
             wc.freq            AS freq,
             wc.pmi             AS pmi,
-            wc.source          AS source,
             wc.show_in_app     AS show_in_app,
             wc.show_examples   AS show_examples,
-            w1.word            AS main_word,
+            wc.collocation_translation AS colloc_translation,
+            wc.source          AS source,
             w2.word            AS other_lemma
         FROM word_collocations wc
-        JOIN words w1 ON wc.word_id = w1.id
+        JOIN words w    ON wc.word_id = w.id
         LEFT JOIN words w2 ON wc.other_word_id = w2.id
         WHERE wc.id = ?
     """, (colloc_id,))
@@ -2921,23 +2913,30 @@ def admin_collocation(colloc_id):
 
     if not row:
         conn.close()
-        return "Collocation not found", 404
+        abort(404)
+
+    # Apply punctuation fix for display
+    surface_form_clean = fix_punctuation(row["surface_form"])
+    colloc_translation_clean = fix_punctuation(row["colloc_translation"])
 
     collocation = {
-        "id": row["id"],
+        "id": row["colloc_id"],
+        "word_id": row["word_id"],
         "main_word": row["main_word"],
+        "other_word_id": row["other_word_id"],
         "other_form": row["other_form"],
-        "surface_form": fix_punctuation(row["surface_form"]),
+        "surface_form": surface_form_clean,
         "direction": row["direction"],
         "freq": row["freq"],
         "pmi": row["pmi"],
+        "show_in_app": row["show_in_app"],
+        "show_examples": row["show_examples"],
+        "colloc_translation": colloc_translation_clean,
         "source": row["source"],
         "other_lemma": row["other_lemma"],
-        "show_in_app": bool(row["show_in_app"]),
-        "show_examples": bool(row["show_examples"]),
     }
 
-    # ---------- FETCH EXAMPLES ----------
+    # ---------- Fetch up to 10 visible examples ----------
     cur.execute("""
         SELECT
             id,
@@ -2946,15 +2945,19 @@ def admin_collocation(colloc_id):
             is_primary
         FROM corpus_examples
         WHERE collocation_id = ?
+          AND hidden = 0
         ORDER BY is_primary DESC, id ASC
         LIMIT 10
     """, (colloc_id,))
+    rows_ex = cur.fetchall()
+
     examples = []
-    for r in cur.fetchall():
+    for r in rows_ex:
         examples.append({
             "id": r["id"],
+            # Clean punctuation for admin textareas too
             "example_text": fix_punctuation(r["example_text"]),
-            "example_translation": r["example_translation_text"],
+            "example_translation": fix_punctuation(r["example_translation_text"]),
             "is_primary": bool(r["is_primary"]),
         })
 
@@ -2965,6 +2968,8 @@ def admin_collocation(colloc_id):
         collocation=collocation,
         examples=examples,
     )
+
+
 
 @app.route("/admin/collocations")
 @admin_required

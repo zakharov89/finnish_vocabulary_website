@@ -3,6 +3,15 @@
 
 <h1>Collocation admin</h1>
 
+<p style="margin-top:1.5em;">
+    <a href="{{ url_for('admin_collocation_list') }}">
+        Back to collocation list
+    </a>
+    &nbsp;|&nbsp;
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+</p>
+
+
 {# ---- Collocation header + edit form ---- #}
 <form method="POST" style="margin-bottom:1em; padding:8px 10px; border:1px solid #ddd; border-radius:6px;">
     <input type="hidden" name="action" value="update_collocation">
@@ -38,6 +47,20 @@
         <br>
         <span style="font-size:0.85rem; color:#555;">
             Example: <code>Hyvää yötä</code>. Leave empty to auto-build from lemmas.
+        </span>
+    </p>
+
+    {# NEW: collocation translation #}
+    <p style="margin:0 0 0.4em 0;">
+        <label for="translation"><strong>Translation of collocation (EN):</strong></label><br>
+        <input type="text"
+               id="translation"
+               name="translation"
+               value="{{ collocation.translation or '' }}"
+               style="width:100%; max-width:400px;">
+        <br>
+        <span style="font-size:0.85rem; color:#555;">
+            Example: <code>good night</code>, <code>to take care (of)</code>.
         </span>
     </p>
 
