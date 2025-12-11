@@ -4,12 +4,20 @@
 <h1>Collocation admin</h1>
 
 <p style="margin-top:1.5em;">
-    <a href="{{ url_for('admin_collocation_list') }}">
-        Back to collocation list
+    <a href="{{ url_for('admin_word_collocations', word_name=collocation.main_word) }}">
+        Collocations for  {{ collocation.main_word }}
     </a>
     &nbsp;|&nbsp;
-    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Dashboard</a>
+    &nbsp;|&nbsp;
+
+    <a href="{{ url_for('admin_collocation_list') }}">
+        Collocation list
+    </a>
+
 </p>
+
+
 
 
 {# ---- Collocation header + edit form ---- #}
@@ -29,9 +37,7 @@
             <a href="{{ url_for('show_word', word_name=collocation.other_lemma) }}" target="_blank">
                 {{ collocation.other_lemma }}
             </a>
-            <span style="font-size:0.85rem; color:#666;">
-                (stored other_form: {{ collocation.other_form }})
-            </span>
+          
         {% else %}
             {{ collocation.other_form }}
         {% endif %}
@@ -46,7 +52,7 @@
                style="width:100%; max-width:400px;">
         <br>
         <span style="font-size:0.85rem; color:#555;">
-            Example: <code>Hyvää yötä</code>. Leave empty to auto-build from lemmas.
+           Leave empty to auto-build from lemmas.
         </span>
     </p>
 
@@ -59,9 +65,7 @@
                value="{{ collocation.translation or '' }}"
                style="width:100%; max-width:400px;">
         <br>
-        <span style="font-size:0.85rem; color:#555;">
-            Example: <code>good night</code>, <code>to take care (of)</code>.
-        </span>
+      
     </p>
 
     <p style="margin:0 0 0.4em 0; font-size:0.9rem;">
@@ -87,9 +91,7 @@
             Show an example sentence in app
         </label>
         <br>
-        <span style="font-size:0.85rem; color:#555;">
-            For things like <em>Hyvää yötä</em> you can uncheck "Show examples".
-        </span>
+       
     </p>
 
     <button type="submit">Save collocation</button>
@@ -158,11 +160,17 @@
 {% endif %}
 
 <p style="margin-top:1.5em;">
-    <a href="{{ url_for('admin_collocation_list') }}">
-        Back to collocation list
+    <a href="{{ url_for('admin_word_collocations', word_name=collocation.main_word) }}">
+        Collocations for  {{ collocation.main_word }}
     </a>
     &nbsp;|&nbsp;
-    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Dashboard</a>
+    &nbsp;|&nbsp;
+
+    <a href="{{ url_for('admin_collocation_list') }}">
+        Collocation list
+    </a>
+
 </p>
 
 {% endblock %}

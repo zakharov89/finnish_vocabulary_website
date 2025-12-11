@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Collocations for "{{ word_name }}"</h1>
+
+   <div style="margin-top:1em;">
+        <button type="submit">Save order & visibility</button>
+        <a href="{{ url_for('admin_collocation_list') }}"
+           class="admin-btn-small" style="margin-left:8px;">
+            All collocations
+        </a>
+        <a href="{{ url_for('admin_edit_word', word_id=word_id) }}" style="margin-left:8px;">
+            Edit word 
+        </a>
+        <a href="{{ url_for('show_word', word_name=word_name) }}"
+           class="admin-btn-small" style="margin-left:8px;" target="_blank">
+            View word page
+        </a>
+        <a href="{{ url_for('admin_dashboard') }}" 
+        class="admin-btn-small" style="margin-left:8px;">
+            Back to Dashboard
+        </a>
+    </div>
+
+<p style="font-size:0.9rem; color:#555; margin-bottom:0.8em;">
+    Drag the rows to change their order. Use the checkboxes to choose which
+    collocations and examples appear on the word page.
+</p>
+
+<form method="POST" id="colloc-form">
+    <ul id="colloc-list"
+        style="list-style:none; padding:0; margin:0;">
+        {% for c in collocations %}
+            <li class="sortable-item"
+                data-id="{{ c.id }}"
+                style="border:1px solid #ddd; border-radius:4px;
+                       padding:6px 8px; margin-bottom:6px;
+                       display:flex; align-items:flex-start; justify-content:space-between;
+                       gap:8px;
+                       {% if c.show_in_app %}background:#f3fff3;{% endif %}">
+
+                <div style="display:flex; align-items:flex-start; gap:8px; flex:1;">
+                    <span class="drag-handle"
+                          style="cursor:grab; user-select:none; font-size:1.1rem; margin-top:2px;">
+                        ☰
+                    </span>
+
+                    <div style="flex:1;">
+                        {# Phrase display #}
+                        <div>
+                            {% if c.surface_form %}
+                                <strong>{{ c.surface_form }}</strong>
+                            {% else %}
+                                {% if c.direction == 'L' %}
+                                    <strong>{{ c.other_form }} {{ word_name }}</strong>
+                                {% else %}
+                                    <strong>{{ word_name }} {{ c.other_form }}</strong>
+                                {% endif %}
+                            {% endif %}
+
+                            {% if c.other_lemma %}
+                                <span style="font-size:0.85rem; color:#666;">
+                                    (<a href="{{ url_for('show_word', word_name=c.other_lemma) }}"
+                                        target="_blank">{{ c.other_lemma }}</a>)
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <div style="font-size:0.8rem; color:#666; margin-top:2px;">
+                            freq={{ c.freq or "?" }},
+                            PMI={{ "%.2f"|format(c.pmi or 0) }}
+                            {% if c.example_count %}
+                                • examples: {{ c.example_count }}
+                            {% endif %}
+                        </div>
+
+                        <div style="font-size:0.8rem; margin-top:4px;">
+                            <a href="{{ url_for('admin_collocation', colloc_id=c.id) }}">
+                                Edit collocation &amp; examples
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="font-size:0.85rem; text-align:right; white-space:nowrap;">
+                    <label style="display:block; margin-bottom:2px;">
+                        <input type="checkbox"
+                               name="show_in_app_{{ c.id }}"
+                               {% if c.show_in_app %}checked{% endif %}>
+                        Show in app
+                    </label>
+                    <label style="display:block;">
+                        <input type="checkbox"
+                               name="show_examples_{{ c.id }}"
+                               {% if c.show_examples %}checked{% endif %}>
+                        Show example
+                    </label>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <input type="hidden" name="order" id="order-input">
+
+    <div style="margin-top:1em;">
+        <button type="submit">Save order & visibility</button>
+        <a href="{{ url_for('admin_collocation_list') }}"
+           class="admin-btn-small" style="margin-left:8px;">
+            All collocations
+        </a>
+        <a href="{{ url_for('admin_edit_word', word_id=word_id) }}" style="margin-left:8px;">
+            Edit word 
+        </a>
+        <a href="{{ url_for('show_word', word_name=word_name) }}"
+           class="admin-btn-small" style="margin-left:8px;" target="_blank">
+            View word page
+        </a>
+        <a href="{{ url_for('admin_dashboard') }}" 
+        class="admin-btn-small" style="margin-left:8px;">
+            Back to Dashboard
+        </a>
+    </div>
+
+
+</form>
+
+{# SortableJS for drag-and-drop #}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const list = document.getElementById('colloc-list');
+    const orderInput = document.getElementById('order-input');
+    const form = document.getElementById('colloc-form');
+
+    new Sortable(list, {
+        animation: 150,
+        handle: '.drag-handle'
+    });
+
+    form.addEventListener('submit', () => {
+        const ids = Array.from(
+            list.querySelectorAll('.sortable-item')
+        ).map(li => li.dataset.id);
+        orderInput.value = ids.join(',');
+    });
+});
+</script>
+
+{% endblock %}

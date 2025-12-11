@@ -54,6 +54,12 @@
         </button>
     </form>
 
+     <p>
+        <a href="{{ url_for('admin_word_collocations', word_name=word.word) }}">
+            Edit collocations 
+        </a>
+    </p>
+
     <p>
         <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">Back to Dashboard</a>
     </p>

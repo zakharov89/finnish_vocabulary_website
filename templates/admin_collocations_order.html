@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Order collocations for "{{ word_name }}"</h1>
+
+<p style="font-size:0.9rem; color:#555;">
+    Drag the rows to change their order. Collocations marked
+    <span style="background:#f3fff3; padding:1px 4px; border-radius:3px;">shown</span>
+    are currently visible in the app.
+</p>
+
+<ul id="colloc-list" style="list-style:none; padding:0; margin:0;">
+    {% for c in collocations %}
+        <li class="sortable-item"
+            data-id="{{ c.id }}"
+            style="border:1px solid #ddd; border-radius:4px; padding:6px 8px; margin-bottom:5px;
+                   display:flex; align-items:center; justify-content:space-between;
+                   {% if c.show_in_app %}background:#f3fff3;{% endif %}">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span class="drag-handle"
+                      style="cursor:grab; user-select:none; font-size:1.1rem;">☰</span>
+
+                <div>
+                    {% if c.surface_form %}
+                        <strong>{{ c.surface_form }}</strong>
+                    {% else %}
+                        {% if c.direction == 'L' %}
+                            <strong>{{ c.other_form }} {{ word_name }}</strong>
+                        {% else %}
+                            <strong>{{ word_name }} {{ c.other_form }}</strong>
+                        {% endif %}
+                    {% endif %}
+
+                    <div style="font-size:0.8rem; color:#666;">
+                        freq={{ c.freq or "?" }},
+                        PMI={{ "%.2f"|format(c.pmi or 0) }}
+                        {% if c.show_in_app %}
+                            • <span style="color:#2e7d32;">shown</span>
+                        {% else %}
+                            • <span style="color:#b00020;">hidden</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div style="font-size:0.8rem;">
+                <a href="{{ url_for('admin_collocation', colloc_id=c.id) }}">edit</a>
+            </div>
+        </li>
+    {% endfor %}
+</ul>
+
+<form method="POST" id="order-form" style="margin-top:1em;">
+    <input type="hidden" name="order" id="order-input">
+    <button type="submit">Save order</button>
+    <a href="{{ url_for('admin_collocation_list') }}"
+       class="admin-btn-small" style="margin-left:8px;">
+        Back to collocation list
+    </a>
+</form>
+
+{# SortableJS CDN #}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const list = document.getElementById('colloc-list');
+    const orderInput = document.getElementById('order-input');
+    const form = document.getElementById('order-form');
+
+    // Initialise SortableJS
+    new Sortable(list, {
+        animation: 150,
+        handle: '.drag-handle'
+    });
+
+    // On submit, collect the current order of IDs
+    form.addEventListener('submit', (e) => {
+        const ids = Array.from(
+            list.querySelectorAll('.sortable-item')
+        ).map(li => li.dataset.id);
+
+        orderInput.value = ids.join(',');
+    });
+});
+</script>
+
+{% endblock %}
