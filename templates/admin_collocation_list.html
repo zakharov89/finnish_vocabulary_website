@@ -1,37 +1,93 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h1>Collocations</h1>
+<h1>Collocations </h1>
 
-<table style="width:100%; border-collapse:collapse;">
+<p style="font-size:0.9rem; color:#555;">
+    Green rows are currently <strong>shown in the app</strong>.
+    You can toggle "Shown" and change the order for each collocation.
+</p>
+
+<table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
     <thead>
         <tr style="border-bottom:1px solid #ccc;">
-            <th style="text-align:left; padding:4px;">Main word</th>
-            <th style="text-align:left; padding:4px;">Other lemma</th>
-            <th style="text-align:left; padding:4px;">Surface form</th>
-            <th style="text-align:right; padding:4px;">Freq</th>
-            <th style="text-align:right; padding:4px;">PMI</th>
-            <th style="padding:4px;"></th>
+            <th style="text-align:left; padding:4px;">Word</th>
+            <th style="text-align:left; padding:4px;">Collocation</th>
+            <th style="text-align:left; padding:4px;">Order</th>
+            <th style="text-align:left; padding:4px;">Shown?</th>
+            <th style="text-align:left; padding:4px;">Freq / PMI</th>
+            <th style="text-align:left; padding:4px;">Edit</th>
         </tr>
     </thead>
     <tbody>
-        {% for c in collocs %}
-        <tr style="border-bottom:1px solid #eee;">
-            <td style="padding:4px;">{{ c.main_word }}</td>
-            <td style="padding:4px;">{{ c.other_lemma or c.other_form }}</td>
-            <td style="padding:4px;">{{ c.surface_form }}</td>
-            <td style="padding:4px; text-align:right;">{{ c.freq }}</td>
-            <td style="padding:4px; text-align:right;">
-                {{ "%.2f"|format(c.pmi or 0) }}
-            </td>
-            <td style="padding:4px; text-align:right;">
-                <a href="{{ url_for('admin_collocation', colloc_id=c.id) }}">
-                    Edit
-                </a>
-            </td>
-        </tr>
+        {% for c in collocations %}
+            <tr style="border-bottom:1px solid #eee;
+                       {% if c.show_in_app %}background:#f3fff3;{% endif %}">
+                <td style="padding:4px; vertical-align:top;">
+                    <a href="{{ url_for('show_word', word_name=c.main_word) }}"
+                       target="_blank">
+                        {{ c.main_word }}
+                    </a>
+                </td>
+
+                <td style="padding:4px; vertical-align:top;">
+                    {% if c.surface_form %}
+                        <strong>{{ c.surface_form }}</strong>
+                    {% else %}
+                        {% if c.direction == 'L' %}
+                            <strong>{{ c.other_form }} {{ c.main_word }}</strong>
+                        {% else %}
+                            <strong>{{ c.main_word }} {{ c.other_form }}</strong>
+                        {% endif %}
+                    {% endif %}
+                </td>
+
+                <td style="padding:4px; vertical-align:top;">
+                    <form method="POST" style="margin:0; display:inline-flex; gap:4px; align-items:center;">
+                        <input type="hidden" name="action" value="update_row">
+                        <input type="hidden" name="colloc_id" value="{{ c.id }}">
+                        <input type="number"
+                               name="sort_order"
+                               value="{{ c.sort_order if c.sort_order is not none else '' }}"
+                               style="width:60px;">
+                </td>
+
+                <td style="padding:4px; vertical-align:top;">
+                        <label style="font-size:0.85rem;">
+                            <input type="checkbox" name="show_in_app"
+                                   {% if c.show_in_app %}checked{% endif %}>
+                            Shown
+                        </label>
+                </td>
+
+                <td style="padding:4px; vertical-align:top;">
+                        {% if c.freq %}
+                            {{ c.freq }} ×<br>
+                        {% endif %}
+                        {% if c.pmi is not none %}
+                            PMI={{ "%.2f"|format(c.pmi) }}
+                        {% endif %}
+                </td>
+
+                <td style="padding:4px; vertical-align:top;">
+                        <a href="{{ url_for('admin_collocation', colloc_id=c.id) }}">
+                            Details
+                        </a>
+                        <br>
+                        <button type="submit" style="margin-top:4px; font-size:0.8rem;">
+                            Save row
+                        </button>
+                    </form>
+                </td>
+            </tr>
         {% endfor %}
     </tbody>
 </table>
+
+<p style="margin-top:1.5em;">
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-btn-small">
+        Back to Dashboard
+    </a>
+</p>
 
 {% endblock %}

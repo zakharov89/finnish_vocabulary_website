@@ -482,7 +482,11 @@ def show_word(word_name):
               AND ce.hidden = 0
         WHERE wc.word_id = ?
           AND wc.show_in_app = 1
-        ORDER BY wc.freq DESC, wc.pmi DESC
+        ORDER BY
+            wc.sort_order IS NULL,   -- put nulls last
+            wc.sort_order ASC,
+            wc.freq DESC,
+            wc.pmi DESC
         LIMIT 50
     """, (word_id,))
     colloc_rows = cur.fetchall()
@@ -2970,33 +2974,84 @@ def admin_collocation(colloc_id):
     )
 
 
-
-@app.route("/admin/collocations")
+@app.route("/admin/collocations", methods=["GET", "POST"])
 @admin_required
 def admin_collocation_list():
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
+    # --- Handle a per-row update (sort_order + show_in_app) ---
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "update_row":
+            colloc_id = request.form.get("colloc_id", type=int)
+
+            sort_order_raw = (request.form.get("sort_order") or "").strip()
+            if sort_order_raw:
+                try:
+                    sort_order = int(sort_order_raw)
+                except ValueError:
+                    sort_order = None
+            else:
+                sort_order = None
+
+            show_in_app = 1 if request.form.get("show_in_app") else 0
+
+            cur.execute("""
+                UPDATE word_collocations
+                SET sort_order = ?, show_in_app = ?
+                WHERE id = ?
+            """, (sort_order, show_in_app, colloc_id))
+            conn.commit()
+
+            return redirect(url_for("admin_collocation_list"))
+
+    # --- Load collocations for display ---
     cur.execute("""
         SELECT
-            wc.id,
-            w1.word AS main_word,
-            w2.word AS other_lemma,
-            wc.other_form,
-            wc.surface_form,
-            wc.freq,
-            wc.pmi
+            wc.id            AS colloc_id,
+            w.word           AS main_word,
+            wc.other_form    AS other_form,
+            wc.surface_form  AS surface_form,
+            wc.direction     AS direction,
+            wc.freq          AS freq,
+            wc.pmi           AS pmi,
+            wc.show_in_app   AS show_in_app,
+            wc.sort_order    AS sort_order
         FROM word_collocations wc
-        JOIN words w1 ON wc.word_id = w1.id
-        LEFT JOIN words w2 ON wc.other_word_id = w2.id
-        ORDER BY w1.word, wc.freq DESC
-        LIMIT 500
+        JOIN words w ON wc.word_id = w.id
+        ORDER BY
+            w.word ASC,
+            wc.show_in_app DESC,
+            wc.sort_order IS NULL,
+            wc.sort_order ASC,
+            wc.freq DESC,
+            wc.pmi DESC
+        LIMIT 1000
     """)
     rows = cur.fetchall()
-
     conn.close()
-    return render_template("admin_collocation_list.html", collocs=rows)
+
+    collocations = []
+    for r in rows:
+        # if fix_punctuation is in the same file, just call it directly
+        surface_clean = fix_punctuation(r["surface_form"])
+
+        collocations.append({
+            "id": r["colloc_id"],
+            "main_word": r["main_word"],
+            "other_form": r["other_form"],
+            "surface_form": surface_clean,
+            "direction": r["direction"],
+            "freq": r["freq"],
+            "pmi": r["pmi"],
+            "show_in_app": r["show_in_app"],
+            "sort_order": r["sort_order"],
+        })
+
+    return render_template("admin_collocation_list.html", collocations=collocations)
+
 
 
 

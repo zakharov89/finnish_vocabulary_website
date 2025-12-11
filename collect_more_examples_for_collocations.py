@@ -8,7 +8,7 @@ SURFACE_CORPUS_PATH = r"C:/Projects/Collocations/subtitles_surface.txt"
 DB_PATH = "finnish.db"
 
 # Limit how many examples we keep per collocation
-MAX_EXAMPLES_PER_COLLOC = 10
+MAX_EXAMPLES_PER_COLLOC = 20
 
 
 def load_collocations(cur):
