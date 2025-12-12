@@ -56,6 +56,72 @@ POS_CODE_TO_UPOS = {
 
 UPOS_TO_POS_CODE = {upos: code for code, upos in POS_CODE_TO_UPOS.items()}
 
+# ============================
+# FUNCTION WORD FILTERING
+# ============================
+
+# UPOS tags we want to treat as "function words" and usually drop
+FUNCTION_UPOS = {"PRON", "DET", "AUX", "CCONJ", "SCONJ"}
+
+# Lemmas we *always* consider function-like junk for collocation purposes
+FUNCTION_LEMMA_STOPLIST = {
+    # NEGATION
+    "ei",
+
+    # PRONOUNS (personal, demonstrative, indefinite)
+    "minä", "sinä", "hän", "me", "te", "he",
+    "minun", "sinun", "hänen", "meidän", "teidän", "heidän",
+    "tämä", "tuo", "se", "nämä", "nuo",
+    "jokin", "joku", "joka", "jotka", "kukaan", "mikään", "moni",
+    "itse",
+
+    # INTERROGATIVES (produce question templates)
+    "mitä", "mikä", "miksi", "missä", "milloin", "miten", "kuka",
+
+    # COMMON CONJUNCTIONS / SUBORDINATORS
+    "ja", "mutta", "tai", "sekä",
+    "että", "jotta",
+    "kun", "jos",
+    "koska", "sillä",
+    "vaikka", "vaan", "vai",
+
+    # AUXILIARIES & SEMI-AUX (often create grammar patterns, not lexical collocations)
+    "voida", "pitää", "täytyä", "saada", "pystyä", "aikoa",
+
+    # COMMON NON-LEXICAL ADVERBS (not useful with verbs OR adjectives)
+    "nyt",       # now
+    "sitten",    # then
+    "niin",      # so/thus
+    "vain",      # only/just
+    "juuri",     # just/exactly
+    "edes",      # even (neg contexts)
+    "ikinä",     # ever
+    "koskaan",   # never
+    "ehkä",      # maybe
+
+    # ADPOSITIONS
+    "kanssa", "ilman", "kautta",
+}
+
+
+
+def is_function_word(lemma, lemma_pos):
+    """
+    Return True if lemma is a function word we don't want as a collocate:
+    pronouns, determiners, auxiliaries, conjunctions, etc.
+    """
+    if lemma in FUNCTION_LEMMA_STOPLIST:
+        return True
+
+    if lemma_pos is None:
+        return False
+
+    upos = lemma_pos.get(lemma)
+    if upos is None:
+        return False
+
+    return upos in FUNCTION_UPOS
+
 
 # ============================
 # CACHE HELPERS
@@ -349,6 +415,11 @@ def top_global_collocations(
             if pos1 == "PROPN" and pos2 == "PROPN":
                 continue
 
+        # Skip bigrams where either side is a function word (PRON, AUX, etc.)
+        if lemma_pos is not None:
+            if is_function_word(l1, lemma_pos) or is_function_word(l2, lemma_pos):
+                continue
+
         # POS pattern filter (e.g. ADJ+NOUN)
         if pos_pattern is not None and lemma_pos is not None:
             wanted1, wanted2 = pos_pattern
@@ -425,6 +496,10 @@ def collocates_for_lemma(
         # ---------------------------
 
         if lemma_unigrams.get(other, 0) < min_unigram_freq:
+            continue
+
+        # Skip collocates that are function words (PRON, DET, AUX, CCONJ, SCONJ, etc.)
+        if lemma_pos is not None and is_function_word(other, lemma_pos):
             continue
 
         # POS filter on OTHER lemma
@@ -543,7 +618,6 @@ def export_collocations_to_tsv(
             ])
 
     print(f"Exported {len(results)} collocations for '{target}' to: {out_path}")
-
 
 
 # ============================

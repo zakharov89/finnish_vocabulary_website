@@ -2,7 +2,7 @@
 {% block content %}
 
 <h1>Collocations for "{{ word_name }}"</h1>
-
+<form method="POST" id="colloc-form">
    <div style="margin-top:1em;">
         <button type="submit">Save order & visibility</button>
         <a href="{{ url_for('admin_collocation_list') }}"
@@ -22,12 +22,11 @@
         </a>
     </div>
 
-<p style="font-size:0.9rem; color:#555; margin-bottom:0.8em;">
-    Drag the rows to change their order. Use the checkboxes to choose which
-    collocations and examples appear on the word page.
-</p>
+    <p style="font-size:0.9rem; color:#555; margin-bottom:0.8em;">
+        Drag the rows to change their order. Use the checkboxes to choose which
+        collocations and examples appear on the word page.
+    </p>
 
-<form method="POST" id="colloc-form">
     <ul id="colloc-list"
         style="list-style:none; padding:0; margin:0;">
         {% for c in collocations %}

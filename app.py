@@ -2973,47 +2973,86 @@ def admin_collocation(colloc_id):
         examples=examples,
     )
 
-@app.route("/admin/collocations")
+
+@app.route("/admin/collocations", methods=["GET", "POST"])
 @admin_required
 def admin_collocation_list():
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
+    # --- Handle a per-row update (sort_order + show_in_app) ---
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "update_row":
+            colloc_id = request.form.get("colloc_id", type=int)
+
+            sort_order_raw = (request.form.get("sort_order") or "").strip()
+            if sort_order_raw:
+                try:
+                    sort_order = int(sort_order_raw)
+                except ValueError:
+                    sort_order = None
+            else:
+                sort_order = None
+
+            show_in_app = 1 if request.form.get("show_in_app") else 0
+
+            cur.execute("""
+                UPDATE word_collocations
+                SET sort_order = ?, show_in_app = ?
+                WHERE id = ?
+            """, (sort_order, show_in_app, colloc_id))
+            conn.commit()
+
+            return redirect(url_for("admin_collocation_list"))
+
+    # --- Load collocations for display ---
     cur.execute("""
         SELECT
-            wc.id          AS colloc_id,
-            w1.word        AS main_word,
-            w2.word        AS other_lemma,
-            wc.other_form  AS other_form,
-            wc.surface_form AS surface_form,
-            wc.direction   AS direction,
-            wc.freq        AS freq,
-            wc.pmi         AS pmi,
-            wc.show_in_app AS show_in_app,
-            wc.show_examples AS show_examples,
-            wc.source      AS source
+            wc.id            AS colloc_id,
+            w.word           AS main_word,
+            wc.other_form    AS other_form,
+            wc.surface_form  AS surface_form,
+            wc.direction     AS direction,
+            wc.freq          AS freq,
+            wc.pmi           AS pmi,
+            wc.show_in_app   AS show_in_app,
+            wc.sort_order    AS sort_order
         FROM word_collocations wc
-        JOIN words w1 ON wc.word_id = w1.id
-        LEFT JOIN words w2 ON wc.other_word_id = w2.id
+        JOIN words w ON wc.word_id = w.id
         ORDER BY
+            w.word ASC,
             wc.show_in_app DESC,
+            wc.sort_order IS NULL,
+            wc.sort_order ASC,
             wc.freq DESC,
-            wc.pmi DESC,
-            wc.id ASC
-        LIMIT 500
+            wc.pmi DESC
+        LIMIT 1000
     """)
     rows = cur.fetchall()
     conn.close()
 
-    return render_template(
-        "admin_collocation_list.html",
-        collocations=rows,
-    )
+    collocations = []
+    for r in rows:
+        # if fix_punctuation is in the same file, just call it directly
+        surface_clean = fix_punctuation(r["surface_form"])
 
+        collocations.append({
+            "id": r["colloc_id"],
+            "main_word": r["main_word"],
+            "other_form": r["other_form"],
+            "surface_form": surface_clean,
+            "direction": r["direction"],
+            "freq": r["freq"],
+            "pmi": r["pmi"],
+            "show_in_app": r["show_in_app"],
+            "sort_order": r["sort_order"],
+        })
 
+    return render_template("admin_collocation_list.html", collocations=collocations)
 
-
+from flask import request, redirect, url_for, abort
 
 @app.route("/admin/word/<word_name>/collocations", methods=["GET", "POST"])
 @admin_required
@@ -3022,93 +3061,88 @@ def admin_word_collocations(word_name):
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # --- get the word row ---
-    cur.execute("""
-        SELECT id, word
-        FROM words
-        WHERE word = ?
-    """, (word_name,))
+    # --- Find the word ---
+    cur.execute("SELECT id, word FROM words WHERE word = ?", (word_name,))
     row_word = cur.fetchone()
     if not row_word:
         conn.close()
-        return f"Word {word_name!r} not found.", 404
+        abort(404)
 
     word_id = row_word["id"]
     word_name = row_word["word"]
 
-    # ---------- handle POST (sorting / flags) ----------
+    # --- Handle POST: save order + visibility flags ---
     if request.method == "POST":
-        action = request.form.get("action", "").strip()
+        order_str = (request.form.get("order") or "").strip()
 
-        # 1) update sort order (drag & save)
-        if action == "save_order":
-            # Expect fields: sort_colloc_id[], sort_order[]
-            ids = request.form.getlist("sort_colloc_id[]")
-            orders = request.form.getlist("sort_order[]")
+        colloc_ids_in_order = []
+        if order_str:
+            colloc_ids_in_order = [
+                int(x) for x in order_str.split(",") if x.strip().isdigit()
+            ]
 
-            for cid, ord_val in zip(ids, orders):
-                try:
-                    cid_int = int(cid)
-                    if ord_val.strip():
-                        sort_val = int(ord_val)
-                    else:
-                        sort_val = None
-                except ValueError:
-                    continue
-
+        # If order is provided, update sort_order according to current list position
+        if colloc_ids_in_order:
+            position = 1
+            for colloc_id in colloc_ids_in_order:
                 cur.execute("""
                     UPDATE word_collocations
                     SET sort_order = ?
                     WHERE id = ? AND word_id = ?
-                """, (sort_val, cid_int, word_id))
+                """, (position, colloc_id, word_id))
+                position += 1
 
-            conn.commit()
+        # Now update show_in_app and show_examples flags for all collocations of this word
+        # We’ll base the set of IDs on either the order list or a DB query.
+        if colloc_ids_in_order:
+            ids_for_flags = colloc_ids_in_order
+        else:
+            cur.execute("""
+                SELECT id
+                FROM word_collocations
+                WHERE word_id = ?
+            """, (word_id,))
+            ids_for_flags = [row["id"] for row in cur.fetchall()]
 
-        # 2) toggle flags for a single collocation
-        elif action == "update_flags":
-            colloc_id = request.form.get("colloc_id")
-            show_in_app = 1 if request.form.get("show_in_app") == "on" else 0
-            show_examples = 1 if request.form.get("show_examples") == "on" else 0
+        for colloc_id in ids_for_flags:
+            show_in_app = 1 if request.form.get(f"show_in_app_{colloc_id}") else 0
+            show_examples = 1 if request.form.get(f"show_examples_{colloc_id}") else 0
 
-            try:
-                colloc_id_int = int(colloc_id)
-            except (TypeError, ValueError):
-                colloc_id_int = None
+            cur.execute("""
+                UPDATE word_collocations
+                SET show_in_app = ?, show_examples = ?
+                WHERE id = ? AND word_id = ?
+            """, (show_in_app, show_examples, colloc_id, word_id))
 
-            if colloc_id_int:
-                cur.execute("""
-                    UPDATE word_collocations
-                    SET show_in_app = ?,
-                        show_examples = ?
-                    WHERE id = ? AND word_id = ?
-                """, (show_in_app, show_examples, colloc_id_int, word_id))
-                conn.commit()
-
-        # you can add more actions later if needed
-
-        # refresh after POST
+        conn.commit()
+        conn.close()
         return redirect(url_for("admin_word_collocations", word_name=word_name))
 
-    # ---------- GET: fetch collocations for this word ----------
+    # --- GET: load collocations for this word ---
     cur.execute("""
         SELECT
-            wc.id              AS colloc_id,
-            wc.other_form      AS other_form,
-            wc.surface_form    AS surface_form,
-            wc.direction       AS direction,
-            wc.freq            AS freq,
-            wc.pmi             AS pmi,
-            wc.show_in_app     AS show_in_app,
-            wc.show_examples   AS show_examples,
-            wc.sort_order      AS sort_order,
-            w2.word            AS other_lemma
+            wc.id            AS colloc_id,
+            wc.other_form    AS other_form,
+            wc.surface_form  AS surface_form,
+            wc.direction     AS direction,
+            wc.freq          AS freq,
+            wc.pmi           AS pmi,
+            wc.show_in_app   AS show_in_app,
+            wc.show_examples AS show_examples,
+            wc.sort_order    AS sort_order,
+            w2.word          AS other_lemma,
+            (
+                SELECT COUNT(*)
+                FROM corpus_examples ce
+                WHERE ce.collocation_id = wc.id
+                  AND ce.hidden = 0
+            ) AS example_count
         FROM word_collocations wc
-        LEFT JOIN words w2
-               ON wc.other_word_id = w2.id
+        LEFT JOIN words w2 ON wc.other_word_id = w2.id
         WHERE wc.word_id = ?
         ORDER BY
-            wc.show_in_app DESC,          -- shown first
-            wc.sort_order IS NULL,        -- non-NULL before NULL
+            wc.show_in_app DESC,
+            wc.sort_order IS NULL,
             wc.sort_order ASC,
             wc.freq DESC,
             wc.pmi DESC,
@@ -3119,10 +3153,12 @@ def admin_word_collocations(word_name):
 
     collocations = []
     for r in rows:
+        surface_clean = fix_punctuation(r["surface_form"])
+
         collocations.append({
             "id": r["colloc_id"],
             "other_form": r["other_form"],
-            "surface_form": r["surface_form"],
+            "surface_form": surface_clean,
             "direction": r["direction"],
             "freq": r["freq"],
             "pmi": r["pmi"],
@@ -3130,6 +3166,7 @@ def admin_word_collocations(word_name):
             "show_examples": r["show_examples"],
             "sort_order": r["sort_order"],
             "other_lemma": r["other_lemma"],
+            "example_count": r["example_count"],
         })
 
     return render_template(
@@ -3138,6 +3175,7 @@ def admin_word_collocations(word_name):
         word_id=word_id,
         collocations=collocations,
     )
+
 
 
 
