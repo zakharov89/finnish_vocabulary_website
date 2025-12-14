@@ -251,72 +251,64 @@
             {% for c in collocations %}
                 <div style="margin-bottom:0.8em; padding:6px 8px; border-left:3px solid #ddd;">
 
-                    {# --- Main collocation phrase --- #}
-                    <div>
-                        {# Only link if the other word exists in DB #}
-                        {% set can_link = (c.other_word_id is not none and c.other_word_id != 0) %}
+                  {# --- Main collocation phrase --- #}
+                <div>
+                    {# Only link if the other word exists in DB (robust even if key missing) #}
+                    {% set can_link = (c.other_word_id|default(0)|int > 0) %}
 
-                        {# Link target = lemma if you have it, otherwise other_form #}
-                        {% set link_target = c.other_lemma if c.other_lemma else c.other_form %}
+                    {# Link target = lemma if you have it, otherwise other_form #}
+                    {% set link_target = c.other_lemma if c.other_lemma else c.other_form %}
 
-                        {% if c.surface_form %}
-                            {% set toks = c.surface_form.split() %}
+                    {% if c.surface_form %}
+                        {% set toks = c.surface_form.split() %}
 
-                            {% if toks|length <= 1 %}
-                                <strong>{{ c.surface_form }}</strong>
-                            {% else %}
-                                {% if c.direction == 'L' %}
-                                    {# other word is the LEFT token #}
-                                    <strong>
-                                        {% if can_link and link_target %}
-                                            <a class="colloc-link" href="{{ url_for('show_word', word_name=link_target) }}">
-                                                {{ toks[0] }}
-                                            </a>
-                                        {% else %}
-                                            {{ toks[0] }}
-                                        {% endif %}
-                                        {{ ' ' ~ toks[1:]|join(' ') }}
-                                    </strong>
-                                {% else %}
-                                    {# other word is the RIGHT token #}
-                                    <strong>
-                                        {{ toks[:-1]|join(' ') ~ ' ' }}
-                                        {% if can_link and link_target %}
-                                            <a class="colloc-link" href="{{ url_for('show_word', word_name=link_target) }}">
-                                                {{ toks[-1] }}
-                                            </a>
-                                        {% else %}
-                                            {{ toks[-1] }}
-                                        {% endif %}
-                                    </strong>
-                                {% endif %}
-                            {% endif %}
-
+                        {% if toks|length <= 1 %}
+                            <strong>{{ c.surface_form }}</strong>
                         {% else %}
-                            {# Fallback if surface_form is missing #}
-                            <strong>
-                                {% if c.direction == 'L' %}
-                                    {% if can_link and link_target %}
-                                        <a class="colloc-link" href="{{ url_for('show_word', word_name=link_target) }}">
-                                            {{ c.other_form }}
-                                        </a>
-                                    {% else %}
-                                        {{ c.other_form }}
-                                    {% endif %}
-                                    {{ ' ' ~ word_name }}
-                                {% else %}
-                                    {{ word_name ~ ' ' }}
-                                    {% if can_link and link_target %}
-                                        <a class="colloc-link" href="{{ url_for('show_word', word_name=link_target) }}">
-                                            {{ c.other_form }}
-                                        </a>
-                                    {% else %}
-                                        {{ c.other_form }}
-                                    {% endif %}
-                                {% endif %}
-                            </strong>
+                            {% if c.direction == 'L' %}
+                                {# other word is the LEFT token #}
+                                <strong>
+                                    {% if can_link and link_target -%}
+                                        <a class="colloc-link" href="{{ url_for('show_word', word_name=link_target) }}">{{ toks[0] }}</a>
+                                    {%- else -%}
+                                        {{ toks[0] }}
+                                    {%- endif -%}
+                                    {{ ' ' ~ toks[1:]|join(' ') }}
+                                </strong>
+                            {% else %}
+                                {# other word is the RIGHT token #}
+                                <strong>
+                                    {{ toks[:-1]|join(' ') ~ ' ' -}}
+                                    {% if can_link and link_target -%}
+                                        <a class="colloc-link" href="{{ url_for('show_word', word_name=link_target) }}">{{ toks[-1] }}</a>
+                                    {%- else -%}
+                                        {{ toks[-1] }}
+                                    {%- endif %}
+                                </strong>
+                            {% endif %}
                         {% endif %}
-                    </div>
+
+                    {% else %}
+                        {# Fallback if surface_form is missing #}
+                        <strong>
+                            {% if c.direction == 'L' %}
+                                {% if can_link and link_target -%}
+                                    <a class="colloc-link" href="{{ url_for('show_word', word_name=link_target) }}">{{ c.other_form }}</a>
+                                {%- else -%}
+                                    {{ c.other_form }}
+                                {%- endif -%}
+                                {{ ' ' ~ word_name }}
+                            {% else %}
+                                {{ word_name ~ ' ' -}}
+                                {% if can_link and link_target -%}
+                                    <a class="colloc-link" href="{{ url_for('show_word', word_name=link_target) }}">{{ c.other_form }}</a>
+                                {%- else -%}
+                                    {{ c.other_form }}
+                                {%- endif %}
+                            {% endif %}
+                        </strong>
+                    {% endif %}
+                </div>
 
                     {# --- Collocation translation --- #}
                     {% if c.translation %}
