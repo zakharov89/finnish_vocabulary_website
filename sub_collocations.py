@@ -9,34 +9,42 @@ import csv
 # CONFIG
 # ============================
 
-# Lemma + surface corpora from your VRT preprocessing step
 LEMMA_CORPUS_PATH   = r"C:/Projects/Collocations/subtitles_lemmas_clean.txt"
 SURFACE_CORPUS_PATH = r"C:/Projects/Collocations/subtitles_surface.txt"
-
-# Root of the original VRT files (for POS map)
 VRT_ROOT = r"C:/Projects/Collocations/opensub-fi-2017-src"
 
-# Cache file names (subtitle-specific)
-CACHE_LEMMA_UNIGRAMS = "sub_cache_lemma_unigrams.pkl"        # Counter[lemma] -> freq
-CACHE_LEMMA_BIGRAMS  = "sub_cache_lemma_bigrams.pkl"         # Counter[(l1, l2)] -> freq
-CACHE_BIGRAM_SURF    = "sub_cache_bigram_surface_sent.pkl"   # (l1,l2)->(s1,s2,sentence)
-CACHE_LEMMA_POS      = "sub_cache_lemma_pos.pkl"             # dict[lemma] -> UPOS
+CACHE_LEMMA_UNIGRAMS = "sub_cache_lemma_unigrams.pkl"
+CACHE_LEMMA_BIGRAMS  = "sub_cache_lemma_bigrams.pkl"
 
-# Default thresholds for collocations (interactive use)
+# NEW VERSIONED CACHE NAME (prevents loading old tuple-format caches)
+CACHE_BIGRAM_SURF    = "sub_cache_bigram_surface_v2.pkl"
+
+CACHE_LEMMA_POS      = "sub_cache_lemma_pos.pkl"
+
 DEFAULT_MIN_BIGRAM_FREQ   = 20
 DEFAULT_MIN_UNIGRAM_FREQ  = 200
 DEFAULT_TOP_N             = 30
 
-# Export thresholds for TSV (so we almost always get something, but avoid pure noise)
-EXPORT_TOP_N              = 50
-EXPORT_MIN_BIGRAM_FREQ    = 2
-EXPORT_MIN_UNIGRAM_FREQ   = 20
+EXPORT_TOP_N                = 50
+EXPORT_MIN_BIGRAM_FREQ      = 2
+EXPORT_MIN_UNIGRAM_FREQ     = 20
 EXPORT_REQUIRE_POSITIVE_PMI = True
 
-# Folder for TSV exports
 TSV_OUTPUT_DIR = "collocations_tsv"
 
-# POS code mapping (one-letter -> UPOS)
+# Max length in characters for exported surface_form
+MAX_SURFACE_FORM_LEN = 80
+
+# Keep only top-N surface variants per lemma bigram to keep cache small
+MAX_SURFACE_VARIANTS_PER_BIGRAM = 8
+
+# Lowercase surface forms on export?
+LOWERCASE_SURFACE_ON_EXPORT = True
+
+# ============================
+# POS code mapping
+# ============================
+
 POS_CODE_TO_UPOS = {
     "N": "NOUN",
     "P": "PROPN",
@@ -44,7 +52,7 @@ POS_CODE_TO_UPOS = {
     "A": "ADJ",
     "D": "ADV",
     "O": "PRON",
-    "R": "ADP",     # adposition (pre/post)
+    "R": "ADP",
     "T": "DET",
     "M": "NUM",
     "U": "AUX",
@@ -60,68 +68,42 @@ UPOS_TO_POS_CODE = {upos: code for code, upos in POS_CODE_TO_UPOS.items()}
 # FUNCTION WORD FILTERING
 # ============================
 
-# UPOS tags we want to treat as "function words" and usually drop
 FUNCTION_UPOS = {"PRON", "DET", "AUX", "CCONJ", "SCONJ"}
 
-# Lemmas we *always* consider function-like junk for collocation purposes
 FUNCTION_LEMMA_STOPLIST = {
-    # NEGATION
     "ei",
 
-    # PRONOUNS (personal, demonstrative, indefinite)
     "minä", "sinä", "hän", "me", "te", "he",
     "minun", "sinun", "hänen", "meidän", "teidän", "heidän",
     "tämä", "tuo", "se", "nämä", "nuo",
     "jokin", "joku", "joka", "jotka", "kukaan", "mikään", "moni",
     "itse",
 
-    # INTERROGATIVES (produce question templates)
     "mitä", "mikä", "miksi", "missä", "milloin", "miten", "kuka",
 
-    # COMMON CONJUNCTIONS / SUBORDINATORS
     "ja", "mutta", "tai", "sekä",
     "että", "jotta",
     "kun", "jos",
     "koska", "sillä",
     "vaikka", "vaan", "vai",
 
-    # AUXILIARIES & SEMI-AUX (often create grammar patterns, not lexical collocations)
     "voida", "pitää", "täytyä", "saada", "pystyä", "aikoa",
 
-    # COMMON NON-LEXICAL ADVERBS (not useful with verbs OR adjectives)
-    "nyt",       # now
-    "sitten",    # then
-    "niin",      # so/thus
-    "vain",      # only/just
-    "juuri",     # just/exactly
-    "edes",      # even (neg contexts)
-    "ikinä",     # ever
-    "koskaan",   # never
-    "ehkä",      # maybe
+    "nyt", "sitten", "niin", "vain", "juuri",
+    "edes", "ikinä", "koskaan", "ehkä",
 
-    # ADPOSITIONS
     "kanssa", "ilman", "kautta",
 }
 
-
-
 def is_function_word(lemma, lemma_pos):
-    """
-    Return True if lemma is a function word we don't want as a collocate:
-    pronouns, determiners, auxiliaries, conjunctions, etc.
-    """
     if lemma in FUNCTION_LEMMA_STOPLIST:
         return True
-
     if lemma_pos is None:
         return False
-
     upos = lemma_pos.get(lemma)
     if upos is None:
         return False
-
     return upos in FUNCTION_UPOS
-
 
 # ============================
 # CACHE HELPERS
@@ -129,31 +111,51 @@ def is_function_word(lemma, lemma_pos):
 
 def save_cache(obj, path):
     with open(path, "wb") as f:
-        pickle.dump(obj, f)
-
+        pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 def load_cache(path):
     with open(path, "rb") as f:
         return pickle.load(f)
 
-
 # ============================
 # COUNTING: UNIGRAMS + BIGRAMS
 # ============================
 
+def _trim_top_surface_variants(entry, max_keep):
+    """
+    entry["surf_counts"] is a dict {(s1,s2): count}
+    Keep only top max_keep by count. Also drop examples for removed keys.
+    """
+    surf_counts = entry["surf_counts"]
+    if len(surf_counts) <= max_keep:
+        return
+
+    items = sorted(surf_counts.items(), key=lambda x: -x[1])
+    keep_keys = set(k for k, _ in items[:max_keep])
+
+    # drop old keys
+    for k in list(surf_counts.keys()):
+        if k not in keep_keys:
+            del surf_counts[k]
+
+    ex_map = entry["example_for_surface"]
+    for k in list(ex_map.keys()):
+        if k not in keep_keys:
+            del ex_map[k]
+
 def build_counts(lemma_path, surface_path):
     """
     Build:
-      - lemma_unigrams: Counter[lemma] -> freq      (punctuation excluded)
-      - lemma_bigrams: Counter[(l1, l2)] -> freq   (punctuation excluded)
-      - bigram_surface: dict[(l1, l2)] -> (s1, s2, sentence)
+      - lemma_unigrams: Counter[lemma] -> freq
+      - lemma_bigrams: Counter[(l1, l2)] -> freq
+      - bigram_surface: dict[(l1, l2)] -> {
+            "surf_counts": dict[(s1,s2)] -> count,
+            "example_for_surface": dict[(s1,s2)] -> example_sentence (one sentence that contains that exact surface)
+        }
 
-    Assumes lemma and surface corpora are line-aligned and token-aligned,
-    including punctuation. We use punctuation in the surface sentence,
-    but we ignore punctuation-like lemmas for stats.
+    IMPORTANT: we keep only top-N surface variants per lemma bigram to keep cache small.
     """
     def is_content_lemma(tok: str) -> bool:
-        # treat tokens with at least one alphanumeric as "real words"
         return any(ch.isalnum() for ch in tok)
 
     lemma_unigrams = Counter()
@@ -172,59 +174,75 @@ def build_counts(lemma_path, surface_path):
 
             lem_tokens = lem_line.strip().split()
             surf_tokens = surf_line.strip().split()
-
             if not lem_tokens:
                 continue
 
-            # If lengths differ for some reason, truncate safely
             if len(lem_tokens) != len(surf_tokens):
                 length = min(len(lem_tokens), len(surf_tokens))
                 lem_tokens = lem_tokens[:length]
                 surf_tokens = surf_tokens[:length]
 
-            # Full surface sentence for examples (includes punctuation)
             surface_sentence = " ".join(surf_tokens)
+            surface_sentence_low = surface_sentence.lower()
 
-            # ---- UNIGRAMS (skip punctuation-like tokens) ----
+            # unigrams
             for lem in lem_tokens:
                 if not is_content_lemma(lem):
                     continue
                 lemma_unigrams[lem] += 1
 
-            # ---- BIGRAMS (skip any bigram where either side looks like punctuation) ----
+            # bigrams + surface variants
             for i in range(len(lem_tokens) - 1):
                 l1 = lem_tokens[i]
                 l2 = lem_tokens[i + 1]
-
                 if not (is_content_lemma(l1) and is_content_lemma(l2)):
                     continue
 
                 bigram = (l1, l2)
                 lemma_bigrams[bigram] += 1
 
-                if bigram not in bigram_surface:
-                    s1 = surf_tokens[i] if i < len(surf_tokens) else ""
-                    s2 = surf_tokens[i + 1] if (i + 1) < len(surf_tokens) else ""
-                    bigram_surface[bigram] = (s1, s2, surface_sentence)
+                s1 = surf_tokens[i] if i < len(surf_tokens) else ""
+                s2 = surf_tokens[i + 1] if (i + 1) < len(surf_tokens) else ""
+                surf_key = (s1, s2)
+
+                entry = bigram_surface.get(bigram)
+                if entry is None:
+                    entry = {"surf_counts": {}, "example_for_surface": {}}
+                    bigram_surface[bigram] = entry
+
+                # update count
+                d = entry["surf_counts"]
+                d[surf_key] = d.get(surf_key, 0) + 1
+
+                # store an example ONLY if the sentence actually contains this exact surface bigram
+                # (prevents mismatches)
+                if surf_key not in entry["example_for_surface"]:
+                    bigram_str = f"{s1} {s2}".strip().lower()
+                    if bigram_str and bigram_str in surface_sentence_low:
+                        entry["example_for_surface"][surf_key] = surface_sentence
+
+                # trim occasionally (cheap guard against explosion)
+                if len(entry["surf_counts"]) > MAX_SURFACE_VARIANTS_PER_BIGRAM * 2:
+                    _trim_top_surface_variants(entry, MAX_SURFACE_VARIANTS_PER_BIGRAM)
+
+    # final trim pass
+    for entry in bigram_surface.values():
+        _trim_top_surface_variants(entry, MAX_SURFACE_VARIANTS_PER_BIGRAM)
 
     print("[build_counts] Done.")
     print("  Total lines:   ", total_lines)
     print("  Total tokens:  ", sum(lemma_unigrams.values()))
     print("  Unique lemmas: ", len(lemma_unigrams))
     print("  Unique bigrams:", len(lemma_bigrams))
+    print("  Surface cache bigrams:", len(bigram_surface))
 
     return lemma_unigrams, lemma_bigrams, bigram_surface
-
 
 # ============================
 # POS FROM VRT
 # ============================
 
 def build_lemma_pos_from_vrt(vrt_root):
-    """
-    Build lemma -> UPOS map from the VRT files.
-    We take the first observed UPOS for each lemma.
-    """
     lemma_pos = {}
     file_count = 0
     line_count = 0
@@ -271,7 +289,6 @@ def build_lemma_pos_from_vrt(vrt_root):
 
     return lemma_pos
 
-
 # ============================
 # PMI
 # ============================
@@ -280,7 +297,6 @@ def compute_totals(lemma_unigrams, lemma_bigrams):
     total_tokens = sum(lemma_unigrams.values())
     total_bigrams = sum(lemma_bigrams.values())
     return total_tokens, total_bigrams
-
 
 def pmi(l1, l2, freq12, lemma_unigrams, total_tokens, total_bigrams):
     f1 = lemma_unigrams.get(l1, 0)
@@ -297,7 +313,6 @@ def pmi(l1, l2, freq12, lemma_unigrams, total_tokens, total_bigrams):
 
     return math.log(p12 / (p1 * p2))
 
-
 # ============================
 # POS HELPERS
 # ============================
@@ -310,12 +325,7 @@ def print_pos_help():
     print("  I = INTJ      X = X")
     print("You can use these one-letter codes, or full UPOS names (e.g. ADJ, NOUN).\n")
 
-
 def parse_pos_code_or_upos(s):
-    """
-    Convert a one-letter POS code or a full UPOS tag to a UPOS tag.
-    Returns None if not recognized.
-    """
     s = s.strip().upper()
     if not s:
         return None
@@ -326,15 +336,7 @@ def parse_pos_code_or_upos(s):
         return s
     return None
 
-
 def parse_pos_list(s):
-    """
-    Parse comma-separated POS codes/names into a set of UPOS tags.
-    Example inputs:
-      "N,P"      -> {"NOUN", "PROPN"}
-      "ADJ,NOUN" -> {"ADJ", "NOUN"}
-      "A,N"      -> {"ADJ", "NOUN"}
-    """
     if not s:
         return None
     items = []
@@ -344,12 +346,7 @@ def parse_pos_list(s):
             items.append(tag)
     return set(items) if items else None
 
-
 def parse_pos_pattern(s):
-    """
-    Parse a pattern like "A+N" or "ADJ+NOUN" to a (upos1, upos2) tuple.
-    Returns None if not valid.
-    """
     if not s or "+" not in s:
         return None
     left, right = [p.strip() for p in s.split("+", 1)]
@@ -359,14 +356,50 @@ def parse_pos_pattern(s):
         return None
     return (up1, up2)
 
-
 def shorten(text, max_len=140):
-    """Shorten a sentence for printing."""
     text = text.strip()
     if len(text) <= max_len:
         return text
     return text[: max_len - 3] + "..."
 
+# ============================
+# SURFACE FORM HELPER (FIXED)
+# ============================
+
+def choose_representative_surface(entry, max_len_chars=None):
+    """
+    Choose a surface (s1,s2) AND an example sentence that contains that exact surface.
+    No fallback to an example from another variant (prevents lemma/surface mismatch).
+
+    Returns: (s1, s2, example_sentence) or ("", "", "") if no safe match found.
+    """
+    if not entry or not isinstance(entry, dict):
+        return "", "", ""
+
+    surf_counts = entry.get("surf_counts") or {}
+    examples = entry.get("example_for_surface") or {}
+    if not surf_counts or not examples:
+        return "", "", ""
+
+    items = list(surf_counts.items())  # [((s1,s2), count), ...]
+    items.sort(key=lambda x: (-x[1], len(f"{x[0][0]} {x[0][1]}".strip())))
+
+    def fits_len(s1, s2):
+        if max_len_chars is None:
+            return True
+        return len(f"{s1} {s2}".strip()) <= max_len_chars
+
+    for (s1, s2), _cnt in items:
+        if not fits_len(s1, s2):
+            continue
+        sent = examples.get((s1, s2))
+        if not sent:
+            continue
+        bigram = f"{s1} {s2}".strip().lower()
+        if bigram and bigram in sent.lower():
+            return s1, s2, sent
+
+    return "", "", ""
 
 # ============================
 # COLLOCATIONS
@@ -382,20 +415,9 @@ def top_global_collocations(
     min_unigram_freq=DEFAULT_MIN_UNIGRAM_FREQ,
     top_n=50,
     require_positive_pmi=True,
-    pos_pattern=None,  # optional (pos1, pos2), e.g. ("ADJ", "NOUN")
+    pos_pattern=None,
 ):
-    """
-    Return list of global collocations ranked by PMI:
-        [(pmi, freq, l1, l2, s1, s2, sent), ...]
-
-    If skip_propn_pairs is True and lemma_pos is provided, bigrams where both
-    lemmas are PROPN are ignored.
-
-    If pos_pattern is not None and lemma_pos is provided, only keep bigrams
-    where (POS(l1), POS(l2)) == pos_pattern.
-    """
     total_tokens, total_bigrams = compute_totals(lemma_unigrams, lemma_bigrams)
-
     results = []
 
     for (l1, l2), freq12 in lemma_bigrams.items():
@@ -410,17 +432,14 @@ def top_global_collocations(
         pos1 = lemma_pos.get(l1) if lemma_pos is not None else None
         pos2 = lemma_pos.get(l2) if lemma_pos is not None else None
 
-        # Skip proper noun pairs if requested
         if skip_propn_pairs and lemma_pos is not None:
             if pos1 == "PROPN" and pos2 == "PROPN":
                 continue
 
-        # Skip bigrams where either side is a function word (PRON, AUX, etc.)
         if lemma_pos is not None:
             if is_function_word(l1, lemma_pos) or is_function_word(l2, lemma_pos):
                 continue
 
-        # POS pattern filter (e.g. ADJ+NOUN)
         if pos_pattern is not None and lemma_pos is not None:
             wanted1, wanted2 = pos_pattern
             if pos1 != wanted1 or pos2 != wanted2:
@@ -432,12 +451,15 @@ def top_global_collocations(
         if require_positive_pmi and val <= 0:
             continue
 
-        s1, s2, sent = bigram_surface.get((l1, l2), ("", "", ""))
+        entry = bigram_surface.get((l1, l2))
+        s1, s2, sent = choose_representative_surface(entry, max_len_chars=MAX_SURFACE_FORM_LEN)
+        if not s1 or not s2 or not sent:
+            continue
+
         results.append((val, freq12, l1, l2, s1, s2, sent))
 
     results.sort(key=lambda x: (-x[0], -x[1]))
     return results[:top_n]
-
 
 def collocates_for_lemma(
     target,
@@ -448,39 +470,23 @@ def collocates_for_lemma(
     min_bigram_freq=DEFAULT_MIN_BIGRAM_FREQ,
     min_unigram_freq=DEFAULT_MIN_UNIGRAM_FREQ,
     top_n=30,
-    allowed_other_pos=None,     # set of UPOS tags for collocates
-    direction="both",           # "left", "right", or "both"
-    require_positive_pmi=True,  # if True, drop PMI <= 0
-    surface_substring=None,     # optional substring filter on surface forms
+    allowed_other_pos=None,
+    direction="both",
+    require_positive_pmi=True,
+    surface_substring=None,
 ):
-    """
-    Return list of collocates for a given lemma, ranked by freq then PMI:
-
-        [(other, pmi, freq, l1, l2, s1, s2, sent), ...]
-
-    direction:
-      - "right": target must be l1, we look at words to the *right* of target
-      - "left":  target must be l2, we look at words to the *left* of target
-      - "both":  either side
-
-    surface_substring:
-      - if not None, only keep bigrams where the surface form of s1 or s2
-        (lowercased) contains this substring.
-    """
     if target not in lemma_unigrams:
         print(f"'{target}' not found in lemma vocabulary.")
         return []
 
     total_tokens, total_bigrams = compute_totals(lemma_unigrams, lemma_bigrams)
     collocates = []
-
     sub = surface_substring.lower() if surface_substring else None
 
     for (l1, l2), freq12 in lemma_bigrams.items():
         if freq12 < min_bigram_freq:
             continue
 
-        # --- direction handling ---
         if direction == "right":
             if l1 != target:
                 continue
@@ -489,32 +495,20 @@ def collocates_for_lemma(
             if l2 != target:
                 continue
             other = l1
-        else:  # "both"
+        else:
             if l1 != target and l2 != target:
                 continue
             other = l2 if l1 == target else l1
-        # ---------------------------
 
         if lemma_unigrams.get(other, 0) < min_unigram_freq:
             continue
 
-        # Skip collocates that are function words (PRON, DET, AUX, CCONJ, SCONJ, etc.)
         if lemma_pos is not None and is_function_word(other, lemma_pos):
             continue
 
-        # POS filter on OTHER lemma
         if allowed_other_pos is not None and lemma_pos is not None:
             pos_other = lemma_pos.get(other)
             if pos_other not in allowed_other_pos:
-                continue
-
-        s1, s2, sent = bigram_surface.get((l1, l2), ("", "", ""))
-
-        # Surface substring filter
-        if sub is not None:
-            s1_low = s1.lower()
-            s2_low = s2.lower()
-            if sub not in s1_low and sub not in s2_low:
                 continue
 
         val = pmi(l1, l2, freq12, lemma_unigrams, total_tokens, total_bigrams)
@@ -523,12 +517,19 @@ def collocates_for_lemma(
         if require_positive_pmi and val <= 0:
             continue
 
+        entry = bigram_surface.get((l1, l2))
+        s1, s2, sent = choose_representative_surface(entry, max_len_chars=MAX_SURFACE_FORM_LEN)
+        if not s1 or not s2 or not sent:
+            continue
+
+        if sub is not None:
+            if sub not in s1.lower() and sub not in s2.lower():
+                continue
+
         collocates.append((other, val, freq12, l1, l2, s1, s2, sent))
 
-    # sort by freq (desc), then pmi (desc)
     collocates.sort(key=lambda x: (-x[2], -x[1]))
     return collocates[:top_n]
-
 
 # ============================
 # TSV EXPORT
@@ -537,7 +538,6 @@ def collocates_for_lemma(
 def ensure_tsv_dir():
     os.makedirs(TSV_OUTPUT_DIR, exist_ok=True)
 
-
 def export_collocations_to_tsv(
     target,
     lemma_unigrams,
@@ -545,14 +545,6 @@ def export_collocations_to_tsv(
     bigram_surface,
     lemma_pos=None,
 ):
-    """
-    Export top collocations for `target` into a TSV file:
-
-        collocations_tsv/<target>.tsv
-
-    Columns:
-        word, other_form, surface_form, direction, freq, pmi, example_sentence
-    """
     if target not in lemma_unigrams:
         print(f"'{target}' not found in lemma vocabulary, cannot export TSV.")
         return
@@ -560,7 +552,6 @@ def export_collocations_to_tsv(
     ensure_tsv_dir()
     out_path = os.path.join(TSV_OUTPUT_DIR, f"{target}.tsv")
 
-    # Use gentler thresholds for export
     results = collocates_for_lemma(
         target,
         lemma_unigrams,
@@ -582,7 +573,6 @@ def export_collocations_to_tsv(
 
     with open(out_path, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, delimiter="\t")
-        # NEW HEADER: add surface_form
         writer.writerow([
             "word",
             "other_form",
@@ -594,7 +584,6 @@ def export_collocations_to_tsv(
         ])
 
         for other, pmi_val, freq, l1, l2, s1, s2, sent in results:
-            # infer direction for THIS bigram:
             if l1 == target and l2 == other:
                 direction = "R"
             elif l2 == target and l1 == other:
@@ -602,10 +591,9 @@ def export_collocations_to_tsv(
             else:
                 direction = "B"
 
-            # surface form of the collocation as it appears in this example
             surface_form = f"{s1} {s2}".strip()
-
-            example_sentence = sent.strip()
+            if LOWERCASE_SURFACE_ON_EXPORT:
+                surface_form = surface_form.lower()
 
             writer.writerow([
                 target,
@@ -614,28 +602,28 @@ def export_collocations_to_tsv(
                 direction,
                 freq,
                 f"{pmi_val:.4f}",
-                example_sentence,
+                sent.strip(),
             ])
 
     print(f"Exported {len(results)} collocations for '{target}' to: {out_path}")
 
-
 # ============================
-# MAIN + INTERACTIVE LOOP
+# MAIN
 # ============================
 
 def main():
-    # 1. Load or build counts
+    # 1) counts
     if (os.path.exists(CACHE_LEMMA_UNIGRAMS) and
         os.path.exists(CACHE_LEMMA_BIGRAMS) and
         os.path.exists(CACHE_BIGRAM_SURF)):
         print("Loading cached counts...")
         lemma_unigrams = load_cache(CACHE_LEMMA_UNIGRAMS)
-        lemma_bigrams = load_cache(CACHE_LEMMA_BIGRAMS)
+        lemma_bigrams  = load_cache(CACHE_LEMMA_BIGRAMS)
         bigram_surface = load_cache(CACHE_BIGRAM_SURF)
         print("Loaded from cache.")
         print("  Unique lemmas:  ", len(lemma_unigrams))
         print("  Unique bigrams: ", len(lemma_bigrams))
+        print("  Surface cache bigrams:", len(bigram_surface))
     else:
         print("Building counts from corpus...")
         lemma_unigrams, lemma_bigrams, bigram_surface = build_counts(
@@ -644,11 +632,11 @@ def main():
         )
         print("Saving caches...")
         save_cache(lemma_unigrams, CACHE_LEMMA_UNIGRAMS)
-        save_cache(lemma_bigrams, CACHE_LEMMA_BIGRAMS)
+        save_cache(lemma_bigrams,  CACHE_LEMMA_BIGRAMS)
         save_cache(bigram_surface, CACHE_BIGRAM_SURF)
         print("Caches saved.")
 
-    # 2. Load or build lemma_pos
+    # 2) POS
     if os.path.exists(CACHE_LEMMA_POS):
         print("Loading cached lemma POS...")
         lemma_pos = load_cache(CACHE_LEMMA_POS)
@@ -668,7 +656,6 @@ def main():
 
     print_pos_help()
 
-    # 3. Interactive loop
     print("Commands:")
     print("  • Enter a lemma (e.g. hyvä, mennä, katsoa) to see its collocates")
     print("  • Enter 'TOP' to see top global collocations")
@@ -682,7 +669,6 @@ def main():
 
         cmd = raw.upper()
 
-        # --------- TSV EXPORT MODE ----------
         if cmd == "TSV":
             target = input("Lemma to export (e.g. hyvä): ").strip()
             if not target:
@@ -697,9 +683,7 @@ def main():
             )
             continue
 
-        # --------- TOP GLOBAL MODE ----------
         if cmd == "TOP":
-            # thresholds
             try:
                 n_str = input("How many top collocations? [default=50]: ").strip()
                 top_n = int(n_str) if n_str else 50
@@ -722,12 +706,9 @@ def main():
             except ValueError:
                 min_unigram_freq = DEFAULT_MIN_UNIGRAM_FREQ
 
-            skip_pp_input = input(
-                "Skip PROPN–PROPN pairs? [Y/n]: "
-            ).strip().lower()
+            skip_pp_input = input("Skip PROPN–PROPN pairs? [Y/n]: ").strip().lower()
             skip_propn_pairs = (skip_pp_input != "n")
 
-            # POS pattern filter like "A+N" or "ADJ+NOUN"
             pos_pat_str = input(
                 "POS pattern filter for bigrams (e.g. A+N, ADJ+NOUN, empty for none): "
             ).strip().upper()
@@ -753,51 +734,40 @@ def main():
             print(f"\nTop {len(results)} global collocations:")
             for pmi_val, freq, l1, l2, s1, s2, sent in results:
                 example_bigram = f"{s1} {s2}".strip()
-                sent_short = shorten(sent)
                 print(
                     f"{l1:<15} {l2:<15}  "
                     f"PMI={pmi_val:6.2f}  freq={freq:7d}  "
                     f"example='{example_bigram}'"
                 )
-                print(f"    sentence: {sent_short}")
+                print(f"    sentence: {shorten(sent)}")
 
             continue
 
-        # --------- LEMMA MODE ----------
+        # lemma mode
         target = raw
-
         if target not in lemma_unigrams:
             print(f"'{target}' not found in lemma vocabulary (or too rare).")
             continue
 
         try:
-            mbf_str = input(
-                f"Minimum bigram frequency [default={DEFAULT_MIN_BIGRAM_FREQ}]: "
-            ).strip()
+            mbf_str = input(f"Minimum bigram frequency [default={DEFAULT_MIN_BIGRAM_FREQ}]: ").strip()
             min_bigram_freq = int(mbf_str) if mbf_str else DEFAULT_MIN_BIGRAM_FREQ
         except ValueError:
             min_bigram_freq = DEFAULT_MIN_BIGRAM_FREQ
 
         try:
-            muf_str = input(
-                f"Minimum collocate unigram frequency [default={DEFAULT_MIN_UNIGRAM_FREQ}]: "
-            ).strip()
+            muf_str = input(f"Minimum collocate unigram frequency [default={DEFAULT_MIN_UNIGRAM_FREQ}]: ").strip()
             min_unigram_freq = int(muf_str) if muf_str else DEFAULT_MIN_UNIGRAM_FREQ
         except ValueError:
             min_unigram_freq = DEFAULT_MIN_UNIGRAM_FREQ
 
         try:
-            top_str = input(
-                f"How many collocates to show? [default={DEFAULT_TOP_N}]: "
-            ).strip()
+            top_str = input(f"How many collocates to show? [default={DEFAULT_TOP_N}]: ").strip()
             top_n = int(top_str) if top_str else DEFAULT_TOP_N
         except ValueError:
             top_n = DEFAULT_TOP_N
 
-        # Direction: one-letter or full word
-        dir_str = input(
-            "Direction [L=left, R=right, B=both, default=B]: "
-        ).strip().lower()
+        dir_str = input("Direction [L=left, R=right, B=both, default=B]: ").strip().lower()
         if not dir_str:
             direction = "both"
         else:
@@ -806,21 +776,14 @@ def main():
                 direction = "left"
             elif c == "r":
                 direction = "right"
-            elif c == "b":
-                direction = "both"
             else:
                 direction = "both"
 
-        surface_sub = input(
-            "Surface substring filter (optional, e.g. 'hyv'): "
-        ).strip()
+        surface_sub = input("Surface substring filter (optional, e.g. 'hyv'): ").strip()
         if not surface_sub:
             surface_sub = None
 
-        # POS filter for collocates, e.g. "N,P" or "ADJ,NOUN"
-        coll_pos_str = input(
-            "Restrict collocate POS (e.g. N,P or ADJ,NOUN, empty for none): "
-        ).strip().upper()
+        coll_pos_str = input("Restrict collocate POS (e.g. N,P or ADJ,NOUN, empty for none): ").strip().upper()
         allowed_other_pos = parse_pos_list(coll_pos_str) if coll_pos_str else None
 
         results = collocates_for_lemma(
@@ -853,14 +816,12 @@ def main():
 
         for other, pmi_val, freq, l1, l2, s1, s2, sent in results:
             example_bigram = f"{s1} {s2}".strip()
-            sent_short = shorten(sent)
             print(
                 f"  {target:<15} + {other:<15}  "
                 f"PMI={pmi_val:6.2f}  bigram_freq={freq:7d}  "
                 f"example='{example_bigram}'"
             )
-            print(f"      sentence: {sent_short}")
-
+            print(f"      sentence: {shorten(sent)}")
 
 if __name__ == "__main__":
     main()

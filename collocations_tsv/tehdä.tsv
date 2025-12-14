@@ -1,51 +1,51 @@
 word	other_form	surface_form	direction	freq	pmi	example_sentence
 tehdä	olla	on tehty	L	115592	0.3094	Työni on tehty .
-tehdä	työ	tekee töitä	R	30647	3.0411	Beth tekee töitä Vassarille , tutkii erästä tapausta .
-tehdä	täällä	teen täällä	R	27337	2.0884	Mitä teen täällä ?
-tehdä	haluta	haluan tehdä	L	26673	1.3160	Kaikki mitä haluan tehdä on työni .
+tehdä	työ	tehdä töitä	R	30647	3.0411	joinakin taas , pitää tehdä töitä sen eteen .
+tehdä	täällä	teet täällä	R	27337	2.0884	Mitä teet täällä ?
+tehdä	haluta	halua tehdä	L	26673	1.3160	Jollet halua tehdä jotain muuta .
 tehdä	täällä	täällä teet	L	20043	1.7781	Mitä sinä täällä teet ?
-tehdä	hyvä	Teen parhaani	R	19111	1.1754	Teen parhaani , tunnet säännöt .
+tehdä	hyvä	teen parhaani	R	19111	1.1754	Teen parhaani , tunnet säännöt .
 tehdä	oikein	oikein teet	L	15440	2.8449	Mitä sinä oikein teet ?
-tehdä	näin	teet näin	R	12368	2.5670	Miksi teet näin , Joe ?
+tehdä	näin	tehdä näin	R	12368	2.5670	Meidän ei pitäisi tehdä näin !
 tehdä	asia	tehdä asialle	R	9079	1.3773	Minä voin tehdä asialle jotain .
-tehdä	virhe	tein virheen	R	8992	3.8059	, minä tiedän tein virheen .
+tehdä	virhe	teki virheen	R	8992	3.8059	joku teki virheen valitettavasti meillä on vain vähän aikaa .
 tehdä	noin	tee noin	R	7797	2.3311	Älä tee noin toiste .
-tehdä	yrittää	yrittävät tehdä	L	7334	1.3921	sitten minä tulin tänne tajusin nämä naiset ovat fiksuja , upeita ihmisiä jotka yrittävät tehdä maailmasta erilaisen paikan .
-tehdä	päätös	Tein päätökseni	R	7110	3.6297	Tein päätökseni tästä jutusta ennen astuin tuosta ovesta sisään .
-tehdä	sopimus	tehdä sopimuksia	R	6420	3.3630	Voin tehdä sopimuksia omin päin .
-tehdä	hyvin	Hyvin tehty	L	5839	1.2533	"Hienoa , Donna . "" "" Hyvin tehty , Donna ."
-tehdä	oikein	teet oikein	R	5420	1.7981	Oletko varma , teet oikein ?
-tehdä	sellainen	tee sellaista	R	5395	1.9578	sääntönä , en tee sellaista .
+tehdä	yrittää	yritän tehdä	L	7334	1.3921	Yritän tehdä sen mikä on parhaaksi sinulle .
+tehdä	päätös	tehnyt päätökseni	R	7110	3.6297	olen tehnyt päätökseni .
+tehdä	sopimus	tehdä sopimuksen	R	6420	3.3630	Voisimmeko tehdä sopimuksen ?
+tehdä	hyvin	hyvin tehty	L	5839	1.2533	"Hienoa , Donna . "" "" Hyvin tehty , Donna ."
+tehdä	oikein	tehdä oikein	R	5420	1.7981	Yritän vain auttaa sinua , tehdä oikein .
+tehdä	sellainen	tekisi sellaista	R	5395	1.9578	Tuntemani Tom Warshaw ei tekisi sellaista .
 tehdä	yhteistyö	tehdä yhteistyötä	R	5142	4.2784	Oli kiva tehdä yhteistyötä .
-tehdä	palvelus	Tekevän palveluksia	R	4305	3.3335	Tekevän palveluksia pahoinpitelevän kaikkia laivasta saapuvia .
-tehdä	oma	tehdään omat	R	4204	1.4419	Pizza paikka , jossa tehdään omat pizzat .
-tehdä	samoin	teet samoin	R	4039	3.0367	sinä teet samoin minulle .
+tehdä	palvelus	tee palvelus	R	4305	3.3335	Tee palvelus häivy .
+tehdä	oma	tehdä omat	R	4204	1.4419	lhmiset haluavat tosissaan tehdä omat pizzansa .
+tehdä	samoin	tehdä samoin	R	4039	3.0367	sinä voi tehdä samoin ?
 tehdä	mieli	tekee mieli	R	3966	1.4313	teidän tekee mieli niin tungen mielelläni nahkaa suuhunne .
 tehdä	osata	osaa tehdä	L	3937	1.7570	En osaa tehdä muuta pelata jalkapalloa .
-tehdä	vaikutus	teki vaikutuksen	R	3871	3.7879	Hän teki vaikutuksen FBl: n mieheen .
-tehdä	ettäei	ettet tee	L	3821	0.9132	vain itke siinä , lupaa ettet tee sitä enää .
-tehdä	luulla	luulette tekevänne	L	3820	0.7143	Mitä luulette tekevänne valamiehistön huoneen ulkopuolella , herra Easter , valamies-numero-yhdeksän ?
-tehdä	paha	tekisi pahaa	R	3807	0.9479	Se ei tekisi pahaa !
-tehdä	paljon	tehdä paljon	R	3674	0.8811	Raitiovaunullakaan ei saanut ajaa , eikä tehdä paljon muutakaan .
-tehdä	siellä	teette siellä	R	3471	0.9234	Tarkoitin , mitä te teette siellä eläintarhassa ?
-tehdä	kauppa	teitte kaupan	R	3309	2.9100	Senkö takia , teitte kaupan senaattori Tollmanin kanssa ?
-tehdä	kuolema	tekisit kuolemaa	R	3255	1.9663	Aivan tekisit kuolemaa siellä .
-tehdä	tällainen	tehnyt tällaista	R	3213	2.2371	Minä en ole ennen tehnyt tällaista ...
-tehdä	mies	mieheni teki	L	3137	0.2225	Sanoitte , ettette unohtaisi , mitä mieheni teki hyväksenne .
-tehdä	väärin	tekivät väärin	R	3124	2.7930	Kaikki mitä Jacob Wood nuo kymmenen muuta tekivät väärin oli se , he menivät sinä maanantaiaamuna töihin .
+tehdä	vaikutus	tehdä vaikutuksen	R	3871	3.7879	Halusin vain tehdä vaikutuksen , nyt minun täytyy tunnustaa jotain toivon , etten olisi käyttäytynyt itsekkäästi .
+tehdä	ettäei	etten tee	L	3821	0.9132	Luuletko , etten tee pro bonoa ?
+tehdä	luulla	luulet tekeväsi	L	3820	0.7143	Mitä luulet tekeväsi ?
+tehdä	paha	tee pahaa	R	3807	0.9479	Pieni liikunta ei tee pahaa hänen iässään .
+tehdä	paljon	tehnyt paljon	R	3674	0.8811	Olen itsekin tehnyt paljon työtä tämän projektin parissa opetusmenetelmäsi jättävät vähän toivomisen varaa
+tehdä	siellä	teet siellä	R	3471	0.9234	Mitä teet siellä ylhäällä ?
+tehdä	kauppa	tehdä kauppoja	R	3309	2.9100	Emme olisi saaneet tehdä kauppoja
+tehdä	kuolema	tekee kuolemaa	R	3255	1.9663	En voi soittaa , joku tekee kuolemaa ?
+tehdä	tällainen	tehdä tällaista	R	3213	2.2371	Et voi tehdä tällaista toista kertaa .
+tehdä	mies	mies tekee	L	3137	0.2225	Oletko huomannut , mies tekee työkaluilla jotain pihallaan miten se vetää kaikkia naapuruston miehiä puoleensa magneetti ?
+tehdä	väärin	tein väärin	R	3124	2.7930	Tiedän , tein väärin , enkä aio keksiä tekosyitä .
 tehdä	ihminen	ihmiset tekevät	L	3107	0.6959	Mitä nuo ihmiset tekevät tuolla ?
-tehdä	kaikkeni	teen kaikkeni	R	3020	4.7453	lähdet mukaani , teen kaikkeni , pääset NBA : han .
-tehdä	isä	isä tekee	L	2989	0.3788	Dad ' s isä tekee bisnesdiiliä hänen kanssaan .
-tehdä	jo	tehdään jo	R	2846	0.5545	Vaadimme jotakin tehdään jo tänä iltana .
+tehdä	kaikkeni	teen kaikkeni	R	3020	4.7453	Teen kaikkeni hyvittääkseni sen , mitä meille on tapahtunut .
+tehdä	isä	isä teki	L	2989	0.3788	Sen tähdenkö isä teki itsensä naurunalaiseksi rattailla ?
+tehdä	jo	tehnyt jo	R	2846	0.5545	Se on tehnyt jo tuhonsa !
 tehdä	jo	jo tehnyt	L	2783	0.5321	Oletkin jo tehnyt tehtäväsi .
-tehdä	yksi	tehdä yksi	R	2779	0.3795	Minun pitää tehdä yksi juttu .
-tehdä	itsemurha	tehtiin itsemurhaa	R	2633	3.7173	Vihreät pamfletit muistuttivat , maassa tehtiin itsemurhaa päivässä vuodessa auttoivat tunnistamaan merkit , joita me kiihkeästi etsimme .
-tehdä	saattaa	Saatat tehdä	L	2564	1.4861	Saatat tehdä ihan mitä vain .
-tehdä	elämä	tehneet elämäsi	R	2518	0.9057	Riskeeraat kaiken työn , jonka olemme tehneet elämäsi suurimman päivän eteen .
+tehdä	yksi	tehdä yhden	R	2779	0.3795	Saanko tehdä yhden ehdotuksen ?
+tehdä	itsemurha	teki itsemurhan	R	2633	3.7173	Niin .. teki itsemurhan .
+tehdä	saattaa	saatoit tehdä	L	2564	1.4861	Kuinka saatoit tehdä tämän minulle ?
+tehdä	elämä	tehnyt elämässäni	R	2518	0.9057	Tiedän , olen tehnyt elämässäni virheitä , herra Madison .
 tehdä	tänään	tehdä tänään	R	2477	1.2707	Mitä haluat tehdä tänään ?
 tehdä	pakko	pakko tehdä	L	2410	2.1960	Mitä oli pakko tehdä .
 tehdä	ennen	ennen tehnyt	L	2391	0.5807	Minä en ole ennen tehnyt tällaista ...
-tehdä	vielä	teet vielä	R	2347	0.3124	teet vielä noin , ammun sivullisia .
-tehdä	valinta	teit valintasi	R	2333	3.1964	Älä nyt , sinä teit valintasi .
-tehdä	joten	joten teimme	L	2327	0.8847	Isä löysi piipputupakan muruja takkinsa vuorista , joten teimme ne .
-tehdä	äiti	äiti teki	L	2288	0.2541	äiti teki ?
+tehdä	vielä	tehdä vielä	R	2347	0.3124	Tämä on viimeinen iltani , ajattelin tehdä vielä yhden kokeen .
+tehdä	valinta	tee valintasi	R	2333	3.1964	Tee valintasi Hämähäkkimies !
+tehdä	joten	joten tein	L	2327	0.8847	En halunnut heidän sulkevan liikettäni , joten tein sen itse harhautukseksi .
+tehdä	äiti	äiti teki	L	2288	0.2541	Äiti teki kermamaissia .

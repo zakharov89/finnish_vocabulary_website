@@ -2,29 +2,31 @@
 {% block content %}
 
 <h1>Collocations for "{{ word_name }}"</h1>
+
 <form method="POST" id="colloc-form">
-   <div style="margin-top:1em;">
+
+    <div style="margin-top:1em;">
         <button type="submit">Save order & visibility</button>
         <a href="{{ url_for('admin_collocation_list') }}"
            class="admin-btn-small" style="margin-left:8px;">
             All collocations
         </a>
         <a href="{{ url_for('admin_edit_word', word_id=word_id) }}" style="margin-left:8px;">
-            Edit word 
+            Edit word
         </a>
         <a href="{{ url_for('show_word', word_name=word_name) }}"
            class="admin-btn-small" style="margin-left:8px;" target="_blank">
             View word page
         </a>
-        <a href="{{ url_for('admin_dashboard') }}" 
-        class="admin-btn-small" style="margin-left:8px;">
+        <a href="{{ url_for('admin_dashboard') }}"
+           class="admin-btn-small" style="margin-left:8px;">
             Back to Dashboard
         </a>
     </div>
 
     <p style="font-size:0.9rem; color:#555; margin-bottom:0.8em;">
-        Drag the rows to change their order. Use the checkboxes to choose which
-        collocations and examples appear on the word page.
+        Drag the rows to change their order or edit the numbers to set a precise order.
+        Use the checkboxes to choose which collocations and examples appear on the word page.
     </p>
 
     <ul id="colloc-list"
@@ -38,7 +40,17 @@
                        gap:8px;
                        {% if c.show_in_app %}background:#f3fff3;{% endif %}">
 
-                <div style="display:flex; align-items:flex-start; gap:8px; flex:1;">
+                <div style="display:flex; align-items:flex-start; gap:10px; flex:1;">
+
+                    {# Number input for ordering #}
+                    <input type="number"
+                           name="order_num_{{ c.id }}"
+                           class="order-input"
+                           value="{{ c.sort_order or loop.index }}"
+                           min="1"
+                           style="width:50px; text-align:right; padding:2px; margin-right:6px;">
+
+                    {# Drag handle #}
                     <span class="drag-handle"
                           style="cursor:grab; user-select:none; font-size:1.1rem; margin-top:2px;">
                         ☰
@@ -99,6 +111,7 @@
         {% endfor %}
     </ul>
 
+    {# Hidden field: final order of IDs, comma-separated #}
     <input type="hidden" name="order" id="order-input">
 
     <div style="margin-top:1em;">
@@ -108,18 +121,17 @@
             All collocations
         </a>
         <a href="{{ url_for('admin_edit_word', word_id=word_id) }}" style="margin-left:8px;">
-            Edit word 
+            Edit word
         </a>
         <a href="{{ url_for('show_word', word_name=word_name) }}"
            class="admin-btn-small" style="margin-left:8px;" target="_blank">
             View word page
         </a>
-        <a href="{{ url_for('admin_dashboard') }}" 
-        class="admin-btn-small" style="margin-left:8px;">
+        <a href="{{ url_for('admin_dashboard') }}"
+           class="admin-btn-small" style="margin-left:8px;">
             Back to Dashboard
         </a>
     </div>
-
 
 </form>
 
@@ -131,16 +143,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const orderInput = document.getElementById('order-input');
     const form = document.getElementById('colloc-form');
 
+    // When rows are dragged, we can optionally renumber them sequentially
+    const renumberAfterDrag = () => {
+        Array.from(list.children).forEach((li, idx) => {
+            const input = li.querySelector('.order-input');
+            if (input) {
+                input.value = idx + 1;
+            }
+        });
+    };
+
     new Sortable(list, {
         animation: 150,
-        handle: '.drag-handle'
+        handle: '.drag-handle',
+        onSort: renumberAfterDrag
     });
 
-    form.addEventListener('submit', () => {
-        const ids = Array.from(
-            list.querySelectorAll('.sortable-item')
-        ).map(li => li.dataset.id);
-        orderInput.value = ids.join(',');
+    // On submit, we read the order numbers, sort by them, and create an ID list
+    form.addEventListener('submit', (event) => {
+        // Build an array of [id, order_num]
+        const numbered = Array.from(list.querySelectorAll('.sortable-item')).map(li => {
+            const id = li.dataset.id;
+            const input = li.querySelector('.order-input');
+            let num = parseInt(input && input.value, 10);
+            if (isNaN(num) || num < 1) {
+                num = 9999;  // fallback if empty/invalid
+            }
+            return [id, num];
+        });
+
+        // Sort by the given numbers
+        numbered.sort((a, b) => a[1] - b[1]);
+
+        // Store final ordered IDs in hidden input
+        orderInput.value = numbered.map(x => x[0]).join(',');
     });
 });
 </script>
