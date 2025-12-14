@@ -464,6 +464,7 @@ def show_word(word_name):
         SELECT
             wc.id              AS colloc_id,
             wc.other_form      AS other_form,
+            wc.other_word_id AS other_word_id,
             wc.surface_form    AS surface_form,
             wc.direction       AS direction,
             wc.freq            AS freq,
@@ -506,6 +507,7 @@ def show_word(word_name):
         collocations.append({
             "id": r["colloc_id"],
             "other_form": r["other_form"],
+            "other_word_id": r["other_word_id"],
             "surface_form": surface_form_clean,
             "direction": r["direction"],
             "freq": r["freq"],

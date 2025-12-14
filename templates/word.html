@@ -223,66 +223,127 @@
 
 
 {% if collocations %}
-    <div style="margin-top:2em;">
+<div style="margin-top:2em;">
 
-        <button type="button" class="expand-btn"
-                data-label-show="Show common phrases"
-                data-label-hide="Hide common phrases"
-                onclick="return toggleExpand(this);">
-            <span class="chevron">▶</span>
-            <span class="label">Show common phrases</span>
-        </button>
+    {# Local-only link styling (scoped to this block) #}
+    <style>
+        .colloc-block a.colloc-link {
+            color: inherit;
+            text-decoration: none;
+        }
+        .colloc-block a.colloc-link:hover {
+            color: #0d6efd;
+            text-decoration: underline;
+        }
+    </style>
 
-        <div class="expand-content" style="display:none; margin-top:8px;">
+    <button type="button" class="expand-btn"
+            data-label-show="Show common phrases"
+            data-label-hide="Hide common phrases"
+            onclick="return toggleExpand(this);">
+        <span class="chevron">▶</span>
+        <span class="label">Show common phrases</span>
+    </button>
 
-            <div style="margin-top:0.5em;">
-                {% for c in collocations %}
-                    <div style="margin-bottom:0.8em; padding:6px 8px; border-left:3px solid #ddd;">
+    <div class="expand-content colloc-block" style="display:none; margin-top:8px;">
 
-                        {# --- Main collocation phrase --- #}
-                        <div>
-                            {% if c.surface_form %}
+        <div style="margin-top:0.5em;">
+            {% for c in collocations %}
+                <div style="margin-bottom:0.8em; padding:6px 8px; border-left:3px solid #ddd;">
+
+                    {# --- Main collocation phrase --- #}
+                    <div>
+                        {# Only link if the other word exists in DB #}
+                        {% set can_link = (c.other_word_id is not none and c.other_word_id != 0) %}
+
+                        {# Link target = lemma if you have it, otherwise other_form #}
+                        {% set link_target = c.other_lemma if c.other_lemma else c.other_form %}
+
+                        {% if c.surface_form %}
+                            {% set toks = c.surface_form.split() %}
+
+                            {% if toks|length <= 1 %}
                                 <strong>{{ c.surface_form }}</strong>
                             {% else %}
                                 {% if c.direction == 'L' %}
-                                    <strong>{{ c.other_form }} {{ word_name }}</strong>
+                                    {# other word is the LEFT token #}
+                                    <strong>
+                                        {% if can_link and link_target %}
+                                            <a class="colloc-link" href="{{ url_for('show_word', word_name=link_target) }}">
+                                                {{ toks[0] }}
+                                            </a>
+                                        {% else %}
+                                            {{ toks[0] }}
+                                        {% endif %}
+                                        {{ ' ' ~ toks[1:]|join(' ') }}
+                                    </strong>
                                 {% else %}
-                                    <strong>{{ word_name }} {{ c.other_form }}</strong>
+                                    {# other word is the RIGHT token #}
+                                    <strong>
+                                        {{ toks[:-1]|join(' ') ~ ' ' }}
+                                        {% if can_link and link_target %}
+                                            <a class="colloc-link" href="{{ url_for('show_word', word_name=link_target) }}">
+                                                {{ toks[-1] }}
+                                            </a>
+                                        {% else %}
+                                            {{ toks[-1] }}
+                                        {% endif %}
+                                    </strong>
                                 {% endif %}
                             {% endif %}
 
-                            {% if c.other_lemma %}
-                                <span style="font-size:0.85rem; color:#666;">
-                                    (<a href="{{ url_for('show_word', word_name=c.other_lemma) }}">{{ c.other_lemma }}</a>)
-                                </span>
+                        {% else %}
+                            {# Fallback if surface_form is missing #}
+                            <strong>
+                                {% if c.direction == 'L' %}
+                                    {% if can_link and link_target %}
+                                        <a class="colloc-link" href="{{ url_for('show_word', word_name=link_target) }}">
+                                            {{ c.other_form }}
+                                        </a>
+                                    {% else %}
+                                        {{ c.other_form }}
+                                    {% endif %}
+                                    {{ ' ' ~ word_name }}
+                                {% else %}
+                                    {{ word_name ~ ' ' }}
+                                    {% if can_link and link_target %}
+                                        <a class="colloc-link" href="{{ url_for('show_word', word_name=link_target) }}">
+                                            {{ c.other_form }}
+                                        </a>
+                                    {% else %}
+                                        {{ c.other_form }}
+                                    {% endif %}
+                                {% endif %}
+                            </strong>
+                        {% endif %}
+                    </div>
+
+                    {# --- Collocation translation --- #}
+                    {% if c.translation %}
+                        <div style="font-size:1.0rem; margin-top:2px; color:#444;">
+                            <em>{{ c.translation }}</em>
+                        </div>
+                    {% endif %}
+
+                    {# --- Example sentence --- #}
+                    {% if c.example_text %}
+                        <div style="font-size:0.9rem; margin-top:3px;">
+                            {{ c.example_text }}
+                            {% if c.example_translation %}
+                                <br>
+                                <em>{{ c.example_translation }}</em>
                             {% endif %}
                         </div>
+                    {% endif %}
 
-                        {# --- Collocation translation --- #}
-                        {% if c.translation %}
-                            <div style="font-size:1.0rem; margin-top:2px; color:#444;">
-                                <em>{{ c.translation }}</em>
-                            </div>
-                        {% endif %}
-
-                        {# --- Example sentence --- #}
-                        {% if c.example_text %}
-                            <div style="font-size:0.9rem; margin-top:3px;">
-                                {{ c.example_text }}
-                                {% if c.example_translation %}
-                                    <br>
-                                    <em>{{ c.example_translation }}</em>
-                                {% endif %}
-                            </div>
-                        {% endif %}
-
-                    </div>
-                {% endfor %}
-            </div>
-
+                </div>
+            {% endfor %}
         </div>
+
     </div>
+</div>
 {% endif %}
+
 
 
 
