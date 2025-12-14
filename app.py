@@ -2821,6 +2821,29 @@ def admin_meaning_relations_list():
     return render_template("admin_meaning_relations_list.html", meaning_relations=meaning_relations)
 
 
+
+
+def repair_other_word_links(conn):
+    cur = conn.cursor()
+    cur.execute("""
+        UPDATE word_collocations
+        SET other_word_id = (
+          SELECT id FROM words
+          WHERE words.word = word_collocations.other_form
+        )
+        WHERE (other_word_id IS NULL OR other_word_id = 0)
+          AND other_form IS NOT NULL
+          AND other_form <> ''
+          AND EXISTS (
+            SELECT 1 FROM words
+            WHERE words.word = word_collocations.other_form
+          );
+    """)
+    conn.commit()
+
+
+
+
 @app.route("/admin/collocation/<int:colloc_id>", methods=["GET", "POST"])
 @admin_required
 def admin_collocation(colloc_id):
@@ -3059,8 +3082,9 @@ from flask import request, redirect, url_for, abort
 def admin_word_collocations(word_name):
     conn = sqlite3.connect("finnish.db")
     conn.row_factory = sqlite3.Row
+    repair_other_word_links(conn)
     cur = conn.cursor()
-
+   
     # --- Find the word ---
     cur.execute("SELECT id, word FROM words WHERE word = ?", (word_name,))
     row_word = cur.fetchone()
