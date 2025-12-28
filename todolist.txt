@@ -29,6 +29,8 @@
 - make category assignment and deletion easier
 - which words go with which in texts?
 - how to deal with superlative e.g. paras?
+- collocations also shown under the other word
+- schema diagram
 
 words to place:
 way thing world group problem place case system government number point fact lot right job word business issue 

@@ -21,7 +21,7 @@
         {# ---------- FRONT: the word ---------- #}
         {% set front_len = w.word|length %}
         {% set front_class = "flashcard-text" %}
-        {% if front_len > 17 %}
+        {% if front_len > 15 %}
             {% set front_class = front_class + " flashcard-text--very-long" %}
         {% elif front_len > 12 %}
             {% set front_class = front_class + " flashcard-text--long" %}
@@ -32,7 +32,7 @@
         {% set back_len = back_text|length %}
 
         {% set back_class = "flashcard-text" %}
-        {% if back_len > 17 %}
+        {% if back_len > 15 %}
             {% set back_class = back_class + " flashcard-text--very-long" %}
         {% elif back_len > 12 %}
             {% set back_class = back_class + " flashcard-text--long" %}

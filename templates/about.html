@@ -1,28 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
 
-
-
 <p>
-This website is a personal project created to make learning Finnish vocabulary clearer,
-better structured, and more enjoyable. It aims to combine dictionary-quality information
-with interactive tools for studying words in meaningful ways.
+<strong>Work in progress.</strong> This website is a personal project to make learning Finnish vocabulary clearer,
+better structured, and more enjoyable. It combines dictionary-style information with authentic usage data,
+including example sentences and common word combinations drawn from real Finnish subtitle material
+(such as films and TV series).
 </p>
+
 
 <h3>What the site offers</h3>
 <ul>
-    <li><strong>Word meanings</strong> with multiple translations</li>
-    <li><strong>Topic categories</strong> and subcategories that organize vocabulary</li>
+    <li><strong>Word meanings</strong> with multiple translations (where available)</li>
+    <li><strong>Topic categories</strong> and subcategories for organizing vocabulary</li>
     <li><strong>Level filtering</strong> to focus on easier or more advanced vocabulary</li>
-    <li><strong>Interactive views</strong>: table, card view, and flashcards</li>
-    <li><strong>Example sentences</strong> with English translations <em> (coming soon) </em></li>
-    <li><strong>Word and meaning relations</strong> such as synonyms or shared roots <em>(coming soon)</em></li>
+    <li><strong>Interactive study views</strong>: table, card view, and flashcards</li>
+    <li><strong>Example sentences</strong> with English translations <em>(in progress)</em></li>
+    <li><strong>Word relationships</strong> (e.g. related meanings, variants, shared roots) <em>(in progress)</em></li>
 </ul>
 
 <h3>The level system</h3>
 <p>
 Every word is assigned a difficulty level from <strong>1 to 5</strong> (plus “+” for unranked or special items).
-These levels are not official CEFR levels — they are a personal heuristic to help structure learning:
+These levels are not official CEFR levels — they are a personal heuristic intended to help structure learning:
 </p>
 <ul>
     <li><strong>Level 1:</strong> Very common, essential beginner vocabulary</li>
@@ -30,25 +30,27 @@ These levels are not official CEFR levels — they are a personal heuristic to h
     <li><strong>Level 3:</strong> Intermediate vocabulary</li>
     <li><strong>Level 4:</strong> Less common or more specific words</li>
     <li><strong>Level 5:</strong> Advanced, formal, or abstract vocabulary</li>
-    <li><strong>Level +:</strong> Words without a defined level yet</li>
+    <li><strong>Level +:</strong> Not ranked yet</li>
 </ul>
 <p>
-You can filter any page by level, and this selection stays consistent as you navigate.
+You can filter pages by level, and the selection stays consistent as you navigate.
 </p>
 
-<h3>Data sources</h3>
+<h3>Data sources & attribution</h3>
 <p>
-Most basic definitions and translations originate from
-<strong>Wiktionary</strong>.  
+Many basic definitions and translations originate from <strong>Wiktionary</strong>.
 Wiktionary content is licensed under <em>CC BY-SA 4.0</em>, so this project may reuse and adapt it with attribution.
-
+Other content (such as curation, organization, and some examples) is added as part of this project.
 </p>
 
 <h3>Notes</h3>
-
 <p>
-This project continues to evolve, and features such as improved flashcards,
-more examples, some grammar and smarter search are planned for the future.
+This project is evolving continuously. Some parts of the vocabulary set and example coverage are still limited,
+and the site may change as new features are added.
 </p>
+<ul>
+    <li>Admin edits affect the live database and may not be reflected in the public repository.</li>
+    <li>Feedback and suggestions are welcome.</li>
+</ul>
 
 {% endblock %}

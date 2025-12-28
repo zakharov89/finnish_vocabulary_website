@@ -1,6 +1,11 @@
 .venv311/
+.collocations_tsv/
+.database_backups/
+.cache/
+.subtitles/
 __pycache__/
 *.pyc
 *.db
 .env
 *.pkl
+todolist.txt

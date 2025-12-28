@@ -47,10 +47,10 @@
                 {{ pos_name }}
             </div>
 
-            {% for meaning in meanings %}
+           {% for meaning in meanings %}
             <div class="meaning-block">
 
-                {# Translation line with global numbering #}
+                {# ---- Translation line ---- #}
                 <p style="margin:0 0 0.4em 0;">
                     <strong>{{ meaning.display_number }}.</strong>
                     <span class="translation">
@@ -58,112 +58,81 @@
                     </span>
                 </p>
 
-                {# ---- DETAILS BUTTON ---- #}
-                {% if meaning.definition or meaning.notes %}
+                {% set mrels = meaning_relations.get(meaning.id) %}
+                {% set has_more =
+                    meaning.definition
+                    or meaning.notes
+                    or (meaning.examples and meaning.examples|length > 0)
+                    or mrels
+                %}
+
+                {% if has_more %}
                     <button type="button" class="expand-btn"
-                            data-label-show="Show details"
-                            data-label-hide="Hide details"
+                            data-label-show="Show more"
+                            data-label-hide="Hide"
                             style="margin-top:6px;"
                             onclick="return toggleExpand(this);">
                         <span class="chevron">▶</span>
-                        <span class="label">Show details</span>
+                        <span class="label">Show more</span>
                     </button>
+
                     <div class="expand-content"
-                         style="display:none; margin-top:6px; margin-left:4px;">
+                        style="display:none; margin-top:6px; margin-left:4px;">
+
+                        {# ---- Definition / notes ---- #}
                         {% if meaning.definition %}
                             <p><strong>Definition:</strong> {{ meaning.definition }}</p>
                         {% endif %}
                         {% if meaning.notes %}
                             <p><strong>Notes:</strong> {{ meaning.notes }}</p>
                         {% endif %}
-                    </div>
-                {% endif %}
 
-                {# ---- EXAMPLES BUTTON ---- #}
-                {% if meaning.examples %}
-                    <button type="button" class="expand-btn"
-                            data-label-show="Show examples"
-                            data-label-hide="Hide examples"
-                            style="margin-top:6px;"
-                            onclick="return toggleExpand(this);">
-                        <span class="chevron">▶</span>
-                        <span class="label">Show examples</span>
-                    </button>
-                    <div class="expand-content"
-                         style="display:none; margin-top:6px; margin-left:4px;">
-                        {% for ex in meaning.examples %}
-                            <p style="margin-bottom:0.6em;">
-                                {{ ex.text }}
-                                {% if ex.translation %}
-                                    <br><em>{{ ex.translation }}</em>
-                                {% endif %}
-                            </p>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-
-                {# ---- MEANING-LEVEL RELATIONS (this sense) ---- #}
-                {% if meaning_relations.get(meaning.id) %}
-                    <button type="button" class="expand-btn"
-                            data-label-show="Show relations"
-                            data-label-hide="Hide relations"
-                            style="margin-top:6px;"
-                            onclick="return toggleExpand(this);">
-                        <span class="chevron">▶</span>
-                        <span class="label">Show relations</span>
-                    </button>
-                    <div class="expand-content"
-                        style="display:none; margin-top:6px; margin-left:4px;">
-
-                        {% set mrels = meaning_relations[meaning.id] %}
-
-                        {# Optional special case: same root for this sense #}
-                        {% if mrels.get('same root') %}
-                        <div class="relation-block">
-                            <div class="relation-type-label">Word family (this sense):</div>
-                            <div class="relation-chips">
-                                {% for t in mrels['same root'] %}
-                                    {% set tr_list = t.translations or [] %}
-                                    {% set shown_tr = tr_list[:2] %}
-                                    <a href="{{ url_for('show_word', word_name=t.target_word) }}"
-                                       class="relation-chip">
-                                        {{ t.target_word }}
-                                        {% if shown_tr %}
-                                            ({{ shown_tr | join(", ") }})
+                        {# ---- Examples ---- #}
+                        {% if meaning.examples %}
+                            <div style="margin-top:8px;">
+                                <strong>Examples:</strong>
+                                {% for ex in meaning.examples %}
+                                    <p style="margin:0.4em 0;">
+                                        {{ ex.text }}
+                                        {% if ex.translation %}
+                                            <br><em>{{ ex.translation }}</em>
                                         {% endif %}
-                                    </a>
+                                    </p>
                                 {% endfor %}
                             </div>
-                        </div>
                         {% endif %}
 
-                        {# Other relation types for this meaning #}
-                        {% for rt, targets in mrels.items() %}
-                            {% if rt != 'same root' %}
-                            <div class="relation-block">
-                                <div class="relation-type-label">{{ rt }}:</div>
-                                <div class="relation-chips">
-                                    {% for t in targets %}
-                                        {% set tr_list = t.translations or [] %}
-                                        {% set shown_tr = tr_list[:2] %}
-                                        <a href="{{ url_for('show_word', word_name=t.target_word) }}"
-                                           class="relation-chip">
-                                            {{ t.target_word }}
-                                            {% if shown_tr %}
-                                                ({{ shown_tr | join(", ") }})
-                                            {% endif %}
-                                        </a>
-                                    {% endfor %}
-                                </div>
+                        {# ---- Meaning-level relations ---- #}
+                        {% if mrels %}
+                            <div style="margin-top:10px;">
+                                {% for rt, targets in mrels.items() %}
+                                    <div class="relation-block">
+                                        <div class="relation-type-label">{{ rt }}:</div>
+                                        <div class="relation-chips">
+                                            {% for t in targets %}
+                                                {% set tr_list = t.translations or [] %}
+                                                {% set shown_tr = tr_list[:2] %}
+                                                <a href="{{ url_for('show_word', word_name=t.target_word) }}"
+                                                class="relation-chip">
+                                                    {{ t.target_word }}
+                                                    {% if shown_tr %}
+                                                        ({{ shown_tr | join(", ") }})
+                                                    {% endif %}
+                                                </a>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
                             </div>
-                            {% endif %}
-                        {% endfor %}
+                        {% endif %}
 
                     </div>
                 {% endif %}
 
-            </div>  {# /.meaning-block #}
+            </div>
             {% endfor %}
+
+
 
         </div>  {# /.meaning (POS group) #}
     {% endfor %}
