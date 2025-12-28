@@ -50,7 +50,7 @@ Examples are added gradually.
 ## Data sources
 
 - **Wiktionary**  
-  Basic definitions and translations are derived from Wiktionary.  
+  Basic translations are taken from Wiktionary.  
   Wiktionary content is licensed under **CC BY-SA 4.0**.
 
 - **OpenSubtitles (Finnish)**  
