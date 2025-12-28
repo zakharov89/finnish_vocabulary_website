@@ -1,8 +1,5 @@
 .venv311/
-.collocations_tsv/
-.database_backups/
-.cache/
-.subtitles/
+collocations_tsv/
 __pycache__/
 *.pyc
 *.db
