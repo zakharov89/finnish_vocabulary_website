@@ -7,7 +7,7 @@ This is an evolving project and is actively being developed.
 
 ---
 
-## ✨ What the site offers
+## What the site offers
 
 - **Finnish words with multiple meanings and translations**
 - **Difficulty levels (1–5)** to help structure learning
@@ -21,7 +21,7 @@ This is an evolving project and is actively being developed.
 
 ---
 
-## 🧠 Levels and difficulty
+## Levels and difficulty
 
 Each word is assigned a difficulty level from **1 to 5**. These are not official CEFR levels, but a practical heuristic:
 
@@ -36,18 +36,18 @@ The selected level filter stays active as you navigate the site.
 
 ---
 
-## 📌 Word combinations and usage
+## Word combinations and usage
 
 In addition to single words, the project explores **common word combinations**. 
 These combinations are extracted automatically from a large Finnish subtitle corpus
-and ranked using statistical association measures.
+and ranked based on frequency.
 
 Some word combinations include example sentences taken from real subtitles.
-Examples are added gradually .
+Examples are added gradually.
 
 ---
 
-## 📚 Data sources
+## Data sources
 
 - **Wiktionary**  
   Basic definitions and translations are derived from Wiktionary.  
@@ -59,7 +59,7 @@ Examples are added gradually .
 
 ---
 
-## 🛠️ Technical overview
+## Technical overview
 
 - Backend: Python (Flask), SQLite
 - Data processing: Python 
@@ -72,7 +72,7 @@ Large corpora and intermediate data files are not included in this repository.
 
 
 
-## 📄 License
+## License
 
 The project code is released under an open-source license.
 Third-party data sources retain their original licenses.
