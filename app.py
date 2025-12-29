@@ -14,6 +14,14 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev_key")
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "finnish.db")
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 
 PUNCT_FIX_RE = re.compile(r"\s+([,.;:!?])")
 def fix_punctuation(text: str | None) -> str | None:
@@ -59,8 +67,7 @@ def root():
 def levels():
     # Choosing levels
 
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # Load levels dynamically
@@ -160,8 +167,7 @@ def search_suggest():
     if not q:
         return jsonify({"results": []})
 
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     like = q + "%"
@@ -214,8 +220,7 @@ def autocomplete():
     if not query:
         return jsonify([])
 
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     if mode == 'finnish':
@@ -264,8 +269,7 @@ def autocomplete():
 
 @app.route('/word/<word_name>')
 def show_word(word_name):
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # ---- Fetch the word ----
@@ -606,8 +610,7 @@ def words_flashcards_ajax():
     return jsonify({"html": html, "selected_levels": selected_levels})
 
 def get_words_from_db(selected_levels=None):
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # 1) Load all levels
@@ -908,8 +911,7 @@ def get_categories_with_counts(cur, level_ids):
 
 @app.route('/categories')
 def categories():
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     levels, selected_levels = resolve_selected_levels(cur)
@@ -937,8 +939,7 @@ def filter_categories():
         except (TypeError, ValueError):
             continue
 
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     cur.execute("SELECT id FROM levels ORDER BY id")
@@ -964,8 +965,7 @@ def show_category(category_name):
     include_subs_arg = request.args.get("include_subs", "1")
     include_subs = (include_subs_arg != "0")
 
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # --- Load all categories (with sort_order) ---
@@ -1143,8 +1143,7 @@ def category_update_view(category_id):
     except (TypeError, ValueError):
         include_subs = bool(include_subs)
 
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # 1) Find the current category BY ID
@@ -1280,8 +1279,7 @@ def admin_required(f):
 @app.route("/admin")
 @admin_required
 def admin_dashboard():
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # Counts
@@ -1328,8 +1326,7 @@ def admin_dashboard():
 @app.route('/admin/add_word', methods=['GET', 'POST'])
 @admin_required
 def admin_add_word():
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # Levels
@@ -1445,8 +1442,7 @@ def admin_add_word():
 @app.route('/admin/edit_word/<int:word_id>', methods=['GET', 'POST'])
 @admin_required
 def admin_edit_word(word_id):
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # Fetch the word
@@ -1566,8 +1562,7 @@ def admin_edit_word(word_id):
 @app.route('/admin/edit_meaning/<int:meaning_id>', methods=['GET', 'POST'])
 @admin_required
 def admin_edit_meaning(meaning_id):
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # Fetch the meaning
@@ -1641,8 +1636,7 @@ def admin_edit_meaning(meaning_id):
 @app.route('/admin/add_meaning/<int:word_id>', methods=['GET', 'POST'])
 @admin_required
 def admin_add_meaning(word_id):
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # Fetch word
@@ -1712,8 +1706,7 @@ def admin_edit_word_search():
         flash("Please enter a word to search.", "warning")
         return redirect(url_for('admin_dashboard'))
 
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
     # Prefix search using LIKE
     cur.execute("SELECT id, word FROM words WHERE word LIKE ? ORDER BY word LIMIT 10", (f"{query}%",))
@@ -1726,8 +1719,7 @@ def admin_edit_word_search():
 @app.route('/admin/delete_word/<int:word_id>', methods=['POST'])
 @admin_required
 def admin_delete_word(word_id):
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # Fetch the word for feedback
@@ -2138,8 +2130,7 @@ def admin_delete_category(category_id):
 @app.route("/admin/categories/<int:category_id>/meanings", methods=["GET", "POST"])
 @admin_required
 def admin_category_meanings(category_id):
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # Fetch category
@@ -2249,8 +2240,7 @@ def admin_category_meanings(category_id):
 @app.route("/admin/categories/order", methods=["GET", "POST"])
 @admin_required
 def admin_order_categories():
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     if request.method == "POST":
@@ -2367,8 +2357,7 @@ def admin_list_words():
     per_page = 50  # number of words per page
     offset = (page - 1) * per_page
 
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     cur.execute("SELECT COUNT(*) FROM words")
@@ -2397,8 +2386,7 @@ def admin_list_categories():
     per_page = 50
     offset = (page - 1) * per_page
 
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     cur.execute("SELECT COUNT(*) FROM categories")
@@ -2423,8 +2411,7 @@ def admin_list_categories():
 @app.route("/admin/relation-types")
 @admin_required
 def admin_relation_types():
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("SELECT * FROM relation_types ORDER BY name")
     relation_types = cur.fetchall()
@@ -2474,8 +2461,7 @@ def admin_delete_relation_type(type_id):
 @app.route("/admin/words/<word_name>/relations")
 @admin_required
 def admin_word_relations(word_name):
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # Fetch word info
@@ -2532,8 +2518,7 @@ def admin_add_word_relation():
     word2 = request.form["word2"].strip()
     reltype = int(request.form["relation_type_id"])
 
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # Resolve word IDs
@@ -2674,8 +2659,7 @@ def admin_relations_search():
     meaning_relations = []
 
     # Fetch relation types for the selects
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("SELECT * FROM relation_types ORDER BY name")
     relation_types = cur.fetchall()
@@ -2734,8 +2718,7 @@ def word_meanings():
     if not word:
         return jsonify([])
 
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # Get the word ID
@@ -2780,8 +2763,7 @@ def word_meanings():
 @app.route("/admin/relations/words")
 @admin_required
 def admin_word_relations_list():
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     cur.execute("""
@@ -2800,8 +2782,7 @@ def admin_word_relations_list():
 @app.route("/admin/relations/meanings")
 @admin_required
 def admin_meaning_relations_list():
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     cur.execute("""
@@ -2849,8 +2830,7 @@ def repair_other_word_links(conn):
 @app.route("/admin/collocation/<int:colloc_id>", methods=["GET", "POST"])
 @admin_required
 def admin_collocation(colloc_id):
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # ---------- Handle POST actions ----------
@@ -3002,8 +2982,7 @@ def admin_collocation(colloc_id):
 @app.route("/admin/collocations", methods=["GET", "POST"])
 @admin_required
 def admin_collocation_list():
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     cur = conn.cursor()
 
     # --- Handle a per-row update (sort_order + show_in_app) ---
@@ -3082,8 +3061,7 @@ from flask import request, redirect, url_for, abort
 @app.route("/admin/word/<word_name>/collocations", methods=["GET", "POST"])
 @admin_required
 def admin_word_collocations(word_name):
-    conn = sqlite3.connect("finnish.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
     repair_other_word_links(conn)
     cur = conn.cursor()
    
