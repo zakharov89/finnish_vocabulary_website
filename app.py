@@ -1,4 +1,4 @@
-from flask import Flask, session, redirect, url_for, request, render_template, flash, jsonify
+from flask import Flask, session, redirect, url_for, request, render_template, flash, jsonify, abort
 import sqlite3
 import os
 from dotenv import load_dotenv
@@ -16,6 +16,13 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "finnish.db")
+
+ENABLE_ADMIN = os.getenv("ENABLE_ADMIN", "0") == "1"
+
+@app.before_request
+def disable_admin_in_production():
+    if request.path.startswith("/admin") and not ENABLE_ADMIN:
+        abort(404)
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
