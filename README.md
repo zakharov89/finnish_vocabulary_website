@@ -1,5 +1,8 @@
 # Finnish Vocabulary Learning Website
 
+The project is currently hosted on PythonAnywhere:
+https://zakhar9.pythonanywhere.com
+
 This project is a personal language-learning website designed to make Finnish vocabulary clearer,
 more structured, and more usable in real contexts.
 
